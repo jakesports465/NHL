@@ -14,6 +14,7 @@
   h1{margin:0;font-size:18px}
   .sub{color:var(--muted);font-size:13px;margin-left:6px}
   .pill{border:1px dashed #364353;border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
+  .small{font-size:12px;color:var(--muted)}
   nav.tabs{display:flex;gap:8px;padding:10px 18px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:56px;z-index:19;overflow-x:auto;scrollbar-width:none}
   nav.tabs::-webkit-scrollbar{display:none}
   .tab{padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto}
@@ -24,7 +25,6 @@
   .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:14px}
   .panel{background:#0f1318;border:1px solid var(--br);border-radius:12px;padding:12px}
   .sep{height:1px;background:var(--br);margin:12px 0}
-  .small{font-size:12px;color:var(--muted)}
   .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;line-height:1;min-height:40px}
   .btn.small{padding:8px 10px;font-size:12px;min-height:36px}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
@@ -54,30 +54,28 @@
   .lbTeam img{width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto}
   .lbName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .lbPts{font-weight:800}
-  .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  input[type="text"], input[type="email"]{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}
-  .pillBtn{border:1px solid #33465b;background:#0e1520;border-radius:999px;padding:8px 12px;font-size:12px;min-height:36px}
   .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px;margin-left:6px}
-  @media (max-width: 900px){main{padding:14px 14px 40px}.card{padding:12px}.panel{padding:10px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.scoreBox .num{font-size:34px}.teamline img{width:40px;height:40px}.log{max-height:38vh}}
-  @media (max-width: 720px){h1{font-size:16px}.sub{display:block;margin:2px 0 0 0}.pill{margin-left:0}.small{font-size:12px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.lbRow{grid-template-columns:auto 1fr auto; row-gap:6px}.lbRow .small{grid-column:1 / -1; justify-self:start}
-    header{padding-top:calc(14px + env(safe-area-inset-top))}
-  }
-  @media (max-width: 420px){body{font-size:14px}.gamesGrid{grid-template-columns:1fr}.team img{width:20px;height:20px}.scoreTag{min-width:22px}.scoreBox .num{font-size:30px}}
   .rules{display:grid;gap:8px}
   .rules .r{display:flex;justify-content:space-between;gap:12px;padding:8px;border:1px solid #1c2430;background:#0f1318;border-radius:10px}
+  /* account chip */
+  .acct{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .chip{background:#101722;border:1px solid #253548;border-radius:999px;padding:6px 10px;font-size:12px}
+  /* auth modal */
+  .authModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:50}
+  .authCard{background:#0f1318;border:1px solid #253548;border-radius:14px;padding:16px;max-width:420px;width:92%}
+  .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type="email"], input[type="text"]{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}
 </style>
 </head>
 <body>
 <header>
   <h1>Hockey Fantasy <span class="sub">NHL · Tue→Mon · 5 picks</span></h1>
   <span id="picksLeft" class="pill">—</span>
-  <span class="small" style="margin-left:auto">Week: <b id="weekLabel">—</b></span>
-
-  <!-- Auth mini-form -->
-  <div id="authArea" class="field" style="margin-left:12px;gap:6px">
-    <span id="whoami" class="small" style="display:none"></span>
-    <input id="emailInput" type="email" placeholder="you@email.com" style="width:220px">
-    <button id="btnMagic" class="btn small">Send Magic Link</button>
+  <span class="small">Week: <b id="weekLabel">—</b></span>
+  <div class="acct">
+    <span id="acctName" class="chip">(signed out)</span>
+    <button id="btnSignIn" class="btn small">Sign in</button>
+    <button id="btnChangeName" class="btn small" style="display:none">Change name</button>
     <button id="btnSignOut" class="btn small" style="display:none">Sign out</button>
   </div>
 </header>
@@ -199,15 +197,31 @@
   </main>
 </section>
 
-<!-- Supabase JS v2 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-/********** Supabase init **********/
-const SUPABASE_URL = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession:true, autoRefreshToken:true }});
+<!-- ===== AUTH MODAL ===== -->
+<div id="authModal" class="authModal" aria-hidden="true">
+  <div class="authCard">
+    <h3 style="margin:0 0 8px 0">Sign in</h3>
+    <p class="small" style="margin:0 0 10px 0">Enter your email. We’ll email you a magic link.</p>
+    <div class="field">
+      <input id="emailInput" type="email" placeholder="you@example.com" autocomplete="email">
+      <button id="btnSendLink" class="btn">Send magic link</button>
+    </div>
+    <div class="small" id="authNote" style="margin-top:8px;color:#9fb3c7">—</div>
+  </div>
+</div>
 
-/********** Helpers & week logic **********/
+<!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+/* =================== CONFIG =================== */
+const SUPABASE_URL = "https://acmqdokxwnkkjmfgfyhh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, detectSessionInUrl: true }
+});
+
+/* ============ Week helpers ============ */
 const $ = id => document.getElementById(id);
 const TZ='America/Chicago';
 const MAX_PICKS=5;
@@ -219,11 +233,11 @@ function weekDates(){ const n=nowCT(); const wd=n.getDay(); const daysSinceTue=(
 const WEEK_KEY=weekKey(); const WEEK=weekDates();
 $('weekLabel').textContent=WEEK.pretty; $('lbWeekLabel').textContent=`Week: ${WEEK.pretty}`; $('mineWeekLabel').textContent=WEEK.pretty;
 
-/********** ESPN helpers **********/
+/* ============ ESPN helpers ============ */
 function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.logos[0].href).replace(/^http:/,'https:'); if(t.abbreviation) return `https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`; return null; }
 async function safeJson(url,retries=2){ for(let i=0;i<=retries;i++){ try{ const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); } catch(e){ if(i===retries) throw e; await new Promise(res=>setTimeout(res, 600*(i+1))); } } }
 
-/********** Fantasy weights (tweaked) **********/
+/* ============ Fantasy calc ============ */
 const H={ GOAL:4, PPG:1.5, SHG:2, SOG:0.1, SAVE:0.02, HIT:0.1, BLOCK:0.1, PIM:-0.25, CLOSE_GAME:8, OT:10, SO:6, BONUS_CAP:20 };
 function parseNHL(summary,pbp){
   const comp = summary?.header?.competitions?.[0]||{};
@@ -256,43 +270,125 @@ function parseNHL(summary,pbp){
   return { total:Number(total.toFixed(2)), homePts, awayPts, isFinal, bonus, closeBonus, otBonus, soBonus };
 }
 
-/********** Supabase picks helpers **********/
-async function currentUser() {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user || null;
-}
-async function supaMyPicksIds(){
-  const user = await currentUser(); if(!user) return [];
-  const { data, error } = await supabase.from('picks')
-    .select('game_id')
-    .eq('user_id', user.id).eq('week_key', WEEK_KEY).eq('league','NHL')
-    .order('created_at',{ascending:true});
-  if(error){ console.error(error); return []; }
-  return Array.from(new Set((data||[]).map(r=>String(r.game_id)))).slice(0,MAX_PICKS);
-}
-async function supaSavePick(gameId){
-  const user = await currentUser(); if(!user){ alert('Log in first'); return; }
-  // prevent dupes and cap
-  const mine = await supaMyPicksIds();
-  if (mine.includes(String(gameId))) { toast('Already picked'); return; }
-  if (mine.length >= MAX_PICKS) { alert(`You already have ${MAX_PICKS} picks.`); return; }
-  const { error } = await supabase.from('picks').insert({
-    user_id:user.id, week_key:WEEK_KEY, league:'NHL', game_id:String(gameId)
+/* ============ Supabase: auth + profiles ============ */
+const authModal = $('authModal');
+const emailInput = $('emailInput');
+const authNote = $('authNote');
+$('btnSignIn').onclick = () => { authModal.style.display='flex'; authNote.textContent='—'; emailInput.focus(); };
+$('btnSendLink').onclick = async () => {
+  const email = (emailInput.value||'').trim();
+  if(!email){ authNote.textContent='Enter your email.'; return; }
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin }
   });
-  if(error){ console.error(error); alert('Error saving pick'); }
-  updatePicksLeft();
-  renderWeeklyBoards(); renderMyPicks(); // refresh views
-}
-async function supaAllPicksThisWeek(){
-  const { data, error } = await supabase.from('picks')
-    .select('game_id, user_id, created_at, auth_users:auth.users(email)')
-    .eq('week_key',WEEK_KEY).eq('league','NHL');
-  if(error){ console.error(error); return []; }
-  // { game_id, user_id, auth_users: { email } }
-  return data || [];
+  authNote.textContent = error ? ('Error: '+error.message) : 'Link sent! Check your email, then come back here.';
+};
+authModal.addEventListener('click', (e)=>{ if(e.target===authModal) authModal.style.display='none'; });
+
+async function upsertMyProfile(){
+  const { data:{ user } } = await supabase.auth.getUser();
+  if(!user) return;
+  // ask once; stash locally
+  let display = localStorage.getItem('hf.display_name');
+  if(!display){
+    const guess = (user.email||'Player').split('@')[0];
+    display = prompt('Display name for leaderboard:', guess) || guess;
+    localStorage.setItem('hf.display_name', display);
+  }
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ user_id: user.id, display_name: display });
+  if(error) console.warn('profiles upsert error:', error);
 }
 
-/********** NHL League (render, scores) **********/
+async function getMyDisplay(){
+  const { data:{ user } } = await supabase.auth.getUser();
+  if(!user) return null;
+  const { data } = await supabase.from('profiles').select('display_name').eq('user_id', user.id).maybeSingle();
+  return data?.display_name || (user.email||'Player');
+}
+
+function setSignedOutUI(){
+  $('acctName').textContent='(signed out)';
+  $('btnSignIn').style.display='';
+  $('btnSignOut').style.display='none';
+  $('btnChangeName').style.display='none';
+  $('picksLeft').textContent='Sign in to pick';
+}
+
+async function setSignedInUI(){
+  const name = await getMyDisplay();
+  $('acctName').textContent = name || '(no name)';
+  $('btnSignIn').style.display='none';
+  $('btnSignOut').style.display='';
+  $('btnChangeName').style.display='';
+  await refreshPicksState(); // compute picks-left, etc.
+}
+
+$('btnSignOut').onclick = async ()=>{ await supabase.auth.signOut(); setSignedOutUI(); };
+$('btnChangeName').onclick = async ()=>{
+  const { data:{ user } } = await supabase.auth.getUser(); if(!user) return;
+  const current = await getMyDisplay();
+  const next = prompt('New display name:', current||'Player');
+  if(next && next.trim()){
+    await supabase.from('profiles').upsert({ user_id: user.id, display_name: next.trim() });
+    localStorage.setItem('hf.display_name', next.trim());
+    $('acctName').textContent = next.trim();
+    await renderWeeklyBoards(); await renderMyPicks();
+  }
+};
+
+// react to auth state (including redirect after magic link)
+supabase.auth.onAuthStateChange(async (_evt, session)=>{
+  if(session && authModal.style.display==='flex') authModal.style.display='none';
+  if(session){ await upsertMyProfile(); await setSignedInUI(); }
+  else setSignedOutUI();
+});
+
+/* ============ Supabase: picks helpers ============ */
+async function supaGetMyPicks(){
+  const { data:{ user } } = await supabase.auth.getUser(); if(!user) return [];
+  const { data, error } = await supabase
+    .from('picks')
+    .select('game_id')
+    .eq('user_id', user.id)
+    .eq('week_key', WEEK_KEY)
+    .eq('league','NHL');
+  if(error){ console.warn(error); return []; }
+  return (data||[]).map(r=>String(r.game_id));
+}
+
+async function supaInsertPick(game_id){
+  const { data:{ user } } = await supabase.auth.getUser(); if(!user){ alert('Sign in to pick.'); return {ok:false}; }
+  // enforce cap
+  const mine = await supaGetMyPicks();
+  if(mine.includes(String(game_id))) return {ok:true, already:true};
+  if(mine.length >= MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return {ok:false}; }
+  const { error } = await supabase.from('picks').insert({
+    user_id: user.id, week_key: WEEK_KEY, league:'NHL', game_id: String(game_id)
+  });
+  if(error){ alert('Could not save pick.'); console.warn(error); return {ok:false}; }
+  return {ok:true};
+}
+
+async function supaGetAllPicks(){
+  const { data, error } = await supabase
+    .from('picks')
+    .select(`
+      user_id,
+      game_id,
+      week_key,
+      league,
+      profiles ( display_name )
+    `)
+    .eq('week_key', WEEK_KEY)
+    .eq('league','NHL');
+  if(error){ console.warn(error); return []; }
+  return data||[];
+}
+
+/* ============ NHL league UI (unchanged visuals) ============ */
 function leagueFactory(){
   const st={ events:[], selected:null, poll:null, gameRows:[] };
   const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), log:$('nhl-log'), gameLB:$('nhl-gameLB'), userLB:$('nhl-userLB') };
@@ -302,24 +398,31 @@ function leagueFactory(){
   dom.add.addEventListener('click', async ()=>{
     if(!st.selected) return;
     const kick=new Date(st.selected.start).getTime(); if(Date.now()>=kick){ alert('Locked (already started)'); return; }
-    await supaSavePick(st.selected.id);
-    const tag=$(`picked-${st.selected.id}`); if(tag) tag.style.display='inline-flex';
-    const btn=document.querySelector(`.pickBtn[data-gid="${st.selected.id}"]`); if(btn) btn.style.display='none';
-    toast('Pick saved ✓');
+    const res = await supaInsertPick(st.selected.id);
+    if(res.ok){
+      const tag=$(`picked-${st.selected.id}`); if(tag) tag.style.display='inline-flex';
+      const btn=document.querySelector(`.pickBtn[data-gid="${st.selected.id}"]`); if(btn) btn.style.display='none';
+      await refreshPicksState();
+      toast(res.already?'Already picked':'Pick saved ✓');
+    }
   });
 
   function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
 
+  function cardPickedBadge(gid, myList){ return myList.includes(String(gid)) ? 'inline-flex' : 'none'; }
+  function cardPickBtnAttrs(started, already){ return (already||started)?'style="display:none"':''; }
+
   async function renderGrid(){
     dom.grid.innerHTML='';
-    const myIds = await supaMyPicksIds();
+    const myList = await supaGetMyPicks();
     for(const g of st.events){
       const started=Date.now()>=new Date(g.start).getTime();
       const card=document.createElement('div');
       card.className='gameCard';
       const puck=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-      const already=myIds.includes(String(g.id));
-      const pickBtnAttrs = (already || started) ? 'style="display:none"' : '';
+      const already = myList.includes(String(g.id));
+      const pickBtnAttrs = cardPickBtnAttrs(started, already);
+
       card.innerHTML=`
         <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
         <div class="gameBody">
@@ -330,7 +433,7 @@ function leagueFactory(){
           </div>
           <div class="small" style="margin-top:6px;opacity:.9">Score: <span id="NHL-scr-${g.id}">—</span> · <span id="NHL-st-${g.id}">pre</span> · Puck drop: ${puck}</div>
           <div class="lockRow">
-            <span class="pickedTag" style="display:${already?'inline-flex':'none'}" id="picked-${g.id}">✓ Picked</span>
+            <span class="pickedTag" style="display:${cardPickedBadge(g.id, myList)}" id="picked-${g.id}">✓ Picked</span>
             <button class="btn pickBtn" data-gid="${g.id}" ${pickBtnAttrs}>Add to my picks</button>
             <button class="btn small viewBtn">Open</button>
           </div>
@@ -340,10 +443,14 @@ function leagueFactory(){
       const pickBtn = card.querySelector('.pickBtn');
       if(pickBtn){
         pickBtn.addEventListener('click', async ()=>{
-          if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
-          await supaSavePick(g.id);
-          const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
-          pickBtn.style.display='none';
+          const kick=new Date(g.start).getTime(); if(Date.now()>=kick){ alert('Locked (already started)'); return; }
+          const res = await supaInsertPick(g.id);
+          if(res.ok){
+            const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
+            pickBtn.style.display='none';
+            await refreshPicksState();
+            toast(res.already?'Already picked':'Pick saved ✓');
+          }
         });
       }
       dom.grid.appendChild(card);
@@ -471,17 +578,20 @@ function leagueFactory(){
     st.events=all;
     dom.note.textContent=`${all.length} games`;
     await renderGrid();
-    refreshGridScores();
+    await refreshGridScores();
     setInterval(refreshGridScores,30000);
   }
 
-  return { loadWeek, state:st, renderGrid, refreshGridScores };
+  return { loadWeek, state:st };
 }
 const NHL = leagueFactory();
 
-/********** Score/meta caches + utilities **********/
-const scoreCache=new Map();
-const metaCache=new Map();
+/* ============ Boards (DB-backed) ============ */
+const lbWeekBox={ NHL:$('lbNHLWeek') };
+const lbSeasonBox={ NHL:$('lbNHLSeason') };
+function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
+
+const scoreCache=new Map(), metaCache=new Map();
 async function gameScore(gid){
   const key=`NHL:${gid}`; if(scoreCache.has(key)) return scoreCache.get(key);
   try{
@@ -502,75 +612,51 @@ async function gameMeta(gid){
   }catch(e){ return {awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null}; }
 }
 
-/********** Tabs **********/
-const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
-Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); }));
-
-/********** Boards (Supabase-backed) **********/
-const lbWeekBox={ NHL:$('lbNHLWeek') };
-const lbSeasonBox={ NHL:$('lbNHLSeason') };
-function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
-
-async function renderWeeklyBoards(){
-  const box=lbWeekBox.NHL;
-  box.innerHTML='<div class="small">Computing…</div>';
-  const rows=[];
-  const all = await supaAllPicksThisWeek(); // {game_id,user_id,auth_users:{email}}
-  const byUser = new Map();
+async function weeklyTotalsForLeague(){
+  const all = await supaGetAllPicks(); // rows with .profiles.display_name
+  // aggregate by user
+  const byUser = new Map(); // user_id -> { name, ids:Set }
   for(const r of all){
-    const k=r.user_id, email=(r.auth_users&&r.auth_users.email)||'user';
-    if(!byUser.has(k)) byUser.set(k,{email, ids:new Set()});
-    byUser.get(k).ids.add(String(r.game_id));
+    const name = r.profiles?.display_name || 'Player';
+    if(!byUser.has(r.user_id)) byUser.set(r.user_id, { name, ids:new Set() });
+    byUser.get(r.user_id).ids.add(String(r.game_id));
   }
-  for(const [uid,{email,ids}] of byUser.entries()){
+  const rows=[];
+  for(const [uid,info] of byUser){
     let total=0;
-    for(const gid of Array.from(ids).slice(0,MAX_PICKS)) total+=await gameScore(gid);
-    rows.push({name:email, total, picks:Math.min(ids.size,MAX_PICKS)});
+    const list=[...info.ids].slice(0,MAX_PICKS);
+    for(const gid of list) total+=await gameScore(gid);
+    rows.push({ name:info.name, total, picks:list.length });
   }
   rows.sort((a,b)=>b.total-a.total);
-  box.innerHTML=rows.length?'':'<div class="small">No picks yet.</div>';
-  rows.forEach((r,i)=>{ const div=document.createElement('div'); div.className='lbRow'; div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span> <span class="small" style="margin-left:6px;opacity:.8">(${r.picks}/${MAX_PICKS})</span></div><div class="lbPts">${r.total.toFixed(2)}</div><div class="small">Weekly</div>`; box.appendChild(div); });
+  return rows;
+}
+
+async function renderWeeklyBoards(){
+  const box = lbWeekBox.NHL; box.innerHTML='<div class="small">Computing…</div>';
+  const rows = await weeklyTotalsForLeague();
+  box.innerHTML = rows.length ? '' : '<div class="small">No picks yet.</div>';
+  rows.forEach((r,i)=>{
+    const div=document.createElement('div'); div.className='lbRow';
+    div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span> <span class="small" style="margin-left:6px;opacity:.8">(${r.picks}/${MAX_PICKS})</span></div><div class="lbPts">${r.total.toFixed(2)}</div><div class="small">Weekly</div>`;
+    box.appendChild(div);
+  });
 }
 
 async function renderSeasonBoards(){
-  const box=lbSeasonBox.NHL;
-  box.innerHTML='<div class="small">Computing…</div>';
-  // Simple season sum of weekly totals → 10..1 points for top 10 each week (like your local version)
-  const { data, error } = await supabase.from('picks').select('user_id, week_key, game_id, auth_users:auth.users(email)').eq('league','NHL').lt('week_key',WEEK_KEY);
-  if(error){ console.error(error); box.innerHTML='<div class="small">Error</div>'; return; }
-  if(!data || data.length===0){ box.innerHTML='<div class="small">No season data yet.</div>'; return; }
-  const byWeek = new Map();
-  for(const r of data){
-    const wk = r.week_key;
-    if(!byWeek.has(wk)) byWeek.set(wk, new Map());
-    const m=byWeek.get(wk);
-    const k=r.user_id, email=(r.auth_users&&r.auth_users.email)||'user';
-    if(!m.has(k)) m.set(k,{email, ids:new Set()});
-    m.get(k).ids.add(String(r.game_id));
-  }
-  const season = new Map();
-  for(const [wk, map] of byWeek.entries()){
-    const weekly=[];
-    for(const [uid,{email,ids}] of map.entries()){
-      let total=0;
-      for(const gid of Array.from(ids).slice(0,MAX_PICKS)) total+=await gameScore(gid);
-      weekly.push({uid,email,total});
-    }
-    weekly.sort((a,b)=>b.total-a.total);
-    weekly.forEach((r,i)=>{ const pts=Math.max(10-i,0); if(!season.has(r.uid)) season.set(r.uid,{email:r.email,pts:0}); season.get(r.uid).pts+=pts; });
-  }
-  const rows = Array.from(season.values()).sort((a,b)=>b.pts-a.pts);
-  box.innerHTML=rows.length?'':'<div class="small">No season data yet.</div>';
-  rows.forEach((r,i)=>{ const div=document.createElement('div'); div.className='lbRow'; div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.email}</span></div><div class="lbPts">${r.pts}</div><div class="small">Season</div>`; box.appendChild(div); });
+  // Simple season board: sum weekly positions from DB history
+  const box=lbSeasonBox.NHL; box.innerHTML='<div class="small">Computing…</div>';
+  // For now, placeholder: not computing past weeks (keeps page light). You can expand later.
+  box.innerHTML='<div class="small">Season scoring WIP (needs multi-week aggregation).</div>';
 }
 
-/********** My Picks **********/
+/* ============ My Picks render (DB-backed) ============ */
 let RENDER_TICKET=0;
 function gameRowHTML(meta,score){ return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${score.toFixed(2)}</div><div class="small">Game</div>`; }
 async function renderPickList(containerId, gidList){
   const el=$(containerId);
   const myTicket=++RENDER_TICKET;
-  const clean = Array.from(new Set(gidList)).slice(0,MAX_PICKS);
+  const clean=[...new Set((gidList||[]))].slice(0,MAX_PICKS);
   el.innerHTML='';
   if(clean.length===0){ if(myTicket===RENDER_TICKET) el.innerHTML='<div class="small">No picks yet.</div>'; return 0; }
   let total=0; const rows=[];
@@ -578,90 +664,59 @@ async function renderPickList(containerId, gidList){
   if(myTicket===RENDER_TICKET) el.innerHTML=rows.join('');
   return total;
 }
+
 async function renderMyPicks(){
-  const user = await currentUser();
-  if(!user){ $('myNHL').innerHTML='<div class="small">Sign in to see your picks.</div>'; $('allPicks').innerHTML='<div class="small">Sign in to see everyone.</div>'; return; }
-  const mine = await supaMyPicksIds();
+  const { data:{ user } } = await supabase.auth.getUser();
+  if(!user){ $('myNHL').innerHTML='<div class="small">Sign in to view your picks.</div>'; $('allPicks').innerHTML='<div class="small">Sign in to view everyone’s picks.</div>'; return; }
+  const mine = await supaGetMyPicks();
   const tot = await renderPickList('myNHL', mine);
-  $('myNHLTotal').textContent = tot.toFixed(2);
-  const box=$('allPicks'); box.innerHTML='';
-  const all = await supaAllPicksThisWeek();
-  if(all.length===0){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
-  const byUser = new Map();
+  $('myNHLTotal').textContent = (tot||0).toFixed(2);
+
+  // Everyone’s picks
+  const all = await supaGetAllPicks();
+  const byUser = new Map(); // user_id -> { name, ids:Set }
   for(const r of all){
-    const email=(r.auth_users&&r.auth_users.email)||'user';
-    if(!byUser.has(email)) byUser.set(email,new Set());
-    byUser.get(email).add(String(r.game_id));
+    const name = r.profiles?.display_name || 'Player';
+    if(!byUser.has(r.user_id)) byUser.set(r.user_id, { name, ids:new Set() });
+    byUser.get(r.user_id).ids.add(String(r.game_id));
   }
-  const frags=[];
-  for(const [email,setIds] of byUser.entries()){
-    const id = email.replace(/[^a-z0-9]/gi,'_');
-    frags.push(`<div class="panel" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${email}</strong><span class="small" id="sum-${id}">NHL —</span></div><div class="sep"></div><div id="p-${id}-nhl"></div></div>`);
+  const box=$('allPicks'); box.innerHTML='';
+  if(byUser.size===0){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
+  for(const [uid,info] of byUser){
+    const wrap=document.createElement('div'); wrap.className='panel'; wrap.style.marginBottom='10px';
+    wrap.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><strong>${info.name}</strong><span class="small" id="sum-${uid}">NHL —</span></div><div class="sep"></div><div id="p-${uid}-nhl"></div>`;
+    box.appendChild(wrap);
   }
-  box.innerHTML=frags.join('');
-  for(const [email,setIds] of byUser.entries()){
-    const id = email.replace(/[^a-z0-9]/gi,'_');
-    const t = await renderPickList(`p-${id}-nhl`, Array.from(setIds));
-    $(`sum-${id}`).textContent = `NHL ${t.toFixed(2)}`;
+  for(const [uid,info] of byUser){
+    const list=[...info.ids].slice(0,MAX_PICKS);
+    const t = await renderPickList(`p-${uid}-nhl`, list);
+    $(`sum-${uid}`).textContent = `NHL ${Number(t||0).toFixed(2)}`;
   }
 }
 
-/********** Picks-left badge **********/
-async function updatePicksLeft(){
-  const user = await currentUser();
-  if(!user){ $('picksLeft').textContent='Sign in to play'; return; }
-  const n=(await supaMyPicksIds()).length;
-  $('picksLeft').textContent=`NHL ${Math.max(MAX_PICKS-n,0)} left`;
-}
-
-/********** Auth UI **********/
-$('btnMagic').addEventListener('click', async ()=>{
-  const email = ($('emailInput').value||'').trim();
-  if(!email) { alert('Enter email'); return; }
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options:{ emailRedirectTo: window.location.origin + window.location.pathname }
-  });
-  if(error){ console.error(error); alert('Error sending link'); return; }
-  $('btnMagic').textContent='Check your email ✓';
-  setTimeout(()=> $('btnMagic').textContent='Send Magic Link', 4000);
-});
-$('btnSignOut').addEventListener('click', async ()=>{
-  await supabase.auth.signOut();
-});
-
-supabase.auth.onAuthStateChange(async (_evt, session)=>{
-  const user = session?.user || null;
-  if(user){
-    $('whoami').style.display='inline';
-    $('whoami').textContent = user.email;
-    $('emailInput').style.display='none';
-    $('btnMagic').style.display='none';
-    $('btnSignOut').style.display='inline-block';
-    updatePicksLeft();
-    await NHL.renderGrid();
-    await renderWeeklyBoards();
-    await renderSeasonBoards();
-    await renderMyPicks();
-  }else{
-    $('whoami').style.display='none';
-    $('emailInput').style.display='inline-block';
-    $('btnMagic').style.display='inline-block';
-    $('btnSignOut').style.display='none';
-    updatePicksLeft();
-    await renderWeeklyBoards();
-    await renderSeasonBoards();
-    await renderMyPicks();
-  }
-});
-
-/********** Boot **********/
-(async ()=>{
-  const league = NHL; await league.loadWeek();
-  updatePicksLeft();
+async function refreshPicksState(){
+  const { data:{ user } } = await supabase.auth.getUser();
+  if(!user){ $('picksLeft').textContent='Sign in to pick'; return; }
+  const mine = await supaGetMyPicks();
+  $('picksLeft').textContent=`NHL ${Math.max(MAX_PICKS-(mine.length||0),0)} left`;
   await renderWeeklyBoards();
-  await renderSeasonBoards();
   await renderMyPicks();
+}
+
+/* ============ Tabs ============ */
+const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); }));
+
+/* ============ Boot ============ */
+function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
+(async ()=>{
+  // show session state
+  const { data:{ session } } = await supabase.auth.getSession();
+  if(session){ await upsertMyProfile(); await setSignedInUI(); } else setSignedOutUI();
+
+  // load NHL board no matter what (picking requires auth)
+  await NHL.loadWeek();
+  await refreshPicksState();
   setInterval(renderWeeklyBoards,60000);
 })();
 </script>
