@@ -250,7 +250,7 @@ async function dedupFetch(url){
   INFLIGHT.set(url,p);
   return p;
 }
-// retry wrapper (unchanged externally)
+// retry wrapper
 async function safeJson(url,retries=2){
   for(let i=0;i<=retries;i++){
     try{ return await dedupFetch(url); }
@@ -278,6 +278,8 @@ async function pLimitAll(items, limit, worker){
 function nowCT(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
 function addDaysCT(d,days){ const n=new Date(d.getTime()); n.setDate(n.getDate()+days); return new Date(n.toLocaleString('en-US',{timeZone:TZ})); }
 function parts(d,opts){ const p=new Intl.DateTimeFormat('en-US',opts).formatToParts(d); const o={}; p.forEach(x=>o[x.type]=x.value); return o; }
+
+/* Week anchor = Monday 08:00 CT */
 function weekKey(){
   const n=nowCT();
   const wd=n.getDay(); /* Sun 0 ... Sat 6 */
@@ -371,7 +373,9 @@ $('saveDisplayName').addEventListener('click', async ()=>{
   const { error } = await supa.from('players').upsert({ id: currentUser.id, display_name: name });
   if(!error){ displayName=name; toast('Saved ✓'); renderWeeklyBoards(); renderSeasonBoards(); }
 });
+
 $('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });
+
 $('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const email=$('emailInput').value.trim();
@@ -384,12 +388,10 @@ $('loginForm').addEventListener('submit', async (e)=>{
 
 /* ---------- Picks (Supabase) with short TTL caches (ADDED) ---------- */
 function uniqLimit(arr){ const out=[]; const seen=new Set(); (arr||[]).forEach(x=>{ const id=String(x); if(!seen.has(id)){ seen.add(id); out.push(id); } }); return out.slice(0,MAX_PICKS); }
-
 // cache keys
 const CK_MY = uid => `picks:${WEEK_KEY}:${uid}`;
 const CK_ALL = `allpicks:${WEEK_KEY}`;
 const CK_NAMES = ids => `names:${ids.sort().join(',')}`;
-
 // memo for names across page life
 const NAME_MEMO = new Map();
 
@@ -403,8 +405,7 @@ async function picksForUser(uid){
     .eq('league','NHL')
     .eq('week_key', WEEK_KEY);
   const list = error ? [] : uniqLimit((data||[]).map(r=>String(r.game_id)));
-  // 15s TTL is enough to make tab switching snappy but still fresh
-  setCache(ck, list, 15000);
+  setCache(ck, list, 15000); // 15s TTL
   return list;
 }
 async function setPick(uid, gameId){
@@ -413,9 +414,7 @@ async function setPick(uid, gameId){
     { onConflict: 'user_id,league,week_key,game_id' }
   );
   if(error){ alert(error.message); return false; }
-  // invalidate pick caches immediately so UI reflects change
-  delCache(CK_MY(uid));
-  delCache(CK_ALL);
+  delCache(CK_MY(uid)); delCache(CK_ALL);
   return true;
 }
 async function allPicksThisWeek(){
@@ -426,20 +425,17 @@ async function allPicksThisWeek(){
     .eq('league','NHL')
     .eq('week_key',WEEK_KEY);
   const rows = error ? [] : (data||[]);
-  // 20s TTL to reduce load when bouncing between tabs
-  setCache(CK_ALL, rows, 20000);
+  setCache(CK_ALL, rows, 20000); // 20s TTL
   return rows;
 }
 async function getDisplayNames(userIds){
   const ids = [...new Set(userIds||[])].filter(Boolean);
   if(ids.length===0) return {};
-  // fill from memo first
   const need = ids.filter(id=>!NAME_MEMO.has(id));
   if(need.length){
     const { data, error } = await supa.from('players').select('id,display_name').in('id', need);
     if(!error && data){
       data.forEach(r=>NAME_MEMO.set(r.id, r.display_name || r.id.slice(0,6)));
-      // backfill any misses
       need.forEach(id=>{ if(!NAME_MEMO.has(id)) NAME_MEMO.set(id, id.slice(0,6)); });
     }else{
       need.forEach(id=>NAME_MEMO.set(id, id.slice(0,6)));
@@ -680,22 +676,18 @@ async function renderWeeklyBoards(){
   const box=lbWeekBox.NHL;
   if(!box) return;
   box.innerHTML='<div class="small">Computing…</div>';
-
   const rows = await allPicksThisWeek();
   if(!rows.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
-
   const byUser=new Map();
   for(const r of rows){ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); }
   const ids=[...byUser.keys()];
   const names=await getDisplayNames(ids);
-
   const computed = await pLimitAll(ids, 6, async (uid)=>{
     const lst = uniqLimit(byUser.get(uid)||[]);
     const scores = await Promise.all(lst.map(g=>gameScore(g)));
     const total = scores.reduce((a,b)=>a+(b||0),0);
     return { uid, name:names[uid]||uid.slice(0,6), total, picks: lst.length };
   });
-
   const out = computed.filter(Boolean).sort((a,b)=>b.total-a.total);
   box.innerHTML='';
   out.forEach((r,i)=>{
@@ -725,21 +717,35 @@ async function renderSeasonBoards(){
   });
 }
 
-/* ---------- My Picks (parallel render + light diffing) ---------- */
-let RENDER_TICKET=0;
-let LAST_ALL_IDS_JSON = ''; // to avoid rebuilding identical panels during TTL window
-function gameRowHTML(meta,score){ return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${score.toFixed(2)}</div><div class="small">Game</div>`; }
+/* ---------- My Picks (parallel render, per-container tickets) ---------- */
+const RENDER_TICKETS = new Map(); // containerId -> ticket number
+function nextTicket(key){
+  const n=(RENDER_TICKETS.get(key)||0)+1;
+  RENDER_TICKETS.set(key,n);
+  return n;
+}
+function isCurrent(key,t){
+  return RENDER_TICKETS.get(key)===t;
+}
+let LAST_ALL_IDS_JSON = ''; // avoid rebuilding identical panels inside TTL
+
+function gameRowHTML(meta,score){
+  return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${score.toFixed(2)}</div><div class="small">Game</div>`;
+}
 async function renderPickList(containerId, gidList){
   const el=$(containerId);
-  const myTicket=++RENDER_TICKET;
+  const myTicket = nextTicket(containerId);
   const clean=uniqLimit(gidList||[]);
   el.innerHTML='';
-  if(clean.length===0){ if(myTicket===RENDER_TICKET) el.innerHTML='<div class="small">No picks yet.</div>'; return 0; }
+  if(clean.length===0){
+    if(isCurrent(containerId,myTicket)) el.innerHTML='<div class="small">No picks yet.</div>';
+    return 0;
+  }
   const results = await pLimitAll(clean, 6, async (gid)=>{
     const [meta,score]=await Promise.all([gameMeta(gid), gameScore(gid)]);
     return {meta,score:score||0};
   });
-  if(myTicket!==RENDER_TICKET) return 0;
+  if(!isCurrent(containerId,myTicket)) return 0;
   let total=0; const rows=[];
   for(const r of results){ total+=r.score; rows.push(`<div class="lbRow">${gameRowHTML(r.meta,r.score)}</div>`); }
   el.innerHTML=rows.join('');
@@ -757,8 +763,8 @@ async function renderMyPicks(){
   const ids=[...byUser.keys()];
   if(!ids.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
 
-  // light diff: only rebuild panels if the set of users changed
-  const idsJson = JSON.stringify(ids.sort());
+  // light diff: only rebuild panels if set of users changed
+  const idsJson = JSON.stringify(ids.slice().sort());
   if(idsJson !== LAST_ALL_IDS_JSON){
     LAST_ALL_IDS_JSON = idsJson;
     const names=await getDisplayNames(ids);
@@ -768,7 +774,7 @@ async function renderMyPicks(){
     box.innerHTML=frags.join('');
   }
 
-  // Render each user's list in parallel (limited)
+  // Render each user’s list in parallel (limited)
   await pLimitAll(ids, 6, async (uid)=>{
     const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
     const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${t.toFixed(2)}`;
@@ -828,3 +834,5 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
+
