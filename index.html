@@ -55,7 +55,7 @@
   .lbName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .lbPts{font-weight:800}
   .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  input[type="text"]{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}
+  input[type="text"],input[type="email"]{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}
   select{background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}
   .pillBtn{border:1px solid #33465b;background:#0e1520;border-radius:999px;padding:8px 12px;font-size:12px;min-height:36px}
   .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px;margin-left:6px}
@@ -63,7 +63,7 @@
   @media (max-width: 720px){h1{font-size:16px}.sub{display:block;margin:2px 0 0 0}.pill{margin-left:0}.small{font-size:12px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.lbRow{grid-template-columns:auto 1fr auto; row-gap:6px}.lbRow .small{grid-column:1 / -1; justify-self:start}
     #sec-mine .card > div[style*="grid-template-columns:1fr 1fr"]{display:grid;grid-template-columns:1fr !important;gap:12px}
     .lockRow .btn{flex:1 1 auto}
-    input[type="text"], select{font-size:16px}
+    input[type="text"], input[type="email"], select{font-size:16px}
     header{padding-top:calc(14px + env(safe-area-inset-top))}
   }
   @media (max-width: 420px){body{font-size:14px}.gamesGrid{grid-template-columns:1fr}.team img{width:20px;height:20px}.scoreTag{min-width:22px}.scoreBox .num{font-size:30px}.pillBtn{width:100%}#btnExport,#btnImport{flex:1 1 auto}}
@@ -85,29 +85,18 @@
   <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>
 </nav>
 
-<!-- Account (Supabase Auth) — NEW, non-breaking -->
-<main class="card" style="max-width:1160px;margin:16px auto;">
-  <div class="field" id="accountRow">
-    <strong>Account</strong>
-    <span style="flex:1"></span>
-    <div id="loginBox" class="field" style="gap:6px">
-      <input id="emailInput" type="email" placeholder="Enter your email" style="max-width:260px">
-      <button id="loginBtn" class="btn small">Send Magic Link</button>
-    </div>
-    <div id="userBox" class="field" style="gap:8px; display:none">
-      <span class="small">Logged in as <b id="userEmail">—</b></span>
-      <button id="logoutBtn" class="btn small">Logout</button>
-    </div>
-  </div>
-</main>
-
-<!-- Users (local) — unchanged -->
+<!-- Users (local) + small auth strip (non-invasive) -->
 <main class="card" style="max-width:1160px;margin:16px auto;">
   <div class="field">
     <strong>Players (local)</strong>
     <select id="userSelect" class="btn small" style="min-width:180px"></select>
     <span class="small" id="whoNote"></span>
     <span style="flex:1"></span>
+
+    <!-- Tiny auth UI (optional) -->
+    <input id="authEmail" type="email" placeholder="email for magic link" style="max-width:220px">
+    <button id="sendMagic" class="pillBtn">Send Magic Link</button>
+
     <button id="btnExport" class="pillBtn">Export</button>
     <button id="btnImport" class="pillBtn">Import</button>
     <input id="importFile" type="file" accept="application/json" style="display:none" />
@@ -230,63 +219,48 @@
   </main>
 </section>
 
-<!-- Supabase client (CDN) — NEW -->
+<!-- Supabase (CDN) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- Supabase init + login UI wiring — NEW (kept separate so nothing else changes) -->
 <script>
-  // === Supabase init (use your project creds) ===
-  const SUPABASE_URL = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/********** Supabase: config (YOUR project) **********/
+const SUPABASE_URL = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // === Minimal auth UI ===
-  const emailInput   = document.getElementById('emailInput');
-  const loginBtn     = document.getElementById('loginBtn');
-  const userBox      = document.getElementById('userBox');
-  const loginBox     = document.getElementById('loginBox');
-  const userEmailEl  = document.getElementById('userEmail');
-  const logoutBtn    = document.getElementById('logoutBtn');
-
-  if (loginBtn) {
-    loginBtn.addEventListener('click', async () => {
-      const email = (emailInput.value || '').trim();
-      if (!email) { alert('Enter an email'); return; }
-      const { error } = await supabase.auth.signInWithOtp({ email });
-      if (error) alert('Error: ' + error.message);
-      else alert('Magic link sent. Check your email.');
-    });
+/********** Handle magic-link redirects (exchange ?code=... for a session) **********/
+async function handleSupabaseRedirect(){
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('code')) {
+    const { error } = await supabaseClient.auth.exchangeCodeForSession(window.location.href);
+    if (error) alert('Auth error: ' + error.message);
+    // clean URL
+    window.history.replaceState({}, document.title, url.pathname + url.hash);
   }
+}
+handleSupabaseRedirect();
 
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      await supabase.auth.signOut();
-      location.reload();
-    });
-  }
+// Update little note with signed-in email
+supabaseClient.auth.onAuthStateChange((_event, session) => {
+  const who = document.getElementById('whoNote');
+  if (who) who.textContent = session?.user?.email ? `Signed in: ${session.user.email}` : '';
+});
 
-  // Show/hide boxes based on session
-  supabase.auth.getSession().then(({ data }) => {
-    const user = data?.session?.user || null;
-    if (user) {
-      loginBox.style.display = 'none';
-      userBox.style.display = 'flex';
-      userEmailEl.textContent = user.email || '—';
+// Send magic link
+document.getElementById('sendMagic').addEventListener('click', async () => {
+  const email = (document.getElementById('authEmail').value || '').trim();
+  if (!email) return alert('Enter your email');
+  const { error } = await supabaseClient.auth.signInWithOtp({
+    email,
+    options: {
+      // Use your live GitHub Pages URL
+      emailRedirectTo: 'https://jakesports465.github.io/NHL/'
     }
   });
+  if (error) alert(error.message);
+  else alert('Magic link sent! Check your email.');
+});
 
-  supabase.auth.onAuthStateChange((_evt, session) => {
-    const user = session?.user || null;
-    if (user) {
-      loginBox.style.display = 'none';
-      userBox.style.display = 'flex';
-      userEmailEl.textContent = user.email || '—';
-    }
-  });
-</script>
-
-<!-- Your existing app logic (UNCHANGED) -->
-<script>
 /********** Helpers & week logic **********/
 const $ = id => document.getElementById(id);
 const TZ='America/Chicago';
@@ -309,10 +283,10 @@ let picks=load('picks',{}); if(!picks[WEEK_KEY]) picks[WEEK_KEY]={NHL:{}}; save(
 /********** Players UI **********/
 function uid(){ return 'p'+Math.random().toString(36).slice(2,9); }
 function currentUserId(){ return $('userSelect').value || (players[0]?.id||null); }
-function refreshUsers(){ const sel=$('userSelect'); sel.innerHTML=''; players.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; sel.appendChild(o); }); if(players.length===0){ const o=document.createElement('option'); o.textContent='(add a player above)'; sel.appendChild(o); } $('whoNote').textContent = players.find(p=>p.id===currentUserId())?.name || ''; updatePicksLeft(); renderMyPicks(); }
+function refreshUsers(){ const sel=$('userSelect'); sel.innerHTML=''; players.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; sel.appendChild(o); }); if(players.length===0){ const o=document.createElement('option'); o.textContent='(add a player above)'; sel.appendChild(o); } $('whoNote').textContent = players.find(p=>p.id===currentUserId())?.name || $('whoNote').textContent || ''; updatePicksLeft(); renderMyPicks(); }
 $('addUser').addEventListener('click', ()=>{ const name=($('newUser').value||'').trim(); if(!name) return; players.push({id:uid(),name}); save('players',players); $('newUser').value=''; refreshUsers(); renderWeeklyBoards(); renderSeasonBoards(); });
 $('delUser').addEventListener('click', ()=>{ const id=currentUserId(); if(!id) return; players=players.filter(p=>p.id!==id); save('players',players); if(picks[WEEK_KEY].NHL) delete picks[WEEK_KEY].NHL[id]; save('picks',picks); refreshUsers(); renderWeeklyBoards(); renderSeasonBoards(); renderMyPicks(); });
-$('userSelect').addEventListener('change', ()=>{ $('whoNote').textContent = players.find(p=>p.id===currentUserId())?.name || ''; updatePicksLeft(); renderMyPicks(); });
+$('userSelect').addEventListener('change', ()=>{ $('whoNote').textContent = players.find(p=>p.id===currentUserId())?.name || $('whoNote').textContent || ''; updatePicksLeft(); renderMyPicks(); });
 $('clearWeek').addEventListener('click', ()=>{ picks[WEEK_KEY]={NHL:{}}; save('picks',picks); updatePicksLeft(); renderWeeklyBoards(); renderMyPicks(); });
 $('btnExport').addEventListener('click', ()=>{ const payload={ version:2, exportedAt:new Date().toISOString(), players, picks }; const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`hf-local-${WEEK_KEY}.json`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },0); });
 $('btnImport').addEventListener('click', ()=>$('importFile').click());
@@ -591,7 +565,7 @@ async function renderWeeklyBoards(){ const box=lbWeekBox.NHL; box.innerHTML='<di
 async function renderSeasonBoards(){ const box=lbSeasonBox.NHL; box.innerHTML='<div class="small">Computing…</div>'; const older=Object.keys(picks).filter(k=>k<WEEK_KEY).sort(); const season={}; const allIds=new Set(); older.forEach(wk=>{ const wkP=picks[wk]?.NHL||{}; Object.keys(wkP).forEach(id=>allIds.add(id)); }); Array.from(allIds).forEach(id=>season[id]=0); for(const wk of older){ const wkPicks=picks[wk]?.NHL||{}; const scores=[]; for(const pid of Object.keys(wkPicks)){ let tot=0; for(const gid of uniqLimit(wkPicks[pid]||[])) tot+=await gameScore(gid); scores.push({pid,tot}); } scores.sort((a,b)=>b.tot-a.tot); scores.forEach((r,i)=>{ season[r.pid]=(season[r.pid]||0)+Math.max(10-i,0); }); } const rows=Object.entries(season).filter(([,v])=>v>0).map(([pid,val])=>({name:nameForId(pid), total:val})).sort((a,b)=>b.total-a.total); box.innerHTML=rows.length?'':'<div class="small">No season data yet.</div>'; rows.forEach((r,i)=>{ const div=document.createElement('div'); div.className='lbRow'; div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span></div><div class="lbPts">${r.total}</div><div class="small">Season</div>`; box.appendChild(div); }); }
 async function weeklyTotalsForLeague(){ const wk=picks[WEEK_KEY].NHL||{}; const rows=[]; for(const pid of Object.keys(wk)){ let total=0; const lst=uniqLimit(wk[pid]||[]); for(const gid of lst) total+=await gameScore(gid); rows.push({pid, name:nameForId(pid), total, picks:lst.length}); } rows.sort((a,b)=>b.total-a.total); return rows; }
 
-/********** My Picks (idempotent render) **********/
+/********** My Picks **********/
 let RENDER_TICKET=0;
 function gameRowHTML(meta,score){ return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${score.toFixed(2)}</div><div class="small">Game</div>`; }
 async function renderPickList(containerId, gidList){
