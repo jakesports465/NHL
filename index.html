@@ -1,870 +1,885 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Hockey Fantasy — NHL (Mon→Sun · 5 picks)</title>
-<style>
-  :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }
-  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;-webkit-text-size-adjust:100%}
-  *,*::before,*::after{box-sizing:border-box}
-  :focus-visible{outline:2px solid #3c82f6; outline-offset:2px; border-radius:8px}
-  @media (prefers-reduced-motion:no-preference){.animate-enter{transition:opacity .2s ease, transform .2s ease}.animate-enter[data-show="true"]{opacity:1; transform:none}.animate-enter[data-show="false"]{opacity:.98; transform:translateY(2px)}}
-  header{padding:14px 18px;border-bottom:1px solid var(--br);background:#0f1318;position:sticky;top:0;z-index:20;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-  h1{margin:0;font-size:18px}
-  .sub{color:var(--muted);font-size:13px;margin-left:6px}
-  .pill{border:1px dashed #364353;border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
-  nav.tabs{display:flex;gap:8px;padding:10px 18px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:56px;z-index:19;overflow-x:auto;scrollbar-width:none}
-  nav.tabs::-webkit-scrollbar{display:none}
-  .tab{padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto}
-  .tab[aria-selected="true"]{background:#162231;border-color:#31506a;font-weight:700}
-  .section{display:none}
-  .section.active{display:block}
-  main{max-width:1160px;margin:0 auto;padding:16px 18px 46px}
-  .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:14px}
-  .panel{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
-  .sep{height:1px;background:var(--br);margin:12px 0}
-  .small{font-size:12px;color:var(--muted)}
-  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;line-height:1;min-height:40px}
-  .btn.small{padding:8px 10px;font-size:12px;min-height:36px}
-  .btn[disabled]{opacity:.6;cursor:not-allowed}
-  .gamesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-  .gameCard{background:#11171e;border:1px solid #1f2a36;border-radius:14px;overflow:hidden}
-  .band{height:6px}
-  .gameBody{padding:12px}
-  .teamsRow{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .team{display:flex;align-items:center;gap:8px;min-width:0}
-  .team img{width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0f1318}
-  .team .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .scoreTag{display:inline-block;margin-left:6px;padding:2px 6px;border:1px solid #26313c;border-radius:6px;font-weight:700;min-width:24px;text-align:center}
-  .lockRow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
-  .pickedTag{display:inline-flex;align-items:center;gap:6px;border:1px solid #2e5e3f;background:#0e1a14;color:#9be7b0;border-radius:999px;padding:6px 10px;font-size:12px}
-  .topGrid{display:grid;grid-template-columns:1fr 240px 240px;gap:14px;align-items:start}
-  @media(max-width:980px){.topGrid{grid-template-columns:1fr}}
-  .teamline{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:#0f1318;border:1px solid #1c2430}
-  .teamline img{width:44px;height:44px;border-radius:8px;border:1px solid #1e2732;background:#0d1218}
-  .statusBox,.scoreBox{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
-  .scoreBox{text-align:center}
-  .scoreBox .num{font-size:38px;font-weight:900}
-  .log{max-height:260px;overflow:auto;background:#0f1318;border-radius:10px;padding:8px;border:1px solid #1b232d;-webkit-overflow-scrolling:touch}
-  .lbHeaderRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;flex-wrap:wrap}
-  .lbRow{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:8px;border-radius:10px;border:1px solid #1c2430;background:#0f1318;margin-bottom:8px}
-  .lbPos{width:42px;text-align:center;font-weight:900;border:1px solid #26313c;border-radius:8px;padding:4px 0;opacity:.95}
-  .lbTeam{display:flex;gap:10px;align-items:center;min-width:0}
-  .lbTeam img{width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto}
-  .lbName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .lbPts{font-weight:800}
-  .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  input[type="text"], input[type="email"]{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}
-  .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px;margin-left:6px}
-  @media (max-width: 900px){main{padding:14px 14px 40px}.card{padding:12px}.panel{padding:10px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.scoreBox .num{font-size:34px}.teamline img{width:40px;height:40px}.log{max-height:38vh}}
-  @media (max-width: 720px){h1{font-size:16px}.sub{display:block;margin:2px 0 0 0}.pill{margin-left:0}.small{font-size:12px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.lbRow{grid-template-columns:auto 1fr auto; row-gap:6px}.lbRow .small{grid-column:1 / -1; justify-self:start}
-    .lockRow .btn{flex:1 1 auto}
-    input[type="text"], input[type="email"]{font-size:16px}
-    header{padding-top:calc(14px + env(safe-area-inset-top))}
-  }
-  .rules{display:grid;gap:8px}
-  .rules .r{display:flex;justify-content:space-between;gap:12px;padding:8px;border:1px solid #1c2430;background:#0f1318;border-radius:10px}
+<!doctype html>  
+<html lang="en">  
+<head>  
+<meta charset="utf-8" />  
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />  
+<title>Hockey Fantasy — NHL (Mon→Sun · 5 picks)</title>  
+<style>  
+  :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }  
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;-webkit-text-size-adjust:100%}  
+  *,*::before,*::after{box-sizing:border-box}  
+  :focus-visible{outline:2px solid #3c82f6; outline-offset:2px; border-radius:8px}  
+  @media (prefers-reduced-motion:no-preference){.animate-enter{transition:opacity .2s ease, transform .2s ease}.animate-enter[data-show="true"]{opacity:1; transform:none}.animate-enter[data-show="false"]{opacity:.98; transform:translateY(2px)}}  
+  header{padding:14px 18px;border-bottom:1px solid var(--br);background:#0f1318;position:sticky;top:0;z-index:20;display:flex;gap:12px;align-items:center;flex-wrap:wrap}  
+  h1{margin:0;font-size:18px}  
+  .sub{color:var(--muted);font-size:13px;margin-left:6px}  
+  .pill{border:1px dashed #364353;border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}  
+  nav.tabs{display:flex;gap:8px;padding:10px 18px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:56px;z-index:19;overflow-x:auto;scrollbar-width:none}  
+  nav.tabs::-webkit-scrollbar{display:none}  
+  .tab{padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto}  
+  .tab[aria-selected="true"]{background:#162231;border-color:#31506a;font-weight:700}  
+  .section{display:none}  
+  .section.active{display:block}  
+  main{max-width:1160px;margin:0 auto;padding:16px 18px 46px}  
+  .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:14px}  
+  .panel{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}  
+  .sep{height:1px;background:var(--br);margin:12px 0}  
+  .small{font-size:12px;color:var(--muted)}  
+  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;line-height:1;min-height:40px}  
+  .btn.small{padding:8px 10px;font-size:12px;min-height:36px}  
+  .btn[disabled]{opacity:.6;cursor:not-allowed}  
+  .gamesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}  
+  .gameCard{background:#11171e;border:1px solid #1f2a36;border-radius:14px;overflow:hidden}  
+  .band{height:6px}  
+  .gameBody{padding:12px}  
+  .teamsRow{display:flex;align-items:center;justify-content:space-between;gap:8px}  
+  .team{display:flex;align-items:center;gap:8px;min-width:0}  
+  .team img{width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0f1318}  
+  .team .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}  
+  .scoreTag{display:inline-block;margin-left:6px;padding:2px 6px;border:1px solid #26313c;border-radius:6px;font-weight:700;min-width:24px;text-align:center}  
+  .lockRow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}  
+  .pickedTag{display:inline-flex;align-items:center;gap:6px;border:1px solid #2e5e3f;background:#0e1a14;color:#9be7b0;border-radius:999px;padding:6px 10px;font-size:12px}  
+  .topGrid{display:grid;grid-template-columns:1fr 240px 240px;gap:14px;align-items:start}  
+  @media(max-width:980px){.topGrid{grid-template-columns:1fr}}  
+  .teamline{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:#0f1318;border:1px solid #1c2430}  
+  .teamline img{width:44px;height:44px;border-radius:8px;border:1px solid #1e2732;background:#0d1218}  
+  .statusBox,.scoreBox{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}  
+  .scoreBox{text-align:center}  
+  .scoreBox .num{font-size:38px;font-weight:900}  
+  .log{max-height:260px;overflow:auto;background:#0f1318;border-radius:10px;padding:8px;border:1px solid #1b232d;-webkit-overflow-scrolling:touch}  
+  .lbHeaderRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;flex-wrap:wrap}  
+  .lbRow{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:8px;border-radius:10px;border:1px solid #1c2430;background:#0f1318;margin-bottom:8px}  
+  .lbPos{width:42px;text-align:center;font-weight:900;border:1px solid #26313c;border-radius:8px;padding:4px 0;opacity:.95}  
+  .lbTeam{display:flex;gap:10px;align-items:center;min-width:0}  
+  .lbTeam img{width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto}  
+  .lbName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}  
+  .lbPts{font-weight:800}  
+  .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}  
+  input[type="text"], input[type="email"]{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}  
+  .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px;margin-left:6px}  
+  @media (max-width: 900px){main{padding:14px 14px 40px}.card{padding:12px}.panel{padding:10px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.scoreBox .num{font-size:34px}.teamline img{width:40px;height:40px}.log{max-height:38vh}}  
+  @media (max-width: 720px){h1{font-size:16px}.sub{display:block;margin:2px 0 0 0}.pill{margin-left:0}.small{font-size:12px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.lbRow{grid-template-columns:auto 1fr auto; row-gap:6px}.lbRow .small{grid-column:1 / -1; justify-self:start}  
+    .lockRow .btn{flex:1 1 auto}  
+    input[type="text"], input[type="email"]{font-size:16px}  
+    header{padding-top:calc(14px + env(safe-area-inset-top))}  
+  }  
+  .rules{display:grid;gap:8px}  
+  .rules .r{display:flex;justify-content:space-between;gap:12px;padding:8px;border:1px solid #1c2430;background:#0f1318;border-radius:10px}  
 
-  /* ---- Badges (locked style) ---- */
-  .badgeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-  .bTile{display:flex;gap:10px;align-items:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;opacity:.55;filter:grayscale(100%)}
-  .bIcon{width:40px;height:40px;border-radius:10px;border:1px solid #223040;background:#0d131a;display:flex;align-items:center;justify-content:center;font-weight:900}
-  .bMeta{display:flex;flex-direction:column;gap:2px}
-  .bMeta .nm{font-weight:700}
-  .bMeta .lk{font-size:12px;color:#97a7b9}
-</style>
-</head>
-<body>
-<header>
-  <h1>Hockey Fantasy <span class="sub">NHL · Mon→Sun · 5 picks</span></h1>
-  <span id="picksLeft" class="pill">Sign in to play</span>
-  <span class="small" style="margin-left:auto">Week: <b id="weekLabel">—</b></span>
-  <div id="authBox" class="field" style="margin-left:auto;gap:6px">
-    <form id="loginForm" class="field" style="gap:6px">
-      <input id="emailInput" type="email" placeholder="your@email.com" required>
-      <button class="btn small" type="submit">Send magic link</button>
-    </form>
-    <div id="userBox" class="field" style="display:none;gap:6px">
-      <span class="small" id="whoami">—</span>
-      <input id="displayNameInput" type="text" placeholder="Display name" style="max-width:180px">
-      <button id="saveDisplayName" class="btn small" type="button">Save</button>
-      <button id="logoutBtn" class="btn small" type="button">Sign out</button>
-    </div>
-  </div>
-</header>
-
-<nav class="tabs" role="tablist" aria-label="Sections">
-  <button class="tab" id="tab-nhl"   role="tab" aria-controls="sec-nhl"   aria-selected="true">NHL</button>
-  <button class="tab" id="tab-mine"  role="tab" aria-controls="sec-mine"  aria-selected="false">My Picks</button>
-  <button class="tab" id="tab-lb"    role="tab" aria-controls="sec-lb"    aria-selected="false">Leaderboards</button>
-  <button class="tab" id="tab-badges" role="tab" aria-controls="sec-badges" aria-selected="false">Badges</button>
-  <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>
-</nav>
-
-<!-- ===== NHL ===== -->
-<section id="sec-nhl" class="section active" aria-labelledby="tab-nhl">
-  <main>
-    <section id="nhl-top" class="card animate-enter" data-show="false" style="display:none">
-      <div class="small" id="nhl-liveHeader">—</div>
-      <div class="topGrid" style="margin-top:8px">
-        <div id="nhl-teamSide"></div>
-        <div class="scoreBox">
-          <div class="small" style="margin-bottom:4px">Fantasy Score</div>
-          <div id="nhl-fscore" class="num">—</div>
-          <div id="nhl-bonuses" class="small">—</div>
-        </div>
-        <div class="statusBox">
-          <div class="small" style="margin-bottom:4px">Game Status</div>
-          <div class="small">Clock: <b id="nhl-clock">—</b></div>
-          <div class="small">Period: <b id="nhl-q">—</b></div>
-          <div class="small">State: <b id="nhl-state">—</b></div>
-        </div>
-      </div>
-      <div class="sep"></div>
-      <div class="lockRow">
-        <button id="nhl-back" class="btn small">← Back to games</button>
-        <button id="nhl-addPick" class="btn small">Add to my picks</button>
-      </div>
-      <div class="sep"></div>
-      <h3 style="margin:0 0 6px 0">Recent Scoring Plays</h3>
-      <div id="nhl-log" class="log"></div>
-      <div class="sep"></div>
-      <section class="panel">
-        <h3 style="margin:0 0 6px 0">Top Games — Fantasy (Top 15)</h3>
-        <div id="nhl-gameLB"></div>
-      </section>
-      <div class="sep"></div>
-      <section class="panel">
-        <h3 style="margin:0 0 6px 0">Current User Standings — This Week</h3>
-        <div id="nhl-userLB"></div>
-      </section>
-    </section>
-    <section id="nhl-gridCard" class="card">
-      <div class="small" id="nhl-note">Loading NHL week…</div>
-      <div class="sep"></div>
-      <div id="nhl-grid" class="gamesGrid"></div>
-    </section>
-  </main>
-</section>
-
-<!-- ===== MY PICKS ===== -->
-<section id="sec-mine" class="section" aria-labelledby="tab-mine">
-  <main class="card">
-    <div class="lbHeaderRow">
-      <h2 style="margin:0">My Picks</h2>
-      <span class="small">Week: <b id="mineWeekLabel">—</b></span>
-    </div>
-    <div class="sep"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
-      <section class="panel">
-        <h3 style="margin:0 0 6px 0">NHL — My Picks <span id="myNHLTotal" class="badge">0.00</span></h3>
-        <div id="myNHL"></div>
-      </section>
-      <section class="panel">
-        <h3 style="margin:0 0 6px 0">Everyone’s Picks — This Week</h3>
-        <div id="allPicks"></div>
-      </section>
-    </div>
-  </main>
-</section>
-
-<!-- ===== LEADERBOARD ===== -->
-<section id="sec-lb" class="section" aria-labelledby="tab-lb">
-  <main class="card">
-    <div class="lbHeaderRow">
-      <h2 style="margin:0">Leaderboards</h2>
-    </div>
-    <div class="small" id="lbWeekLabel" style="margin-bottom:8px">—</div>
-    <div class="sep"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <section class="panel">
-        <h3 style="margin:0 0 6px 0">NHL — This Week</h3>
-        <div id="lbNHLWeek"></div>
-      </section>
-      <section class="panel">
-        <h3 style="margin:0 0 6px 0">NHL — Season</h3>
-        <div id="lbNHLSeason"></div>
-      </section>
-    </div>
-  </main>
-</section>
-
-<!-- ===== BADGES (updated list) ===== -->
-<section id="sec-badges" class="section" aria-labelledby="tab-badges">
-  <main class="card">
-    <div class="lbHeaderRow">
-      <h2 style="margin:0">Badges</h2>
-      <span class="small">All badges are shown locked for now.</span>
-    </div>
-    <div class="sep"></div>
-    <div class="badgeGrid" id="badgeGrid">
-      <div class="bTile"><div class="bIcon">🥇</div><div class="bMeta"><span class="nm">First Star of the Week</span><span class="lk">Finish 1st place weekly.</span></div></div>
-      <div class="bTile"><div class="bIcon">🥈</div><div class="bMeta"><span class="nm">Second Star</span><span class="lk">Finish 2nd place weekly.</span></div></div>
-      <div class="bTile"><div class="bIcon">🥉</div><div class="bMeta"><span class="nm">Third Star</span><span class="lk">Finish 3rd place weekly.</span></div></div>
-      <div class="bTile"><div class="bIcon">🔟</div><div class="bMeta"><span class="nm">Solid Ten</span><span class="lk">Finish Top 10 weekly.</span></div></div>
-      <div class="bTile"><div class="bIcon">🎯</div><div class="bMeta"><span class="nm">Consistent Contributor</span><span class="lk">Top 10 in half the season.</span></div></div>
-      <div class="bTile"><div class="bIcon">🔥</div><div class="bMeta"><span class="nm">Heater</span><span class="lk">Top 5 three weeks in a row.</span></div></div>
-      <div class="bTile"><div class="bIcon">🏅</div><div class="bMeta"><span class="nm">Iron Streak</span><span class="lk">Top 10 five weeks in a row.</span></div></div>
-      <div class="bTile"><div class="bIcon">♨️</div><div class="bMeta"><span class="nm">Hot Line</span><span class="lk">Top 5 five weeks in a row.</span></div></div>
-      <div class="bTile"><div class="bIcon">🧊</div><div class="bMeta"><span class="nm">Cold Shift</span><span class="lk">Miss Top 10 three straight.</span></div></div>
-      <div class="bTile"><div class="bIcon">🎯</div><div class="bMeta"><span class="nm">Sniper</span><span class="lk">Pick the #1 scoring game of the week.</span></div></div>
-      <div class="bTile"><div class="bIcon">🎩</div><div class="bMeta"><span class="nm">Hatty Picks</span><span class="lk">Three of your picks finish in the Top 5.</span></div></div>
-      <div class="bTile"><div class="bIcon">🧹</div><div class="bMeta"><span class="nm">Clean Sweep</span><span class="lk">All 5 picks finish in the Top 10.</span></div></div>
-      <div class="bTile"><div class="bIcon">🧱</div><div class="bMeta"><span class="nm">Shutout</span><span class="lk">All your picks below avg but still Top 10 weekly.</span></div></div>
-      <div class="bTile"><div class="bIcon">⏱️</div><div class="bMeta"><span class="nm">Overtime Winner</span><span class="lk">Pick a game that goes to OT.</span></div></div>
-      <div class="bTile"><div class="bIcon">🏆</div><div class="bMeta"><span class="nm">President’s Trophy</span><span class="lk">End season 1st overall.</span></div></div>
-      <div class="bTile"><div class="bIcon">🧭</div><div class="bMeta"><span class="nm">Playoff Bound</span><span class="lk">End season Top 10.</span></div></div>
-      <div class="bTile"><div class="bIcon">⚡</div><div class="bMeta"><span class="nm">Power Play</span><span class="lk">Top 3 in four of five weeks.</span></div></div>
-      <div class="bTile"><div class="bIcon">🧊</div><div class="bMeta"><span class="nm">Icebreaker</span><span class="lk">Make your first pick ever.</span></div></div>
-      <div class="bTile"><div class="bIcon">📣</div><div class="bMeta"><span class="nm">Call-Up</span><span class="lk">First time finishing Top 10.</span></div></div>
-      <div class="bTile"><div class="bIcon">📈</div><div class="bMeta"><span class="nm">Hot Prospect</span><span class="lk">First time finishing Top 3.</span></div></div>
-    </div>
-  </main>
-</section>
-
-<!-- ===== SCORING RULES ===== -->
-<section id="sec-rules" class="section" aria-labelledby="tab-rules">
-  <main class="card">
-    <h2 style="margin:0 0 10px 0">Scoring Rules (Game-based)</h2>
-    <div class="small" style="margin-bottom:8px">Bonuses are capped to keep thrillers competitive with blowouts.</div>
-    <div class="rules">
-      <div class="r"><span>Goal</span><b>+4</b></div>
-      <div class="r"><span>Power-Play Goal (bonus)</span><b>+1.5</b></div>
-      <div class="r"><span>Short-Handed Goal (bonus)</span><b>+2</b></div>
-      <div class="r"><span>Shot on Goal (combined, both teams)</span><b>+0.1</b></div>
-      <div class="r"><span>Goalie Saves (combined)</span><b>+0.02</b></div>
-      <div class="r"><span>Hits (combined)</span><b>+0.1</b></div>
-      <div class="r"><span>Blocked Shots (combined)</span><b>+0.1</b></div>
-      <div class="r"><span>Penalty Minutes (combined)</span><b>−0.25 / min</b></div>
-      <div class="r"><span>Close Game (final margin ≤ 1)</span><b>+8</b></div>
-      <div class="r"><span>Overtime Played</span><b>+10</b></div>
-      <div class="r"><span>Shootout Played</span><b>+6</b></div>
-      <div class="r"><span>Bonus Cap (Close + OT + SO)</span><b>≤ +20 total</b></div>
-    </div>
-  </main>
-</section>
-
-<!-- Supabase JS -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-/* ---------- CONFIG ---------- */
-const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
-const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
-const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
-  auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
-});
-
-/* ---------- PERF: caches + dedup + parallel limiter (ADDED) ---------- */
-const TZ='America/Chicago';
-const MAX_PICKS=5;
-const $ = id => document.getElementById(id);
-
-const PERF_NS = `hf:${new Date().toISOString().slice(0,10)}`; // rotate daily to avoid bloat
-const L1 = new Map(); // in-memory
-function k(ns){ return `${PERF_NS}:${ns}`; }
-function getCache(ns){
-  const key=k(ns);
-  if(L1.has(key)) return L1.get(key);
-  try{
-    const raw=localStorage.getItem(key);
-    if(!raw) return null;
-    const obj=JSON.parse(raw);
-    if(obj.exp && Date.now()>obj.exp){ localStorage.removeItem(key); return null; }
-    L1.set(key,obj.val);
-    return obj.val;
-  }catch{ return null; }
-}
-function setCache(ns,val,ttlMs){
-  const key=k(ns);
-  L1.set(key,val);
-  try{ localStorage.setItem(key, JSON.stringify({val,exp: ttlMs?Date.now()+ttlMs:null})); }catch{}
-}
-function delCache(ns){ try{ localStorage.removeItem(k(ns)); }catch{} L1.delete(k(ns)); }
-
-// dedup same url while in-flight
-const INFLIGHT = new Map();
-async function dedupFetch(url){
-  if(INFLIGHT.has(url)) return INFLIGHT.get(url);
-  const p = fetch(url,{cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
-    .finally(()=>INFLIGHT.delete(url));
-  INFLIGHT.set(url,p);
-  return p;
-}
-// retry wrapper
-async function safeJson(url,retries=2){
-  for(let i=0;i<=retries;i++){
-    try{ return await dedupFetch(url); }
-    catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,500*(i+1))); }
-  }
-}
-// simple p-limit
-async function pLimitAll(items, limit, worker){
-  const out=new Array(items.length); let i=0, active=0;
-  return await new Promise(resolve=>{
-    const pump=()=>{
-      while(active<limit && i<items.length){
-        const idx=i++; active++;
-        Promise.resolve(worker(items[idx],idx))
-          .then(v=>{ out[idx]=v; })
-          .catch(()=>{ out[idx]=undefined; })
-          .finally(()=>{ active--; (i>=items.length && active===0)?resolve(out):pump(); });
-      }
-    };
-    pump();
-  });
-}
-
-/* ---------- Helpers & week logic (Mon 08:00 CT) ---------- */
-function nowCT(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
-function addDaysCT(d,days){ const n=new Date(d.getTime()); n.setDate(n.getDate()+days); return new Date(n.toLocaleString('en-US',{timeZone:TZ})); }
-function parts(d,opts){ const p=new Intl.DateTimeFormat('en-US',opts).formatToParts(d); const o={}; p.forEach(x=>o[x.type]=x.value); return o; }
-
-/* Week anchor = Monday 08:00 CT */
-function weekKey(){
-  const n=nowCT();
-  const wd=n.getDay(); /* Sun 0 ... Sat 6 */
-  const daysSinceMon=(wd-1+7)%7;
-  const mon=addDaysCT(n,-daysSinceMon);
-  const hour=Number(parts(n,{hour:'2-digit',hour12:false}).hour);
-  const after8 = hour>=8 || daysSinceMon>0;
-  const anchor = after8? mon : addDaysCT(mon,-7);
-  const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'});
-  return `${p.year}-${p.month}-${p.day}-Mon08CT`;
-}
-function weekDates(){
-  const n=nowCT();
-  const wd=n.getDay();
-  const daysSinceMon=(wd-1+7)%7;
-  const mon=addDaysCT(n,-daysSinceMon);
-  const list=[];
-  for(let i=0;i<7;i++){
-    const d=addDaysCT(mon,i);
-    const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'});
-    list.push(`${p.year}-${p.month}-${p.day}`);
-  }
-  const pM=parts(mon,{month:'2-digit',day:'2-digit'});
-  const pS=parts(addDaysCT(mon,6),{month:'2-digit',day:'2-digit'});
-  return {list,start:list[0],end:list[6],pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`};
-}
-const WEEK_KEY=weekKey(); const WEEK=weekDates();
-$('weekLabel').textContent=WEEK.pretty; $('lbWeekLabel').textContent=`Week: ${WEEK.pretty}`; $('mineWeekLabel').textContent=WEEK.pretty;
-
-/* ---------- ESPN helpers ---------- */
-function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.logos[0].href).replace(/^http:/,'https:'); if(t.abbreviation) return `https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`; return null; }
-
-/* ---------- Fantasy weights ---------- */
-const H={ GOAL:4, PPG:1.5, SHG:2, SOG:0.1, SAVE:0.02, HIT:0.1, BLOCK:0.1, PIM:-0.25, CLOSE_GAME:8, OT:10, SO:6, BONUS_CAP:20 };
-function parseNHL(summary,pbp){
-  const comp = summary?.header?.competitions?.[0]||{};
-  let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-  const homePts=Number(homeC?.score??0), awayPts=Number(awayC?.score??0);
-  const isFinal = (comp.status?.type?.state==='post' || comp.status?.type?.completed===true);
-  const period = Number(comp.status?.period||0);
-  const isSO = isFinal && /SO/.test(String(comp.status?.type?.shortDetail||''));
-  const teams = summary?.boxscore?.teams||[];
-  let shots=0, saves=0, hits=0, blocks=0, pim=0, ppg=0, shg=0;
-  const find=(arr,k)=>arr?.find(s=>s.name===k||s.abbreviation===k)||null;
-  const v=(x)=>Number(x?.value??x?.displayValue??0)||0;
-  for(const tm of teams){
-    const st=tm.statistics||[]
-    shots += v(find(st,'shotsOnGoal'));
-    saves += v(find(st,'saves'));
-    hits  += v(find(st,'hits'));
-    blocks+= v(find(st,'blockedShots'));
-    pim   += v(find(st,'pim'));
-  }
-  const sps=summary?.scoringPlays||[]; const goals=sps.length;
-  for(const sp of sps){ const d=String(sp.text||sp.description||'').toLowerCase(); if(d.includes('power play')) ppg++; if(d.includes('short-handed')||d.includes('shorthanded')) shg++; }
-  const offense = goals*H.GOAL + ppg*H.PPG + shg*H.SHG + shots*H.SOG;
-  const defense = saves*H.SAVE + hits*H.HIT + blocks*H.BLOCK + pim*H.PIM;
-  const closeBonus = (isFinal && Math.abs(homePts-awayPts)<=1) ? H.CLOSE_GAME : 0;
-  const otBonus = (isFinal && period>3) ? H.OT : 0;
-  const soBonus = (isSO) ? H.SO : 0;
-  const bonus = Math.min(closeBonus+otBonus+soBonus, H.BONUS_CAP);
-  const total = offense + defense + bonus;
-  return { total:Number(total.toFixed(2)), homePts, awayPts, isFinal, bonus, closeBonus, otBonus, soBonus };
-}
-
-/* ---------- Supabase helpers (magic link + display name) ---------- */
-let session=null, currentUser=null, displayName='';
-
-function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
-
-async function loadOrCreatePlayer(){
-  if(!currentUser) return;
-  const uid=currentUser.id;
-  const { data, error } = await supa.from('players').select('*').eq('id',uid).maybeSingle();
-  if(error){ console.error(error); return; }
-  if(!data){
-    const def = (currentUser.email||'user').split('@')[0];
-    const { error:insErr } = await supa.from('players').insert({ id:uid, display_name:def });
-    if(insErr){ console.error(insErr); }
-    displayName=def;
-  }else{
-    displayName=data.display_name||'';
-  }
-  $('displayNameInput').value=displayName||'';
-}
-
-$('saveDisplayName').addEventListener('click', async ()=>{
-  if(!currentUser) return;
-  const name = ($('displayNameInput').value||'').trim();
-  if(!name) return;
-  const { error } = await supa.from('players').upsert({ id: currentUser.id, display_name: name });
-  if(!error){ displayName=name; toast('Saved ✓'); renderWeeklyBoards(); renderSeasonBoards(); }
-});
-
-$('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });
-
-$('loginForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const email=$('emailInput').value.trim();
-  if(!email) return;
-  const redirectTo = window.location.href;
-  const { error } = await supa.auth.signInWithOtp({ email, options:{emailRedirectTo: redirectTo, shouldCreateUser:true } });
-  if(error){ alert(error.message); return; }
-  toast('Magic link sent! Check your email.');
-});
-
-/* ---------- Picks (Supabase) with short TTL caches (ADDED) ---------- */
-function uniqLimit(arr){ const out=[]; const seen=new Set(); (arr||[]).forEach(x=>{ const id=String(x); if(!seen.has(id)){ seen.add(id); out.push(id); } }); return out.slice(0,MAX_PICKS); }
-// cache keys
-const CK_MY = uid => `picks:${WEEK_KEY}:${uid}`;
-const CK_ALL = `allpicks:${WEEK_KEY}`;
-const CK_NAMES = ids => `names:${ids.sort().join(',')}`;
-// memo for names across page life
-const NAME_MEMO = new Map();
-
-async function picksForUser(uid){
-  const ck = CK_MY(uid);
-  const cached = getCache(ck);
-  if(cached) return cached;
-  const { data, error } = await supa.from('picks')
-    .select('game_id')
-    .eq('user_id', uid)
-    .eq('league','NHL')
-    .eq('week_key', WEEK_KEY);
-  const list = error ? [] : uniqLimit((data||[]).map(r=>String(r.game_id)));
-  setCache(ck, list, 15000); // 15s TTL
-  return list;
-}
-async function setPick(uid, gameId){
-  const { error } = await supa.from('picks').upsert(
-    [{ user_id: uid, league:'NHL', week_key: WEEK_KEY, game_id: String(gameId) }],
-    { onConflict: 'user_id,league,week_key,game_id' }
-  );
-  if(error){ alert(error.message); return false; }
-  delCache(CK_MY(uid)); delCache(CK_ALL);
-  return true;
-}
-async function allPicksThisWeek(){
-  const cached = getCache(CK_ALL);
-  if(cached) return cached;
-  const { data, error } = await supa.from('picks')
-    .select('user_id, game_id')
-    .eq('league','NHL')
-    .eq('week_key',WEEK_KEY);
-  const rows = error ? [] : (data||[]);
-  setCache(CK_ALL, rows, 20000); // 20s TTL
-  return rows;
-}
-async function getDisplayNames(userIds){
-  const ids = [...new Set(userIds||[])].filter(Boolean);
-  if(ids.length===0) return {};
-  const need = ids.filter(id=>!NAME_MEMO.has(id));
-  if(need.length){
-    const { data, error } = await supa.from('players').select('id,display_name').in('id', need);
-    if(!error && data){
-      data.forEach(r=>NAME_MEMO.set(r.id, r.display_name || r.id.slice(0,6)));
-      need.forEach(id=>{ if(!NAME_MEMO.has(id)) NAME_MEMO.set(id, id.slice(0,6)); });
-    }else{
-      need.forEach(id=>NAME_MEMO.set(id, id.slice(0,6)));
-    }
-  }
-  const map={}; ids.forEach(id=>map[id]=NAME_MEMO.get(id));
-  return map;
-}
-
-/* ---------- League (NHL) UI ---------- */
-function leagueFactory(){
-  const st={ events:[], selected:null, poll:null, gameRows:[] };
-  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), log:$('nhl-log'), gameLB:$('nhl-gameLB'), userLB:$('nhl-userLB') };
-  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`, pbp:(id)=>`https://cdn.espn.com/core/nhl/playbyplay?xhr=1&gameId=${id}` };
-
-  dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
-  dom.add.addEventListener('click', async ()=>{
-    if(!currentUser){ alert('Sign in first.'); return; }
-    if(!st.selected) return;
-    const kick=new Date(st.selected.start).getTime();
-    if(Date.now()>=kick){ alert('Locked (already started)'); return; }
-    const myList = await picksForUser(currentUser.id);
-    const gid=String(st.selected.id);
-    if(myList.includes(gid)){ alert('Already picked.'); return; }
-    if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-    const ok = await setPick(currentUser.id,gid);
-    if(ok){
-      updatePicksLeft();
-      renderWeeklyBoards();
-      renderMyPicks();
-      const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex';
-      const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
-      toast('Pick saved ✓');
-    }
-  });
-
-  function renderGrid(){
-    dom.grid.innerHTML='';
-    (st.events||[]).forEach(g=>{
-      const started=Date.now()>=new Date(g.start).getTime();
-      const card=document.createElement('div');
-      card.className='gameCard';
-      const puck=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-      card.innerHTML=`
-        <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
-        <div class="gameBody">
-          <div class="teamsRow">
-            <div class="team">${g.away.logo?`<img src="${g.away.logo}" alt="">`:``}<div class="name">${g.away.name}</div><span class="scoreTag" id="NHL-a-${g.id}">0</span></div>
-            <div class="small" style="opacity:.8">@</div>
-            <div class="team" style="justify-content:flex-end">${g.home.logo?`<img src="${g.home.logo}" alt="">`:``}<div class="name">${g.home.name}</div><span class="scoreTag" id="NHL-h-${g.id}">0</span></div>
-          </div>
-          <div class="small" style="margin-top:6px;opacity:.9">Score: <span id="NHL-scr-${g.id}">—</span> · <span id="NHL-st-${g.id}">pre</span> · Puck drop: ${puck}</div>
-          <div class="lockRow">
-            <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
-            <button class="btn pickBtn" data-gid="${g.id}" ${started?'style="display:none"':''}>Add to my picks</button>
-            <button class="btn small viewBtn">Open</button>
-          </div>
-          ${started?'<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
-        </div>`;
-      card.querySelector('.viewBtn').addEventListener('click',()=>openGame(g));
-      const pickBtn=card.querySelector('.pickBtn');
-      if(pickBtn){
-        pickBtn.addEventListener('click', async ()=>{
-          if(!currentUser){ alert('Sign in first.'); return; }
-          if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
-          const myList = await picksForUser(currentUser.id);
-          const gid=String(g.id);
-          if(myList.includes(gid)){ alert('Already picked.'); return; }
-          if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-          const ok = await setPick(currentUser.id,gid);
-          if(ok){
-            updatePicksLeft();
-            renderWeeklyBoards();
-            renderMyPicks();
-            const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
-            pickBtn.style.display='none';
-            toast('Pick saved ✓');
-          }
-        });
-      }
-      dom.grid.appendChild(card);
-    });
-  }
-
-  async function refreshGridScores(){
-    const evs = st.events||[]; if(!evs.length) return;
-    const rows = await pLimitAll(evs, 6, async (g)=>{
-      try{
-        const s=await safeJson(api.summary(g.id));
-        const p=await safeJson(api.pbp(g.id));
-        const comp=s?.header?.competitions?.[0]||{};
-        let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-        const sc=parseNHL(s,p);
-        return { id:g.id, awayPts:sc.awayPts, homePts:sc.homePts, score:sc.total, status:(comp.status?.type?.shortDetail||comp.status?.type?.description||'—') };
-      }catch{ return null; }
-    });
-    const valid=rows.filter(Boolean);
-    for(const r of valid){
-      const scEl=$(`NHL-scr-${r.id}`), stEl=$(`NHL-st-${r.id}`), aEl=$(`NHL-a-${r.id}`), hEl=$(`NHL-h-${r.id}`);
-      if(scEl) scEl.textContent=`${r.awayPts}–${r.homePts}`;
-      if(stEl) stEl.textContent=r.status||'—';
-      if(aEl) aEl.textContent=r.awayPts;
-      if(hEl) hEl.textContent=r.homePts;
-    }
-    st.gameRows = evs.map(g=>{
-      const r = valid.find(x=>x && String(x.id)===String(g.id));
-      if(!r) return null;
-      return { id:g.id, awayName:g.away.name, homeName:g.home.name, awayLogo:g.away.logo, homeLogo:g.home.logo, score:r.score, status:r.status };
-    }).filter(Boolean).sort((a,b)=>b.score-a.score);
-    renderGameLB();
-    renderUserLB();
-  }
-
-  function openGame(g){
-    st.selected=g;
-    $('nhl-top').setAttribute('data-show','true');
-    dom.live.textContent=`${g.away.name} @ ${g.home.name}`;
-    dom.teamSide.innerHTML=
-      `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
-         <div style="display:flex;gap:10px;align-items:center">${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}<div style="font-weight:700">${g.away.name}</div></div>
-         <div id="NHL-awayScore" style="font-weight:800">—</div>
-       </div>
-       <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
-         <div style="display:flex;gap:10px;align-items:center">${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}<div style="font-weight:700">${g.home.name}</div></div>
-         <div id="NHL-homeScore" style="font-weight:800">—</div>
-       </div>`;
-    dom.gridCard.style.display='none'; dom.top.style.display='block';
-    updateGameOnce(); if(st.poll) clearInterval(st.poll); st.poll=setInterval(updateGameOnce,20000);
-    renderGameLB(); renderUserLB();
-  }
-
-  async function updateGameOnce(){
-    if(!st.selected) return; const id=st.selected.id;
-    try{
-      const s=await safeJson(api.summary(id));
-      const p=await safeJson(api.pbp(id));
-      const comp=s?.header?.competitions||[];
-      const c0=(comp[0]||{}); const status=c0.status||{};
-      let homeC=null,awayC=null; (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-      $('NHL-homeScore').textContent=String(homeC?.score??0);
-      $('NHL-awayScore').textContent=String(awayC?.score??0);
-      dom.clock.textContent=status.displayClock||'—';
-      dom.q.textContent=String(status.period??'—');
-      dom.state.textContent=(status.type?.description||status.type?.shortDetail||'—');
-      const sc=parseNHL(s,p);
-      dom.fscore.textContent=sc.total.toFixed(2);
-      dom.bonus.textContent=`Bonuses: ${sc.closeBonus?`Close +${sc.closeBonus}`:'—'} · ${sc.otBonus?`OT +${sc.otBonus}`:'—'} · ${sc.soBonus?`SO +${sc.soBonus}`:'—'} (cap ${H.BONUS_CAP})`;
-      const sps=s?.scoringPlays||[];
-      dom.log.innerHTML='';
-      for(const sp of sps.slice(-10).reverse()){
-        const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');
-        const div=document.createElement('div'); div.textContent=`[${q} ${t}] ${d}`; dom.log.appendChild(div);
-      }
-    }catch(e){}
-  }
-
-  async function loadWeek(){
-    dom.note.textContent=`Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;
-    const all=[];
-    for(const d of WEEK.list){
-      const sb=await safeJson(api.scoreboard(d)).catch(()=>null);
-      const evs=sb?.events||[];
-      for(const ev of evs){
-        const c=ev.competitions?.[0]||{};
-        let home=null,away=null; (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
-        all.push({
-          id:ev.id,
-          start:ev.date,
-          home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },
-          away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }
-        });
-      }
-    }
-    all.sort((a,b)=>new Date(a.start)-new Date(b.start));
-    st.events=all;
-    dom.note.textContent=`${all.length} games`;
-    renderGrid();
-    if(currentUser){
-      const mine = await picksForUser(currentUser.id);
-      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
-    }
-    refreshGridScores();
-    setInterval(refreshGridScores,30000);
-  }
-
-  return { loadWeek, state:st };
-}
-const NHL = leagueFactory();
-
-/* ---------- Score/meta caches with TTL (kept) ---------- */
-async function gameScore(gid){
-  const ck=`score:${gid}`;
-  const c=getCache(ck);
-  if(c!=null) return c;
-  try{
-    const [s,p]=await Promise.all([
-      safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`),
-      safeJson(`https://cdn.espn.com/core/nhl/playbyplay?xhr=1&gameId=${gid}`)
-    ]);
-    const parsed = parseNHL(s,p);
-    const val = parsed.total || 0;
-    const comp = s?.header?.competitions?.[0]||{};
-    const isFinal = (comp.status?.type?.state==='post' || comp.status?.type?.completed===true);
-    const period = Number(comp.status?.period||0);
-    const isLive = !isFinal && period>0;
-    let ttl = 10*60*1000;  // pregame
-    if(isLive) ttl = 60*1000; // live
-    if(isFinal) ttl = 6*60*60*1000; // final
-    setCache(ck, val, ttl);
-    return val;
-  }catch{ return 0; }
-}
-async function gameMeta(gid){
-  const ck=`meta:${gid}`;
-  const c=getCache(ck);
-  if(c) return c;
-  const ev=NHL.state.events.find(e=>String(e.id)===String(gid));
-  if(ev){
-    const m={awayName:ev.away.name,homeName:ev.home.name,awayLogo:ev.away.logo,homeLogo:ev.home.logo};
-    setCache(ck,m,24*60*60*1000);
-    return m;
-  }
-  try{
-    const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
-    const comp=s?.header?.competitions?.[0]||{}; let home=null,away=null; (comp.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
-    const m={ awayName:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', homeName:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', awayLogo:cdnNHL(away?.team||null), homeLogo:cdnNHL(home?.team||null) };
-    setCache(ck,m,24*60*60*1000);
-    return m;
-  }catch{ return {awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null}; }
-}
-
-/* ---------- Boards ---------- */
-const lbWeekBox={ NHL:$('lbNHLWeek') };
-const lbSeasonBox={ NHL:$('lbNHLSeason') };
-function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
-
-async function renderWeeklyBoards(){
-  const box=lbWeekBox.NHL;
-  if(!box) return;
-  box.innerHTML='<div class="small">Computing…</div>';
-  const rows = await allPicksThisWeek();
-  if(!rows.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
-  const byUser=new Map();
-  for(const r of rows){ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); }
-  const ids=[...byUser.keys()];
-  const names=await getDisplayNames(ids);
-  const computed = await pLimitAll(ids, 6, async (uid)=>{
-    const lst = uniqLimit(byUser.get(uid)||[]);
-    const scores = await Promise.all(lst.map(g=>gameScore(g)));
-    const total = scores.reduce((a,b)=>a+(b||0),0);
-    return { uid, name:names[uid]||uid.slice(0,6), total, picks: lst.length };
-  });
-  const out = computed.filter(Boolean).sort((a,b)=>b.total-a.total);
-  box.innerHTML='';
-  out.forEach((r,i)=>{
-    const div=document.createElement('div'); div.className='lbRow';
-    div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span> <span class="small" style="margin-left:6px;opacity:.8">(${r.picks}/${MAX_PICKS})</span></div><div class="lbPts">${r.total.toFixed(2)}</div><div class="small">Weekly</div>`;
-    box.appendChild(div);
-  });
-}
-
-async function renderSeasonBoards(){
-  const box=lbSeasonBox.NHL; if(!box) return;
-  box.innerHTML='<div class="small">Computing…</div>';
-  const { data, error } = await supa.from('season_points')
-    .select('user_id, points')
-    .eq('league','NHL');
-  if(error){ console.error(error); box.innerHTML='<div class="small">Error.</div>'; return; }
-  if(!data || !data.length){ box.innerHTML='<div class="small">No season data yet.</div>'; return; }
-  const totals={}; data.forEach(r=>{ totals[r.user_id]=(totals[r.user_id]||0)+Number(r.points||0); });
-  const ids=Object.keys(totals);
-  const names=await getDisplayNames(ids);
-  const rows=ids.map(uid=>({uid, name:names[uid]||uid.slice(0,6), total:totals[uid]})).sort((a,b)=>b.total-a.total);
-  box.innerHTML='';
-  rows.forEach((r,i)=>{
-    const div=document.createElement('div'); div.className='lbRow';
-    div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span></div><div class="lbPts">${r.total}</div><div class="small">Season</div>`;
-    box.appendChild(div);
-  });
-}
-
-/* ---------- My Picks ---------- */
-const RENDER_TICKETS = new Map();
-function nextTicket(key){ const n=(RENDER_TICKETS.get(key)||0)+1; RENDER_TICKETS.set(key,n); return n; }
-function isCurrent(key,t){ return RENDER_TICKETS.get(key)===t; }
-let LAST_ALL_IDS_JSON = '';
-
-function gameRowHTML(meta,score){
-  return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${score.toFixed(2)}</div><div class="small">Game</div>`;
-}
-async function renderPickList(containerId, gidList){
-  const el=$(containerId);
-  const myTicket = nextTicket(containerId);
-  const clean=uniqLimit(gidList||[]);
-  el.innerHTML='';
-  if(clean.length===0){
-    if(isCurrent(containerId,myTicket)) el.innerHTML='<div class="small">No picks yet.</div>';
-    return 0;
-  }
-  const results = await pLimitAll(clean, 6, async (gid)=>{
-    const [meta,score]=await Promise.all([gameMeta(gid), gameScore(gid)]);
-    return {meta,score:score||0};
-  });
-  if(!isCurrent(containerId,myTicket)) return 0;
-  let total=0; const rows=[];
-  for(const r of results){ total+=r.score; rows.push(`<div class="lbRow">${gameRowHTML(r.meta,r.score)}</div>`); }
-  el.innerHTML=rows.join('');
-  return total;
-}
-async function renderMyPicks(){
-  if(!currentUser){ $('myNHL').innerHTML='<div class="small">Sign in to see your picks.</div>'; $('allPicks').innerHTML='<div class="small">Sign in to see everyone.</div>'; return; }
-  const myList = await picksForUser(currentUser.id);
-  const tot = await renderPickList('myNHL', myList);
-  $('myNHLTotal').textContent = tot.toFixed(2);
-
-  const box=$('allPicks');
-  const rows = await allPicksThisWeek();
-  const byUser=new Map(); rows.forEach(r=>{ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); });
-  const ids=[...byUser.keys()];
-  if(!ids.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
-
-  const idsJson = JSON.stringify(ids.slice().sort());
-  if(idsJson !== LAST_ALL_IDS_JSON){
-    LAST_ALL_IDS_JSON = idsJson;
-    const names=await getDisplayNames(ids);
-    const frags=[]; ids.forEach(uid=>{
-      frags.push(`<div class="panel" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${names[uid]||uid.slice(0,6)}</strong><span class="small" id="sum-${uid}">NHL —</span></div><div class="sep"></div><div id="p-${uid}-nhl"></div></div>`);
-    });
-    box.innerHTML=frags.join('');
-  }
-
-  await pLimitAll(ids, 6, async (uid)=>{
-    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
-    const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${t.toFixed(2)}`;
-  });
-}
-
-/* ---------- Picks-left badge ---------- */
-async function updatePicksLeft(){
-  if(!currentUser){ $('picksLeft').textContent='Sign in to play'; return; }
-  const n=(await picksForUser(currentUser.id)).length;
-  $('picksLeft').textContent=`NHL ${Math.max(MAX_PICKS-n,0)} left`;
-}
-
-/* ---------- Tabs ---------- */
-const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
-Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); }}));
-
-/* ---------- Boot ---------- */
-(async ()=>{
-  const { data:{ session:ses } } = await supa.auth.getSession();
-  session=ses; currentUser = session?.user || null;
-
-  function showAuthUI(){
-    if(currentUser){
-      $('loginForm').style.display='none';
-      $('userBox').style.display='flex';
-      $('whoami').textContent = currentUser.email || '(no email)';
-    }else{
-      $('loginForm').style.display='flex';
-      $('userBox').style.display='none';
-    }
-  }
-  showAuthUI();
-
-  if(currentUser){ await loadOrCreatePlayer(); }
-
-  const league = NHL; await league.loadWeek();
-  await updatePicksLeft();
-  await renderWeeklyBoards();
-  await renderSeasonBoards();
-  await renderMyPicks();
-
-  supa.auth.onAuthStateChange(async (_event, sess)=>{
-    session=sess; currentUser=session?.user||null; showAuthUI();
-    if(currentUser){ await loadOrCreatePlayer(); }
-    await updatePicksLeft();
-    await renderMyPicks();
-    await renderWeeklyBoards();
-    if(currentUser && NHL?.state?.events){
-      const mine = await picksForUser(currentUser.id);
-      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
-    }
-  });
-
-  setInterval(renderWeeklyBoards, 60000);
-})();
-</script>
-</body>
+  /* ---- Badges (locked style) ---- */  
+  .badgeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}  
+  .bTile{display:flex;gap:10px;align-items:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;opacity:.55;filter:grayscale(100%)}  
+  .bIcon{width:40px;height:40px;border-radius:10px;border:1px solid #223040;background:#0d131a;display:flex;align-items:center;justify-content:center;font-weight:900}  
+  .bMeta{display:flex;flex-direction:column;gap:2px}  
+  .bMeta .nm{font-weight:700}  
+  .bMeta .lk{font-size:12px;color:#97a7b9}  
+  /* earned = un-grey */  
+  .bTile.earned{opacity:1;filter:none}  
+</style>  
+</head>  
+<body>  
+<header>  
+  <h1>Hockey Fantasy <span class="sub">NHL · Mon→Sun · 5 picks</span></h1>  
+  <span id="picksLeft" class="pill">Sign in to play</span>  
+  <span class="small" style="margin-left:auto">Week: <b id="weekLabel">—</b></span>  
+  <div id="authBox" class="field" style="margin-left:auto;gap:6px">  
+    <form id="loginForm" class="field" style="gap:6px">  
+      <input id="emailInput" type="email" placeholder="your@email.com" required>  
+      <button class="btn small" type="submit">Send magic link</button>  
+    </form>  
+    <div id="userBox" class="field" style="display:none;gap:6px">  
+      <span class="small" id="whoami">—</span>  
+      <input id="displayNameInput" type="text" placeholder="Display name" style="max-width:180px">  
+      <button id="saveDisplayName" class="btn small" type="button">Save</button>  
+      <button id="logoutBtn" class="btn small" type="button">Sign out</button>  
+    </div>  
+  </div>  
+</header>  
+  
+<nav class="tabs" role="tablist" aria-label="Sections">  
+  <button class="tab" id="tab-nhl"   role="tab" aria-controls="sec-nhl"   aria-selected="true">NHL</button>  
+  <button class="tab" id="tab-mine"  role="tab" aria-controls="sec-mine"  aria-selected="false">My Picks</button>  
+  <button class="tab" id="tab-lb"    role="tab" aria-controls="sec-lb"    aria-selected="false">Leaderboards</button>  
+  <button class="tab" id="tab-badges" role="tab" aria-controls="sec-badges" aria-selected="false">Badges</button>  
+  <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>  
+</nav>  
+  
+<!-- ===== NHL ===== -->  
+<section id="sec-nhl" class="section active" aria-labelledby="tab-nhl">  
+  <main>  
+    <section id="nhl-top" class="card animate-enter" data-show="false" style="display:none">  
+      <div class="small" id="nhl-liveHeader">—</div>  
+      <div class="topGrid" style="margin-top:8px">  
+        <div id="nhl-teamSide"></div>  
+        <div class="scoreBox">  
+          <div class="small" style="margin-bottom:4px">Fantasy Score</div>  
+          <div id="nhl-fscore" class="num">—</div>  
+          <div id="nhl-bonuses" class="small">—</div>  
+        </div>  
+        <div class="statusBox">  
+          <div class="small" style="margin-bottom:4px">Game Status</div>  
+          <div class="small">Clock: <b id="nhl-clock">—</b></div>  
+          <div class="small">Period: <b id="nhl-q">—</b></div>  
+          <div class="small">State: <b id="nhl-state">—</b></div>  
+        </div>  
+      </div>  
+      <div class="sep"></div>  
+      <div class="lockRow">  
+        <button id="nhl-back" class="btn small">← Back to games</button>  
+        <button id="nhl-addPick" class="btn small">Add to my picks</button>  
+      </div>  
+      <div class="sep"></div>  
+      <h3 style="margin:0 0 6px 0">Recent Scoring Plays</h3>  
+      <div id="nhl-log" class="log"></div>  
+      <div class="sep"></div>  
+      <section class="panel">  
+        <h3 style="margin:0 0 6px 0">Top Games — Fantasy (Top 15)</h3>  
+        <div id="nhl-gameLB"></div>  
+      </section>  
+      <div class="sep"></div>  
+      <section class="panel">  
+        <h3 style="margin:0 0 6px 0">Current User Standings — This Week</h3>  
+        <div id="nhl-userLB"></div>  
+      </section>  
+    </section>  
+    <section id="nhl-gridCard" class="card">  
+      <div class="small" id="nhl-note">Loading NHL week…</div>  
+      <div class="sep"></div>  
+      <div id="nhl-grid" class="gamesGrid"></div>  
+    </section>  
+  </main>  
+</section>  
+  
+<!-- ===== MY PICKS ===== -->  
+<section id="sec-mine" class="section" aria-labelledby="tab-mine">  
+  <main class="card">  
+    <div class="lbHeaderRow">  
+      <h2 style="margin:0">My Picks</h2>  
+      <span class="small">Week: <b id="mineWeekLabel">—</b></span>  
+    </div>  
+    <div class="sep"></div>  
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">  
+      <section class="panel">  
+        <h3 style="margin:0 0 6px 0">NHL — My Picks <span id="myNHLTotal" class="badge">0.00</span></h3>  
+        <div id="myNHL"></div>  
+      </section>  
+      <section class="panel">  
+        <h3 style="margin:0 0 6px 0">Everyone’s Picks — This Week</h3>  
+        <div id="allPicks"></div>  
+      </section>  
+    </div>  
+  </main>  
+</section>  
+  
+<!-- ===== LEADERBOARD ===== -->  
+<section id="sec-lb" class="section" aria-labelledby="tab-lb">  
+  <main class="card">  
+    <div class="lbHeaderRow">  
+      <h2 style="margin:0">Leaderboards</h2>  
+    </div>  
+    <div class="small" id="lbWeekLabel" style="margin-bottom:8px">—</div>  
+    <div class="sep"></div>  
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">  
+      <section class="panel">  
+        <h3 style="margin:0 0 6px 0">NHL — This Week</h3>  
+        <div id="lbNHLWeek"></div>  
+      </section>  
+      <section class="panel">  
+        <h3 style="margin:0 0 6px 0">NHL — Season</h3>  
+        <div id="lbNHLSeason"></div>  
+      </section>  
+    </div>  
+  </main>  
+</section>  
+  
+<!-- ===== BADGES ===== -->  
+<section id="sec-badges" class="section" aria-labelledby="tab-badges">  
+  <main class="card">  
+    <div class="lbHeaderRow">  
+      <h2 style="margin:0">Badges</h2>  
+      <span class="small">All badges are shown locked for now.</span>  
+    </div>  
+    <div class="sep"></div>  
+    <div class="badgeGrid" id="badgeGrid">  
+      <div class="bTile" data-badge-id="first_star"><div class="bIcon">🥇</div><div class="bMeta"><span class="nm">First Star of the Week</span><span class="lk">Finish 1st place weekly.</span></div></div>  
+      <div class="bTile" data-badge-id="second_star"><div class="bIcon">🥈</div><div class="bMeta"><span class="nm">Second Star</span><span class="lk">Finish 2nd place weekly.</span></div></div>  
+      <div class="bTile" data-badge-id="third_star"><div class="bIcon">🥉</div><div class="bMeta"><span class="nm">Third Star</span><span class="lk">Finish 3rd place weekly.</span></div></div>  
+      <div class="bTile" data-badge-id="solid_ten"><div class="bIcon">🔟</div><div class="bMeta"><span class="nm">Solid Ten</span><span class="lk">Finish Top 10 weekly.</span></div></div>  
+      <div class="bTile" data-badge-id="consistent_contributor"><div class="bIcon">🎯</div><div class="bMeta"><span class="nm">Consistent Contributor</span><span class="lk">Top 10 in half the season.</span></div></div>  
+      <div class="bTile" data-badge-id="heater"><div class="bIcon">🔥</div><div class="bMeta"><span class="nm">Heater</span><span class="lk">Top 5 three weeks in a row.</span></div></div>  
+      <div class="bTile" data-badge-id="iron_streak"><div class="bIcon">🏅</div><div class="bMeta"><span class="nm">Iron Streak</span><span class="lk">Top 10 five weeks in a row.</span></div></div>  
+      <div class="bTile" data-badge-id="hot_line"><div class="bIcon">♨️</div><div class="bMeta"><span class="nm">Hot Line</span><span class="lk">Top 5 five weeks in a row.</span></div></div>  
+      <div class="bTile" data-badge-id="cold_shift"><div class="bIcon">🧊</div><div class="bMeta"><span class="nm">Cold Shift</span><span class="lk">Miss Top 10 three straight.</span></div></div>  
+      <div class="bTile" data-badge-id="sniper"><div class="bIcon">🎯</div><div class="bMeta"><span class="nm">Sniper</span><span class="lk">Pick the #1 scoring game of the week.</span></div></div>  
+      <div class="bTile" data-badge-id="hatty_picks"><div class="bIcon">🎩</div><div class="bMeta"><span class="nm">Hatty Picks</span><span class="lk">Three of your picks finish in the Top 5.</span></div></div>  
+      <div class="bTile" data-badge-id="clean_sweep"><div class="bIcon">🧹</div><div class="bMeta"><span class="nm">Clean Sweep</span><span class="lk">All 5 picks finish in the Top 10.</span></div></div>  
+      <div class="bTile" data-badge-id="shutout"><div class="bIcon">🧱</div><div class="bMeta"><span class="nm">Shutout</span><span class="lk">All your picks below avg but still Top 10 weekly.</span></div></div>  
+      <div class="bTile" data-badge-id="overtime_winner"><div class="bIcon">⏱️</div><div class="bMeta"><span class="nm">Overtime Winner</span><span class="lk">Pick a game that goes to OT.</span></div></div>  
+      <div class="bTile" data-badge-id="presidents"><div class="bIcon">🏆</div><div class="bMeta"><span class="nm">President’s Trophy</span><span class="lk">End season 1st overall.</span></div></div>  
+      <div class="bTile" data-badge-id="playoff_bound"><div class="bIcon">🧭</div><div class="bMeta"><span class="nm">Playoff Bound</span><span class="lk">End season Top 10.</span></div></div>  
+      <div class="bTile" data-badge-id="power_play"><div class="bIcon">⚡</div><div class="bMeta"><span class="nm">Power Play</span><span class="lk">Top 3 in four of five weeks.</span></div></div>  
+      <div class="bTile" data-badge-id="icebreaker"><div class="bIcon">🧊</div><div class="bMeta"><span class="nm">Icebreaker</span><span class="lk">Make your first pick ever.</span></div></div>  
+      <div class="bTile" data-badge-id="call_up"><div class="bIcon">📣</div><div class="bMeta"><span class="nm">Call-Up</span><span class="lk">First time finishing Top 10.</span></div></div>  
+      <div class="bTile" data-badge-id="hot_prospect"><div class="bIcon">📈</div><div class="bMeta"><span class="nm">Hot Prospect</span><span class="lk">First time finishing Top 3.</span></div></div>  
+    </div>  
+  </main>  
+</section>  
+  
+<!-- ===== SCORING RULES ===== -->  
+<section id="sec-rules" class="section" aria-labelledby="tab-rules">  
+  <main class="card">  
+    <h2 style="margin:0 0 10px 0">Scoring Rules (Game-based)</h2>  
+    <div class="small" style="margin-bottom:8px">Bonuses are capped to keep thrillers competitive with blowouts.</div>  
+    <div class="rules">  
+      <div class="r"><span>Goal</span><b>+4</b></div>  
+      <div class="r"><span>Power-Play Goal (bonus)</span><b>+1.5</b></div>  
+      <div class="r"><span>Short-Handed Goal (bonus)</span><b>+2</b></div>  
+      <div class="r"><span>Shot on Goal (combined, both teams)</span><b>+0.1</b></div>  
+      <div class="r"><span>Goalie Saves (combined)</span><b>+0.02</b></div>  
+      <div class="r"><span>Hits (combined)</span><b>+0.1</b></div>  
+      <div class="r"><span>Blocked Shots (combined)</span><b>+0.1</b></div>  
+      <div class="r"><span>Penalty Minutes (combined)</span><b>−0.25 / min</b></div>  
+      <div class="r"><span>Close Game (final margin ≤ 1)</span><b>+8</b></div>  
+      <div class="r"><span>Overtime Played</span><b>+10</b></div>  
+      <div class="r"><span>Shootout Played</span><b>+6</b></div>  
+      <div class="r"><span>Bonus Cap (Close + OT + SO)</span><b>≤ +20 total</b></div>  
+    </div>  
+  </main>  
+</section>  
+  
+<!-- Supabase JS -->  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  
+  
+<script>  
+/* ---------- CONFIG ---------- */  
+const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';  
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';  
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {  
+  auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }  
+});  
+  
+/* ---------- PERF: caches + dedup + parallel limiter (ADDED) ---------- */  
+const TZ='America/Chicago';  
+const MAX_PICKS=5;  
+const $ = id => document.getElementById(id);  
+  
+const PERF_NS = `hf:${new Date().toISOString().slice(0,10)}`;  
+const L1 = new Map();  
+function k(ns){ return `${PERF_NS}:${ns}`; }  
+function getCache(ns){  
+  const key=k(ns);  
+  if(L1.has(key)) return L1.get(key);  
+  try{  
+    const raw=localStorage.getItem(key);  
+    if(!raw) return null;  
+    const obj=JSON.parse(raw);  
+    if(obj.exp && Date.now()>obj.exp){ localStorage.removeItem(key); return null; }  
+    L1.set(key,obj.val);  
+    return obj.val;  
+  }catch{ return null; }  
+}  
+function setCache(ns,val,ttlMs){  
+  const key=k(ns);  
+  L1.set(key,val);  
+  try{ localStorage.setItem(key, JSON.stringify({val,exp: ttlMs?Date.now()+ttlMs:null})); }catch{}  
+}  
+function delCache(ns){ try{ localStorage.removeItem(k(ns)); }catch{} L1.delete(k(ns)); }  
+  
+const INFLIGHT = new Map();  
+async function dedupFetch(url){  
+  if(INFLIGHT.has(url)) return INFLIGHT.get(url);  
+  const p = fetch(url,{cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })  
+    .finally(()=>INFLIGHT.delete(url));  
+  INFLIGHT.set(url,p);  
+  return p;  
+}  
+async function safeJson(url,retries=2){  
+  for(let i=0;i<=retries;i++){  
+    try{ return await dedupFetch(url); }  
+    catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,500*(i+1))); }  
+  }  
+}  
+async function pLimitAll(items, limit, worker){  
+  const out=new Array(items.length); let i=0, active=0;  
+  return await new Promise(resolve=>{  
+    const pump=()=>{  
+      while(active<limit && i<items.length){  
+        const idx=i++; active++;  
+        Promise.resolve(worker(items[idx],idx))  
+          .then(v=>{ out[idx]=v; })  
+          .catch(()=>{ out[idx]=undefined; })  
+          .finally(()=>{ active--; (i>=items.length && active===0)?resolve(out):pump(); });  
+      }  
+    };  
+    pump();  
+  });  
+}  
+  
+/* ---------- Helpers & week logic ---------- */  
+function nowCT(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }  
+function addDaysCT(d,days){ const n=new Date(d.getTime()); n.setDate(n.getDate()+days); return new Date(n.toLocaleString('en-US',{timeZone:TZ})); }  
+function parts(d,opts){ const p=new Intl.DateTimeFormat('en-US',opts).formatToParts(d); const o={}; p.forEach(x=>o[x.type]=x.value); return o; }  
+function weekKey(){  
+  const n=nowCT();  
+  const wd=n.getDay();  
+  const daysSinceMon=(wd-1+7)%7;  
+  const mon=addDaysCT(n,-daysSinceMon);  
+  const hour=Number(parts(n,{hour:'2-digit',hour12:false}).hour);  
+  const after8 = hour>=8 || daysSinceMon>0;  
+  const anchor = after8? mon : addDaysCT(mon,-7);  
+  const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'});  
+  return `${p.year}-${p.month}-${p.day}-Mon08CT`;  
+}  
+function weekDates(){  
+  const n=nowCT();  
+  const wd=n.getDay();  
+  const daysSinceMon=(wd-1+7)%7;  
+  const mon=addDaysCT(n,-daysSinceMon);  
+  const list=[];  
+  for(let i=0;i<7;i++){  
+    const d=addDaysCT(mon,i);  
+    const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'});  
+    list.push(`${p.year}-${p.month}-${p.day}`);  
+  }  
+  const pM=parts(mon,{month:'2-digit',day:'2-digit'});  
+  const pS=parts(addDaysCT(mon,6),{month:'2-digit',day:'2-digit'});  
+  return {list,start:list[0],end:list[6],pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`};  
+}  
+const WEEK_KEY=weekKey(); const WEEK=weekDates();  
+$('weekLabel').textContent=WEEK.pretty; $('lbWeekLabel').textContent=`Week: ${WEEK.pretty}`; $('mineWeekLabel').textContent=WEEK.pretty;  
+  
+/* ---------- ESPN helpers ---------- */  
+function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.logos[0].href).replace(/^http:/,'https:'); if(t.abbreviation) return `https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`; return null; }  
+  
+/* ---------- Fantasy weights ---------- */  
+const H={ GOAL:4, PPG:1.5, SHG:2, SOG:0.1, SAVE:0.02, HIT:0.1, BLOCK:0.1, PIM:-0.25, CLOSE_GAME:8, OT:10, SO:6, BONUS_CAP:20 };  
+function parseNHL(summary,pbp){  
+  const comp = summary?.header?.competitions?.[0]||{};  
+  let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });  
+  const homePts=Number(homeC?.score??0), awayPts=Number(awayC?.score??0);  
+  const isFinal = (comp.status?.type?.state==='post' || comp.status?.type?.completed===true);  
+  const period = Number(comp.status?.period||0);  
+  const isSO = isFinal && /SO/.test(String(comp.status?.type?.shortDetail||''));  
+  const teams = summary?.boxscore?.teams||[];  
+  let shots=0, saves=0, hits=0, blocks=0, pim=0, ppg=0, shg=0;  
+  const find=(arr,k)=>arr?.find(s=>s.name===k||s.abbreviation===k)||null;  
+  const v=(x)=>Number(x?.value??x?.displayValue??0)||0;  
+  for(const tm of teams){  
+    const st=tm.statistics||[]  
+    shots += v(find(st,'shotsOnGoal'));  
+    saves += v(find(st,'saves'));  
+    hits  += v(find(st,'hits'));  
+    blocks+= v(find(st,'blockedShots'));  
+    pim   += v(find(st,'pim'));  
+  }  
+  const sps=summary?.scoringPlays||[]; const goals=sps.length;  
+  for(const sp of sps){ const d=String(sp.text||sp.description||'').toLowerCase(); if(d.includes('power play')) ppg++; if(d.includes('short-handed')||d.includes('shorthanded')) shg++; }  
+  const offense = goals*H.GOAL + ppg*H.PPG + shg*H.SHG + shots*H.SOG;  
+  const defense = saves*H.SAVE + hits*H.HIT + blocks*H.BLOCK + pim*H.PIM;  
+  const closeBonus = (isFinal && Math.abs(homePts-awayPts)<=1) ? H.CLOSE_GAME : 0;  
+  const otBonus = (isFinal && period>3) ? H.OT : 0;  
+  const soBonus = (isSO) ? H.SO : 0;  
+  const bonus = Math.min(closeBonus+otBonus+soBonus, H.BONUS_CAP);  
+  const total = offense + defense + bonus;  
+  return { total:Number(total.toFixed(2)), homePts, awayPts, isFinal, bonus, closeBonus, otBonus, soBonus };  
+}  
+  
+/* ---------- Supabase helpers ---------- */  
+let session=null, currentUser=null, displayName='';  
+function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }  
+  
+async function loadOrCreatePlayer(){  
+  if(!currentUser) return;  
+  const uid=currentUser.id;  
+  const { data, error } = await supa.from('players').select('*').eq('id',uid).maybeSingle();  
+  if(error){ console.error(error); return; }  
+  if(!data){  
+    const def = (currentUser.email||'user').split('@')[0];  
+    const { error:insErr } = await supa.from('players').insert({ id:uid, display_name:def });  
+    if(insErr){ console.error(insErr); }  
+    displayName=def;  
+  }else{  
+    displayName=data.display_name||'';  
+  }  
+  $('displayNameInput').value=displayName||'';  
+}  
+  
+$('saveDisplayName').addEventListener('click', async ()=>{  
+  if(!currentUser) return;  
+  const name = ($('displayNameInput').value||'').trim();  
+  if(!name) return;  
+  const { error } = await supa.from('players').upsert({ id: currentUser.id, display_name: name });  
+  if(!error){ displayName=name; toast('Saved ✓'); renderWeeklyBoards(); renderSeasonBoards(); }  
+});  
+  
+$('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });  
+  
+$('loginForm').addEventListener('submit', async (e)=>{  
+  e.preventDefault();  
+  const email=$('emailInput').value.trim();  
+  if(!email) return;  
+  const redirectTo = window.location.href;  
+  const { error } = await supa.auth.signInWithOtp({ email, options:{emailRedirectTo: redirectTo, shouldCreateUser:true } });  
+  if(error){ alert(error.message); return; }  
+  toast('Magic link sent! Check your email.');  
+});  
+  
+/* ---------- Picks (Supabase) ---------- */  
+function uniqLimit(arr){ const out=[]; const seen=new Set(); (arr||[]).forEach(x=>{ const id=String(x); if(!seen.has(id)){ seen.add(id); out.push(id); } }); return out.slice(0,MAX_PICKS); }  
+const CK_MY = uid => `picks:${WEEK_KEY}:${uid}`;  
+const CK_ALL = `allpicks:${WEEK_KEY}`;  
+const NAME_MEMO = new Map();  
+  
+async function picksForUser(uid){  
+  const ck = CK_MY(uid);  
+  const cached = getCache(ck);  
+  if(cached) return cached;  
+  const { data, error } = await supa.from('picks')  
+    .select('game_id')  
+    .eq('user_id', uid)  
+    .eq('league','NHL')  
+    .eq('week_key', WEEK_KEY);  
+  const list = error ? [] : uniqLimit((data||[]).map(r=>String(r.game_id)));  
+  setCache(ck, list, 15000);  
+  return list;  
+}  
+async function setPick(uid, gameId){  
+  const { error } = await supa.from('picks').upsert(  
+    [{ user_id: uid, league:'NHL', week_key: WEEK_KEY, game_id: String(gameId) }],  
+    { onConflict: 'user_id,league,week_key,game_id' }  
+  );  
+  if(error){ alert(error.message); return false; }  
+  delCache(CK_MY(uid)); delCache(CK_ALL);  
+  return true;  
+}  
+async function allPicksThisWeek(){  
+  const cached = getCache(CK_ALL);  
+  if(cached) return cached;  
+  const { data, error } = await supa.from('picks')  
+    .select('user_id, game_id')  
+    .eq('league','NHL')  
+    .eq('week_key',WEEK_KEY);  
+  const rows = error ? [] : (data||[]);  
+  setCache(CK_ALL, rows, 20000);  
+  return rows;  
+}  
+async function getDisplayNames(userIds){  
+  const ids = [...new Set(userIds||[])].filter(Boolean);  
+  if(ids.length===0) return {};  
+  const need = ids.filter(id=>!NAME_MEMO.has(id));  
+  if(need.length){  
+    const { data, error } = await supa.from('players').select('id,display_name').in('id', need);  
+    if(!error && data){  
+      data.forEach(r=>NAME_MEMO.set(r.id, r.display_name || r.id.slice(0,6)));  
+      need.forEach(id=>{ if(!NAME_MEMO.has(id)) NAME_MEMO.set(id, id.slice(0,6)); });  
+    }else{  
+      need.forEach(id=>NAME_MEMO.set(id, id.slice(0,6));  
+    }  
+  }  
+  const map={}; ids.forEach(id=>map[id]=NAME_MEMO.get(id));  
+  return map;  
+}  
+  
+/* ---------- League (NHL) UI ---------- */  
+function leagueFactory(){  
+  const st={ events:[], selected:null, poll:null, gameRows:[] };  
+  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), log:$('nhl-log'), gameLB:$('nhl-gameLB'), userLB:$('nhl-userLB') };  
+  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`, pbp:(id)=>`https://cdn.espn.com/core/nhl/playbyplay?xhr=1&gameId=${id}` };  
+  
+  dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });  
+  dom.add.addEventListener('click', async ()=>{  
+    if(!currentUser){ alert('Sign in first.'); return; }  
+    if(!st.selected) return;  
+    const kick=new Date(st.selected.start).getTime();  
+    if(Date.now()>=kick){ alert('Locked (already started)'); return; }  
+    const myList = await picksForUser(currentUser.id);  
+    const gid=String(st.selected.id);  
+    if(myList.includes(gid)){ alert('Already picked.'); return; }  
+    if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }  
+    const ok = await setPick(currentUser.id,gid);  
+    if(ok){  
+      updatePicksLeft();  
+      renderWeeklyBoards();  
+      renderMyPicks();  
+      const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex';  
+      const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';  
+      toast('Pick saved ✓');  
+      refreshBadges(true); // <-- added
+    }  
+  });  
+  
+  function renderGrid(){  
+    dom.grid.innerHTML='';  
+    (st.events||[]).forEach(g=>{  
+      const started=Date.now()>=new Date(g.start).getTime();  
+      const card=document.createElement('div');  
+      card.className='gameCard';  
+      const puck=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});  
+      card.innerHTML=`  
+        <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>  
+        <div class="gameBody">  
+          <div class="teamsRow">  
+            <div class="team">${g.away.logo?`<img src="${g.away.logo}" alt="">`:``}<div class="name">${g.away.name}</div><span class="scoreTag" id="NHL-a-${g.id}">0</span></div>  
+            <div class="small" style="opacity:.8">@</div>  
+            <div class="team" style="justify-content:flex-end">${g.home.logo?`<img src="${g.home.logo}" alt="">`:``}<div class="name">${g.home.name}</div><span class="scoreTag" id="NHL-h-${g.id}">0</span></div>  
+          </div>  
+          <div class="small" style="margin-top:6px;opacity:.9">Score: <span id="NHL-scr-${g.id}">—</span> · <span id="NHL-st-${g.id}">pre</span> · Puck drop: ${puck}</div>  
+          <div class="lockRow">  
+            <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>  
+            <button class="btn pickBtn" data-gid="${g.id}" ${started?'style="display:none"':''}>Add to my picks</button>  
+            <button class="btn small viewBtn">Open</button>  
+          </div>  
+          ${started?'<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}  
+        </div>`;  
+      card.querySelector('.viewBtn').addEventListener('click',()=>openGame(g));  
+      const pickBtn=card.querySelector('.pickBtn');  
+      if(pickBtn){  
+        pickBtn.addEventListener('click', async ()=>{  
+          if(!currentUser){ alert('Sign in first.'); return; }  
+          if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }  
+          const myList = await picksForUser(currentUser.id);  
+          const gid=String(g.id);  
+          if(myList.includes(gid)){ alert('Already picked.'); return; }  
+          if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }  
+          const ok = await setPick(currentUser.id,gid);  
+          if(ok){  
+            updatePicksLeft();  
+            renderWeeklyBoards();  
+            renderMyPicks();  
+            const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';  
+            pickBtn.style.display='none';  
+            toast('Pick saved ✓');  
+            refreshBadges(true); // <-- added
+          }  
+        });  
+      }  
+      dom.grid.appendChild(card);  
+    });  
+  }  
+  
+  async function refreshGridScores(){  
+    const evs = st.events||[]; if(!evs.length) return;  
+    const rows = await pLimitAll(evs, 6, async (g)=>{  
+      try{  
+        const s=await safeJson(api.summary(g.id));  
+        const p=await safeJson(api.pbp(g.id));  
+        const comp=s?.header?.competitions?.[0]||{};  
+        let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });  
+        const sc=parseNHL(s,p);  
+        return { id:g.id, awayPts:sc.awayPts, homePts:sc.homePts, score:sc.total, status:(comp.status?.type?.shortDetail||comp.status?.type?.description||'—') };  
+      }catch{ return null; }  
+    });  
+    const valid=rows.filter(Boolean);  
+    for(const r of valid){  
+      const scEl=$(`NHL-scr-${r.id}`), stEl=$(`NHL-st-${r.id}`), aEl=$(`NHL-a-${r.id}`), hEl=$(`NHL-h-${r.id}`);  
+      if(scEl) scEl.textContent=`${r.awayPts}–${r.homePts}`;  
+      if(stEl) stEl.textContent=r.status||'—';  
+      if(aEl) aEl.textContent=r.awayPts;  
+      if(hEl) hEl.textContent=r.homePts;  
+    }  
+    st.gameRows = evs.map(g=>{  
+      const r = valid.find(x=>x && String(x.id)===String(g.id));  
+      if(!r) return null;  
+      return { id:g.id, awayName:g.away.name, homeName:g.home.name, awayLogo:g.away.logo, homeLogo:g.home.logo, score:r.score, status:r.status };  
+    }).filter(Boolean).sort((a,b)=>b.score-a.score);  
+    renderGameLB();  
+    renderUserLB();  
+  }  
+  
+  function openGame(g){  
+    st.selected=g;  
+    $('nhl-top').setAttribute('data-show','true');  
+    dom.live.textContent=`${g.away.name} @ ${g.home.name}`;  
+    dom.teamSide.innerHTML=  
+      `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">  
+         <div style="display:flex;gap:10px;align-items:center">${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}<div style="font-weight:700">${g.away.name}</div></div>  
+         <div id="NHL-awayScore" style="font-weight:800">—</div>  
+       </div>  
+       <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">  
+         <div style="display:flex;gap:10px;align-items:center">${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}<div style="font-weight:700">${g.home.name}</div></div>  
+         <div id="NHL-homeScore" style="font-weight:800">—</div>  
+       </div>`;  
+    dom.gridCard.style.display='none'; dom.top.style.display='block';  
+    updateGameOnce(); if(st.poll) clearInterval(st.poll); st.poll=setInterval(updateGameOnce,20000);  
+    renderGameLB(); renderUserLB();  
+  }  
+  
+  async function updateGameOnce(){  
+    if(!st.selected) return; const id=st.selected.id;  
+    try{  
+      const s=await safeJson(api.summary(id));  
+      const p=await safeJson(api.pbp(id));  
+      const comp=s?.header?.competitions||[];  
+      const c0=(comp[0]||{}); const status=c0.status||{};  
+      let homeC=null,awayC=null; (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });  
+      $('NHL-homeScore').textContent=String(homeC?.score??0);  
+      $('NHL-awayScore').textContent=String(awayC?.score??0);  
+      dom.clock.textContent=status.displayClock||'—';  
+      dom.q.textContent=String(status.period??'—');  
+      dom.state.textContent=(status.type?.description||status.type?.shortDetail||'—');  
+      const sc=parseNHL(s,p);  
+      dom.fscore.textContent=sc.total.toFixed(2);  
+      dom.bonus.textContent=`Bonuses: ${sc.closeBonus?`Close +${sc.closeBonus}`:'—'} · ${sc.otBonus?`OT +${sc.otBonus}`:'—'} · ${sc.soBonus?`SO +${sc.soBonus}`:'—'} (cap ${H.BONUS_CAP})`;  
+      const sps=s?.scoringPlays||[];  
+      dom.log.innerHTML='';  
+      for(const sp of sps.slice(-10).reverse()){  
+        const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');  
+        const div=document.createElement('div'); div.textContent=`[${q} ${t}] ${d}`; dom.log.appendChild(div);  
+      }  
+    }catch(e){}  
+  }  
+  
+  async function loadWeek(){  
+    dom.note.textContent=`Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;  
+    const all=[];  
+    for(const d of WEEK.list){  
+      const sb=await safeJson(api.scoreboard(d)).catch(()=>null);  
+      const evs=sb?.events||[];  
+      for(const ev of evs){  
+        const c=ev.competitions?.[0]||{};  
+        let home=null,away=null; (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });  
+        all.push({  
+          id:ev.id,  
+          start:ev.date,  
+          home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },  
+          away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }  
+        });  
+      }  
+    }  
+    all.sort((a,b)=>new Date(a.start)-new Date(b.start));  
+    st.events=all;  
+    dom.note.textContent=`${all.length} games`;  
+    renderGrid();  
+    if(currentUser){  
+      const mine = await picksForUser(currentUser.id);  
+      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });  
+    }  
+    refreshGridScores();  
+    setInterval(refreshGridScores,30000);  
+  }  
+  
+  return { loadWeek, state:st };  
+}  
+const NHL = leagueFactory();  
+  
+/* ---------- Score/meta caches ---------- */  
+async function gameScore(gid){  
+  const ck=`score:${gid}`;  
+  const c=getCache(ck);  
+  if(c!=null) return c;  
+  try{  
+    const [s,p]=await Promise.all([  
+      safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`),  
+      safeJson(`https://cdn.espn.com/core/nhl/playbyplay?xhr=1&gameId=${gid}`)  
+    ]);  
+    const parsed = parseNHL(s,p);  
+    const val = parsed.total || 0;  
+    const comp = s?.header?.competitions?.[0]||{};  
+    const isFinal = (comp.status?.type?.state==='post' || comp.status?.type?.completed===true);  
+    const period = Number(comp.status?.period||0);  
+    const isLive = !isFinal && period>0;  
+    let ttl = 10*60*1000;  
+    if(isLive) ttl = 60*1000;  
+    if(isFinal) ttl = 6*60*60*1000;  
+    setCache(ck, val, ttl);  
+    return val;  
+  }catch{ return 0; }  
+}  
+async function gameMeta(gid){  
+  const ck=`meta:${gid}`;  
+  const c=getCache(ck);  
+  if(c) return c;  
+  const ev=NHL.state.events.find(e=>String(e.id)===String(gid));  
+  if(ev){  
+    const m={awayName:ev.away.name,homeName:ev.home.name,awayLogo:ev.away.logo,homeLogo:ev.home.logo};  
+    setCache(ck,m,24*60*60*1000);  
+    return m;  
+  }  
+  try{  
+    const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);  
+    const comp=s?.header?.competitions?.[0]||{}; let home=null,away=null; (comp.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });  
+    const m={ awayName:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', homeName:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', awayLogo:cdnNHL(away?.team||null), homeLogo:cdnNHL(home?.team||null) };  
+    setCache(ck,m,24*60*60*1000);  
+    return m;  
+  }catch{ return {awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null}; }  
+}  
+  
+/* ---------- Boards ---------- */  
+const lbWeekBox={ NHL:$('lbNHLWeek') };  
+const lbSeasonBox={ NHL:$('lbNHLSeason') };  
+function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }  
+  
+async function renderWeeklyBoards(){  
+  const box=lbWeekBox.NHL;  
+  if(!box) return;  
+  box.innerHTML='<div class="small">Computing…</div>';  
+  const rows = await allPicksThisWeek();  
+  if(!rows.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }  
+  const byUser=new Map();  
+  for(const r of rows){ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); }  
+  const ids=[...byUser.keys()];  
+  const names=await getDisplayNames(ids);  
+  const computed = await pLimitAll(ids, 6, async (uid)=>{  
+    const lst = uniqLimit(byUser.get(uid)||[]);  
+    const scores = await Promise.all(lst.map(g=>gameScore(g)));  
+    const total = scores.reduce((a,b)=>a+(b||0),0);  
+    return { uid, name:names[uid]||uid.slice(0,6), total, picks: lst.length };  
+  });  
+  const out = computed.filter(Boolean).sort((a,b)=>b.total-a.total);  
+  box.innerHTML='';  
+  out.forEach((r,i)=>{  
+    const div=document.createElement('div'); div.className='lbRow';  
+    div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span> <span class="small" style="margin-left:6px;opacity:.8">(${r.picks}/${MAX_PICKS})</span></div><div class="lbPts">${r.total.toFixed(2)}</div><div class="small">Weekly</div>`;  
+    box.appendChild(div);  
+  });  
+}  
+  
+async function renderSeasonBoards(){  
+  const box=lbSeasonBox.NHL; if(!box) return;  
+  box.innerHTML='<div class="small">Computing…</div>';  
+  const { data, error } = await supa.from('season_points')  
+    .select('user_id, points')  
+    .eq('league','NHL');  
+  if(error){ console.error(error); box.innerHTML='<div class="small">Error.</div>'; return; }  
+  if(!data || !data.length){ box.innerHTML='<div class="small">No season data yet.</div>'; return; }  
+  const totals={}; data.forEach(r=>{ totals[r.user_id]=(totals[r.user_id]||0)+Number(r.points||0); });  
+  const ids=Object.keys(totals);  
+  const names=await getDisplayNames(ids);  
+  const rows=ids.map(uid=>({uid, name:names[uid]||uid.slice(0,6), total:totals[uid]})).sort((a,b)=>b.total-a.total);  
+  box.innerHTML='';  
+  rows.forEach((r,i)=>{  
+    const div=document.createElement('div'); div.className='lbRow';  
+    div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span></div><div class="lbPts">${r.total}</div><div class="small">Season</div>`;  
+    box.appendChild(div);  
+  });  
+}  
+  
+/* ---------- My Picks ---------- */  
+const RENDER_TICKETS = new Map();  
+function nextTicket(key){ const n=(RENDER_TICKETS.get(key)||0)+1; RENDER_TICKETS.set(key,n); return n; }  
+function isCurrent(key,t){ return RENDER_TICKETS.get(key)===t; }  
+let LAST_ALL_IDS_JSON = '';  
+  
+function gameRowHTML(meta,score){  
+  return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${score.toFixed(2)}</div><div class="small">Game</div>`;  
+}  
+async function renderPickList(containerId, gidList){  
+  const el=$(containerId);  
+  const myTicket = nextTicket(containerId);  
+  const clean=uniqLimit(gidList||[]);  
+  el.innerHTML='';  
+  if(clean.length===0){  
+    if(isCurrent(containerId,myTicket)) el.innerHTML='<div class="small">No picks yet.</div>';  
+    return 0;  
+  }  
+  const results = await pLimitAll(clean, 6, async (gid)=>{  
+    const [meta,score]=await Promise.all([gameMeta(gid), gameScore(gid)]);  
+    return {meta,score:score||0};  
+  });  
+  if(!isCurrent(containerId,myTicket)) return 0;  
+  let total=0; const rows=[];  
+  for(const r of results){ total+=r.score; rows.push(`<div class="lbRow">${gameRowHTML(r.meta,r.score)}</div>`); }  
+  el.innerHTML=rows.join('');  
+  return total;  
+}  
+async function renderMyPicks(){  
+  if(!currentUser){ $('myNHL').innerHTML='<div class="small">Sign in to see your picks.</div>'; $('allPicks').innerHTML='<div class="small">Sign in to see everyone.</div>'; return; }  
+  const myList = await picksForUser(currentUser.id);  
+  const tot = await renderPickList('myNHL', myList);  
+  $('myNHLTotal').textContent = tot.toFixed(2);  
+  
+  const box=$('allPicks');  
+  const rows = await allPicksThisWeek();  
+  const byUser=new Map(); rows.forEach(r=>{ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); });  
+  const ids=[...byUser.keys()];  
+  if(!ids.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }  
+  
+  const idsJson = JSON.stringify(ids.slice().sort());  
+  if(idsJson !== LAST_ALL_IDS_JSON){  
+    LAST_ALL_IDS_JSON = idsJson;  
+    const names=await getDisplayNames(ids);  
+    const frags=[]; ids.forEach(uid=>{  
+      frags.push(`<div class="panel" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${names[uid]||uid.slice(0,6)}</strong><span class="small" id="sum-${uid}">NHL —</span></div><div class="sep"></div><div id="p-${uid}-nhl"></div></div>`);  
+    });  
+    box.innerHTML=frags.join('');  
+  }  
+  
+  await pLimitAll(ids, 6, async (uid)=>{  
+    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));  
+    const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${t.toFixed(2)}`;  
+  });  
+}  
+  
+/* ---------- Picks-left badge ---------- */  
+async function updatePicksLeft(){  
+  if(!currentUser){ $('picksLeft').textContent='Sign in to play'; return; }  
+  const n=(await picksForUser(currentUser.id)).length;  
+  $('picksLeft').textContent=`NHL ${Math.max(MAX_PICKS-n,0)} left`;  
+}  
+  
+/* ---------- BADGES: live refresh ---------- */  
+async function refreshBadges(force=false){  
+  if(!currentUser) return;  
+  // fetch my earned badge ids
+  const { data, error } = await supa
+    .from('badge_events')
+    .select('badge_id')
+    .eq('user_id', currentUser.id);
+  if(error) return;  
+  const have = new Set((data||[]).map(r=>r.badge_id));  
+  // flip tiles
+  document.querySelectorAll('#badgeGrid [data-badge-id]').forEach(card=>{  
+    const id = card.getAttribute('data-badge-id');  
+    const earned = have.has(id);  
+    card.classList.toggle('earned', earned);  
+  });  
+}  
+  
+/* ---------- Tabs ---------- */  
+const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };  
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); } if(k==='badges'){ refreshBadges(true); }}));  
+  
+/* ---------- Boot ---------- */  
+(async ()=>{  
+  const { data:{ session:ses } } = await supa.auth.getSession();  
+  session=ses; currentUser = session?.user || null;  
+  
+  function showAuthUI(){  
+    if(currentUser){  
+      $('loginForm').style.display='none';  
+      $('userBox').style.display='flex';  
+      $('whoami').textContent = currentUser.email || '(no email)';  
+    }else{  
+      $('loginForm').style.display='flex';  
+      $('userBox').style.display='none';  
+    }  
+  }  
+  showAuthUI();  
+  
+  if(currentUser){ await loadOrCreatePlayer(); }  
+  
+  const league = NHL; await league.loadWeek();  
+  await updatePicksLeft();  
+  await renderWeeklyBoards();  
+  await renderSeasonBoards();  
+  await renderMyPicks();  
+  await refreshBadges(true); // <-- added on boot when signed in  
+  
+  supa.auth.onAuthStateChange(async (_event, sess)=>{  
+    session=sess; currentUser=session?.user||null; showAuthUI();  
+    if(currentUser){ await loadOrCreatePlayer(); }  
+    await updatePicksLeft();  
+    await renderMyPicks();  
+    await renderWeeklyBoards();  
+    if(currentUser && NHL?.state?.events){  
+      const mine = await picksForUser(currentUser.id);  
+      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });  
+    }  
+    await refreshBadges(true); // <-- added on auth change
+  });  
+  
+  setInterval(renderWeeklyBoards, 60000);  
+})();  
+</script>  
+</body>  
 </html>
