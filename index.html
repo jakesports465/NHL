@@ -391,7 +391,7 @@ function parseNHL(summary,pbp){
 /* ---------- Supabase helpers (magic link + display name) ---------- */
 let session=null, currentUser=null, displayName='';
 
-function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
+function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #335a7a',padding:'10px 12px',borderRadius:'10px',boxShadow:'0 8px 30px rgba(0,0,0,.35)',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
 
 async function loadOrCreatePlayer(){
   if(!currentUser) return;
@@ -460,6 +460,7 @@ async function setPick(uid, gameId){
   delCache(CK_MY(uid)); delCache(CK_ALL);
   // update badges (Icebreaker etc) right away
   refreshBadgesUI().catch(()=>{});
+  checkNewBadgesAndToast().catch(()=>{});
   return true;
 }
 async function allPicksThisWeek(){
@@ -745,6 +746,11 @@ async function renderWeeklyBoards(){
     div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span> <span class="small" style="margin-left:6px;opacity:.8">(${r.picks}/${MAX_PICKS})</span></div><div class="lbPts">${r.total.toFixed(2)}</div><div class="small">Weekly</div>`;
     box.appendChild(div);
   });
+
+  // fire weekly awards once (safe if weekly_results present)
+  if(!FIRED_AWARDS.week){
+    runWeeklyAwards().catch(()=>{});
+  }
 }
 
 async function renderSeasonBoards(){
@@ -765,6 +771,11 @@ async function renderSeasonBoards(){
     div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span><div class="lbTeam"><span class="lbName">${r.name}</span></div><div class="lbPts">${r.total}</div><div class="small">Season</div>`;
     box.appendChild(div);
   });
+
+  // fire season awards once (safe if season_points present)
+  if(!FIRED_AWARDS.season){
+    runSeasonAwards().catch(()=>{});
+  }
 }
 
 /* ---------- My Picks ---------- */
@@ -846,6 +857,73 @@ async function refreshBadgesUI(){
   }catch(e){ /* ignore */ }
 }
 
+/* ---------- NEW: Badge meta + toasts for NEW unlocks ---------- */
+let BADGE_META=null;
+async function loadBadgeMeta(){
+  if(BADGE_META) return BADGE_META;
+  const { data, error } = await supa.from('badges').select('id,name,emoji,active');
+  BADGE_META = (!error && data) ? Object.fromEntries(data.map(b=>[b.id,b])) : {};
+  return BADGE_META;
+}
+let LAST_BADGE_SIG = '';
+async function checkNewBadgesAndToast(){
+  if(!currentUser) return;
+  const meta = await loadBadgeMeta();
+  const { data, error } = await supa
+    .from('badge_events')
+    .select('badge_id, awarded_at')
+    .eq('user_id', currentUser.id)
+    .order('awarded_at', { ascending:false })
+    .limit(50);
+  if(error || !data) return;
+
+  const ids = data.map(r=>r.badge_id);
+  const sig = ids.join(',');
+  if(!LAST_BADGE_SIG){
+    LAST_BADGE_SIG = sig; // first load, don't spam
+    return;
+  }
+  // find newly added at the front of the list
+  const prevSet = new Set(LAST_BADGE_SIG.split(',').filter(Boolean));
+  const newly = ids.filter(id=>!prevSet.has(id));
+  if(newly.length){
+    // toast newest 1-3
+    newly.slice(0,3).forEach(id=>{
+      const m = meta[id] || {name:id, emoji:'🏅'};
+      toast(`Unlocked: ${m.emoji || '🏅'} ${m.name || id}`);
+    });
+    LAST_BADGE_SIG = sig;
+    refreshBadgesUI().catch(()=>{});
+  }
+}
+
+/* ---------- NEW: Auto-wire weekly & season awards via RPC (safe idempotent) ---------- */
+const FIRED_AWARDS = { week:false, season:false };
+function currentSeasonLabelJS(at=new Date()){
+  // NHL-style: Jul–Dec => Y-(Y+1), Jan–Jun => (Y-1)-Y
+  const y = at.getFullYear();
+  const m = at.getMonth()+1; // 1..12
+  if(m>=7){ // Jul..Dec
+    const y2 = (y+1)%100; return `${y}-${String(y2).padStart(2,'0')}`;
+  }else{    // Jan..Jun
+    const y1 = y-1; const y2 = y%100; return `${y1}-${String(y2).padStart(2,'0')}`;
+  }
+}
+async function runWeeklyAwards(){
+  try{
+    await supa.rpc('award_weekly_badges', { p_league:'NHL', p_week_key: WEEK_KEY });
+    FIRED_AWARDS.week = true;
+    await checkNewBadgesAndToast();
+  }catch(e){}
+}
+async function runSeasonAwards(){
+  try{
+    await supa.rpc('award_season_badges', { p_league:'NHL', p_season: currentSeasonLabelJS() });
+    FIRED_AWARDS.season = true;
+    await checkNewBadgesAndToast();
+  }catch(e){}
+}
+
 /* ---------- Picks-left badge ---------- */
 async function updatePicksLeft(){
   if(!currentUser){ $('picksLeft').textContent='Sign in to play'; return; }
@@ -855,7 +933,7 @@ async function updatePicksLeft(){
 
 /* ---------- Tabs ---------- */
 const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
-Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); } if(k==='badges'){ refreshBadgesUI(); }}));
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); runWeeklyAwards().catch(()=>{}); runSeasonAwards().catch(()=>{}); } if(k==='badges'){ refreshBadgesUI(); checkNewBadgesAndToast().catch(()=>{}); }}));
 
 /* ---------- Boot ---------- */
 (async ()=>{
@@ -882,6 +960,8 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
   await renderSeasonBoards();
   await renderMyPicks();
   await refreshBadgesUI();
+  await loadBadgeMeta();
+  await checkNewBadgesAndToast();
 
   supa.auth.onAuthStateChange(async (_event, sess)=>{
     session=sess; currentUser=session?.user||null; showAuthUI();
@@ -894,6 +974,7 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
       mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
     await refreshBadgesUI();
+    await checkNewBadgesAndToast();
   });
 
   setInterval(renderWeeklyBoards, 60000);
