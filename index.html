@@ -22,7 +22,7 @@
   .section.active{display:block}
   main{max-width:1160px;margin:0 auto;padding:16px 18px 46px}
   .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:14px}
-  .panel{background:#0f1318;border:1px solid var(--br);border-radius:12px;padding:12px}
+  .panel{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
   .sep{height:1px;background:var(--br);margin:12px 0}
   .small{font-size:12px;color:var(--muted)}
   .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;line-height:1;min-height:40px}
@@ -66,11 +66,13 @@
   .rules{display:grid;gap:8px}
   .rules .r{display:flex;justify-content:space-between;gap:12px;padding:8px;border:1px solid #1c2430;background:#0f1318;border-radius:10px}
 
-  /* ===== Badges (greyed out) ===== */
-  .badgesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-  .badgeTile{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px dashed #263341;background:#0e1319;border-radius:12px;opacity:.55;filter:grayscale(0.9)}
-  .badgeIcon{width:36px;height:36px;border-radius:8px;border:1px solid #263341;background:#0c1116;display:flex;align-items:center;justify-content:center;font-weight:900}
-  .badgeTitle{font-weight:800}
+  /* ---- Badges (locked style) ---- */
+  .badgeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+  .bTile{display:flex;gap:10px;align-items:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;opacity:.55;filter:grayscale(100%)}
+  .bIcon{width:40px;height:40px;border-radius:10px;border:1px solid #223040;background:#0d131a;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .bMeta{display:flex;flex-direction:column;gap:2px}
+  .bMeta .nm{font-weight:700}
+  .bMeta .lk{font-size:12px;color:#97a7b9}
 </style>
 </head>
 <body>
@@ -95,8 +97,8 @@
 <nav class="tabs" role="tablist" aria-label="Sections">
   <button class="tab" id="tab-nhl"   role="tab" aria-controls="sec-nhl"   aria-selected="true">NHL</button>
   <button class="tab" id="tab-mine"  role="tab" aria-controls="sec-mine"  aria-selected="false">My Picks</button>
-  <button class="tab" id="tab-badges" role="tab" aria-controls="sec-badges" aria-selected="false">Badges</button>
   <button class="tab" id="tab-lb"    role="tab" aria-controls="sec-lb"    aria-selected="false">Leaderboards</button>
+  <button class="tab" id="tab-badges" role="tab" aria-controls="sec-badges" aria-selected="false">Badges</button>
   <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>
 </nav>
 
@@ -167,61 +169,6 @@
   </main>
 </section>
 
-<!-- ===== BADGES (greyed/locked) ===== -->
-<section id="sec-badges" class="section" aria-labelledby="tab-badges">
-  <main class="card">
-    <div class="lbHeaderRow">
-      <h2 style="margin:0">Badges</h2>
-      <span class="small">Progress: <b>Locked</b></span>
-    </div>
-    <div class="sep"></div>
-    <section class="badgesGrid">
-      <div class="badgeTile">
-        <div class="badgeIcon">❄️</div>
-        <div>
-          <div class="badgeTitle">Icebreaker</div>
-          <div class="small">Make your first pick this season.</div>
-        </div>
-      </div>
-      <div class="badgeTile">
-        <div class="badgeIcon">🔥</div>
-        <div>
-          <div class="badgeTitle">Hot Streak</div>
-          <div class="small">3 winning picks in a row.</div>
-        </div>
-      </div>
-      <div class="badgeTile">
-        <div class="badgeIcon">⭐</div>
-        <div>
-          <div class="badgeTitle">Perfect Week</div>
-          <div class="small">All 5 picks win in a week.</div>
-        </div>
-      </div>
-      <div class="badgeTile">
-        <div class="badgeIcon">⚡</div>
-        <div>
-          <div class="badgeTitle">Upset Hunter</div>
-          <div class="small">Win with an underdog pick.</div>
-        </div>
-      </div>
-      <div class="badgeTile">
-        <div class="badgeIcon">⏱️</div>
-        <div>
-          <div class="badgeTitle">Overtime Junkie</div>
-          <div class="small">Win a pick in an OT game.</div>
-        </div>
-      </div>
-      <div class="badgeTile">
-        <div class="badgeIcon">🧊</div>
-        <div>
-          <div class="badgeTitle">Clutch</div>
-          <div class="small">Win a pick by 1 goal.</div>
-        </div>
-      </div>
-    </section>
-  </main>
-</section>
-
 <!-- ===== LEADERBOARD ===== -->
 <section id="sec-lb" class="section" aria-labelledby="tab-lb">
   <main class="card">
@@ -239,6 +186,39 @@
         <h3 style="margin:0 0 6px 0">NHL — Season</h3>
         <div id="lbNHLSeason"></div>
       </section>
+    </div>
+  </main>
+</section>
+
+<!-- ===== BADGES (updated list) ===== -->
+<section id="sec-badges" class="section" aria-labelledby="tab-badges">
+  <main class="card">
+    <div class="lbHeaderRow">
+      <h2 style="margin:0">Badges</h2>
+      <span class="small">All badges are shown locked for now.</span>
+    </div>
+    <div class="sep"></div>
+    <div class="badgeGrid" id="badgeGrid">
+      <div class="bTile"><div class="bIcon">🥇</div><div class="bMeta"><span class="nm">First Star of the Week</span><span class="lk">Finish 1st place weekly.</span></div></div>
+      <div class="bTile"><div class="bIcon">🥈</div><div class="bMeta"><span class="nm">Second Star</span><span class="lk">Finish 2nd place weekly.</span></div></div>
+      <div class="bTile"><div class="bIcon">🥉</div><div class="bMeta"><span class="nm">Third Star</span><span class="lk">Finish 3rd place weekly.</span></div></div>
+      <div class="bTile"><div class="bIcon">🔟</div><div class="bMeta"><span class="nm">Solid Ten</span><span class="lk">Finish Top 10 weekly.</span></div></div>
+      <div class="bTile"><div class="bIcon">🎯</div><div class="bMeta"><span class="nm">Consistent Contributor</span><span class="lk">Top 10 in half the season.</span></div></div>
+      <div class="bTile"><div class="bIcon">🔥</div><div class="bMeta"><span class="nm">Heater</span><span class="lk">Top 5 three weeks in a row.</span></div></div>
+      <div class="bTile"><div class="bIcon">🏅</div><div class="bMeta"><span class="nm">Iron Streak</span><span class="lk">Top 10 five weeks in a row.</span></div></div>
+      <div class="bTile"><div class="bIcon">♨️</div><div class="bMeta"><span class="nm">Hot Line</span><span class="lk">Top 5 five weeks in a row.</span></div></div>
+      <div class="bTile"><div class="bIcon">🧊</div><div class="bMeta"><span class="nm">Cold Shift</span><span class="lk">Miss Top 10 three straight.</span></div></div>
+      <div class="bTile"><div class="bIcon">🎯</div><div class="bMeta"><span class="nm">Sniper</span><span class="lk">Pick the #1 scoring game of the week.</span></div></div>
+      <div class="bTile"><div class="bIcon">🎩</div><div class="bMeta"><span class="nm">Hatty Picks</span><span class="lk">Three of your picks finish in the Top 5.</span></div></div>
+      <div class="bTile"><div class="bIcon">🧹</div><div class="bMeta"><span class="nm">Clean Sweep</span><span class="lk">All 5 picks finish in the Top 10.</span></div></div>
+      <div class="bTile"><div class="bIcon">🧱</div><div class="bMeta"><span class="nm">Shutout</span><span class="lk">All your picks below avg but still Top 10 weekly.</span></div></div>
+      <div class="bTile"><div class="bIcon">⏱️</div><div class="bMeta"><span class="nm">Overtime Winner</span><span class="lk">Pick a game that goes to OT.</span></div></div>
+      <div class="bTile"><div class="bIcon">🏆</div><div class="bMeta"><span class="nm">President’s Trophy</span><span class="lk">End season 1st overall.</span></div></div>
+      <div class="bTile"><div class="bIcon">🧭</div><div class="bMeta"><span class="nm">Playoff Bound</span><span class="lk">End season Top 10.</span></div></div>
+      <div class="bTile"><div class="bIcon">⚡</div><div class="bMeta"><span class="nm">Power Play</span><span class="lk">Top 3 in four of five weeks.</span></div></div>
+      <div class="bTile"><div class="bIcon">🧊</div><div class="bMeta"><span class="nm">Icebreaker</span><span class="lk">Make your first pick ever.</span></div></div>
+      <div class="bTile"><div class="bIcon">📣</div><div class="bMeta"><span class="nm">Call-Up</span><span class="lk">First time finishing Top 10.</span></div></div>
+      <div class="bTile"><div class="bIcon">📈</div><div class="bMeta"><span class="nm">Hot Prospect</span><span class="lk">First time finishing Top 3.</span></div></div>
     </div>
   </main>
 </section>
@@ -388,7 +368,7 @@ function parseNHL(summary,pbp){
   const find=(arr,k)=>arr?.find(s=>s.name===k||s.abbreviation===k)||null;
   const v=(x)=>Number(x?.value??x?.displayValue??0)||0;
   for(const tm of teams){
-    const st=tm.statistics||[];
+    const st=tm.statistics||[]
     shots += v(find(st,'shotsOnGoal'));
     saves += v(find(st,'saves'));
     hits  += v(find(st,'hits'));
@@ -555,7 +535,7 @@ function leagueFactory(){
             <button class="btn pickBtn" data-gid="${g.id}" ${started?'style="display:none"':''}>Add to my picks</button>
             <button class="btn small viewBtn">Open</button>
           </div>
-          ${started?'<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>':''}
+          ${started?'<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
         </div>`;
       card.querySelector('.viewBtn').addEventListener('click',()=>openGame(g));
       const pickBtn=card.querySelector('.pickBtn');
@@ -729,7 +709,7 @@ async function gameMeta(gid){
   }catch{ return {awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null}; }
 }
 
-/* ---------- Boards (same UI; faster data paths) ---------- */
+/* ---------- Boards ---------- */
 const lbWeekBox={ NHL:$('lbNHLWeek') };
 const lbSeasonBox={ NHL:$('lbNHLSeason') };
 function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
@@ -779,17 +759,11 @@ async function renderSeasonBoards(){
   });
 }
 
-/* ---------- My Picks (parallel render, per-container tickets) ---------- */
-const RENDER_TICKETS = new Map(); // containerId -> ticket number
-function nextTicket(key){
-  const n=(RENDER_TICKETS.get(key)||0)+1;
-  RENDER_TICKETS.set(key,n);
-  return n;
-}
-function isCurrent(key,t){
-  return RENDER_TICKETS.get(key)===t;
-}
-let LAST_ALL_IDS_JSON = ''; // avoid rebuilding identical panels inside TTL
+/* ---------- My Picks ---------- */
+const RENDER_TICKETS = new Map();
+function nextTicket(key){ const n=(RENDER_TICKETS.get(key)||0)+1; RENDER_TICKETS.set(key,n); return n; }
+function isCurrent(key,t){ return RENDER_TICKETS.get(key)===t; }
+let LAST_ALL_IDS_JSON = '';
 
 function gameRowHTML(meta,score){
   return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${score.toFixed(2)}</div><div class="small">Game</div>`;
@@ -825,7 +799,6 @@ async function renderMyPicks(){
   const ids=[...byUser.keys()];
   if(!ids.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
 
-  // light diff: only rebuild panels if set of users changed
   const idsJson = JSON.stringify(ids.slice().sort());
   if(idsJson !== LAST_ALL_IDS_JSON){
     LAST_ALL_IDS_JSON = idsJson;
@@ -836,9 +809,8 @@ async function renderMyPicks(){
     box.innerHTML=frags.join('');
   }
 
-  // Render each user’s list in parallel (limited)
   await pLimitAll(ids, 6, async (uid)=>{
-    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]);
+    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
     const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${t.toFixed(2)}`;
   });
 }
@@ -851,21 +823,8 @@ async function updatePicksLeft(){
 }
 
 /* ---------- Tabs ---------- */
-const tabs={ 
-  nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, 
-  mine:{tab:$('tab-mine'),sec:$('sec-mine')}, 
-  badges:{tab:$('tab-badges'),sec:$('sec-badges')},
-  lb:{tab:$('tab-lb'),sec:$('sec-lb')}, 
-  rules:{tab:$('tab-rules'),sec:$('sec-rules')}
-};
-Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ 
-  Object.keys(tabs).forEach(x=>{ 
-    tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); 
-    tabs[x].sec.classList.toggle('active', x===k); 
-  }); 
-  if(k==='mine') renderMyPicks(); 
-  if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); }
-}));
+const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); }}));
 
 /* ---------- Boot ---------- */
 (async ()=>{
@@ -909,5 +868,3 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{
 </script>
 </body>
 </html>
-
-
