@@ -65,6 +65,12 @@
   }
   .rules{display:grid;gap:8px}
   .rules .r{display:flex;justify-content:space-between;gap:12px;padding:8px;border:1px solid #1c2430;background:#0f1318;border-radius:10px}
+
+  /* ===== Badges (greyed out) ===== */
+  .badgesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .badgeTile{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px dashed #263341;background:#0e1319;border-radius:12px;opacity:.55;filter:grayscale(0.9)}
+  .badgeIcon{width:36px;height:36px;border-radius:8px;border:1px solid #263341;background:#0c1116;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .badgeTitle{font-weight:800}
 </style>
 </head>
 <body>
@@ -89,6 +95,7 @@
 <nav class="tabs" role="tablist" aria-label="Sections">
   <button class="tab" id="tab-nhl"   role="tab" aria-controls="sec-nhl"   aria-selected="true">NHL</button>
   <button class="tab" id="tab-mine"  role="tab" aria-controls="sec-mine"  aria-selected="false">My Picks</button>
+  <button class="tab" id="tab-badges" role="tab" aria-controls="sec-badges" aria-selected="false">Badges</button>
   <button class="tab" id="tab-lb"    role="tab" aria-controls="sec-lb"    aria-selected="false">Leaderboards</button>
   <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>
 </nav>
@@ -157,6 +164,61 @@
         <div id="allPicks"></div>
       </section>
     </div>
+  </main>
+</section>
+
+<!-- ===== BADGES (greyed/locked) ===== -->
+<section id="sec-badges" class="section" aria-labelledby="tab-badges">
+  <main class="card">
+    <div class="lbHeaderRow">
+      <h2 style="margin:0">Badges</h2>
+      <span class="small">Progress: <b>Locked</b></span>
+    </div>
+    <div class="sep"></div>
+    <section class="badgesGrid">
+      <div class="badgeTile">
+        <div class="badgeIcon">❄️</div>
+        <div>
+          <div class="badgeTitle">Icebreaker</div>
+          <div class="small">Make your first pick this season.</div>
+        </div>
+      </div>
+      <div class="badgeTile">
+        <div class="badgeIcon">🔥</div>
+        <div>
+          <div class="badgeTitle">Hot Streak</div>
+          <div class="small">3 winning picks in a row.</div>
+        </div>
+      </div>
+      <div class="badgeTile">
+        <div class="badgeIcon">⭐</div>
+        <div>
+          <div class="badgeTitle">Perfect Week</div>
+          <div class="small">All 5 picks win in a week.</div>
+        </div>
+      </div>
+      <div class="badgeTile">
+        <div class="badgeIcon">⚡</div>
+        <div>
+          <div class="badgeTitle">Upset Hunter</div>
+          <div class="small">Win with an underdog pick.</div>
+        </div>
+      </div>
+      <div class="badgeTile">
+        <div class="badgeIcon">⏱️</div>
+        <div>
+          <div class="badgeTitle">Overtime Junkie</div>
+          <div class="small">Win a pick in an OT game.</div>
+        </div>
+      </div>
+      <div class="badgeTile">
+        <div class="badgeIcon">🧊</div>
+        <div>
+          <div class="badgeTitle">Clutch</div>
+          <div class="small">Win a pick by 1 goal.</div>
+        </div>
+      </div>
+    </section>
   </main>
 </section>
 
@@ -776,7 +838,7 @@ async function renderMyPicks(){
 
   // Render each user’s list in parallel (limited)
   await pLimitAll(ids, 6, async (uid)=>{
-    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
+    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]);
     const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${t.toFixed(2)}`;
   });
 }
@@ -789,8 +851,21 @@ async function updatePicksLeft(){
 }
 
 /* ---------- Tabs ---------- */
-const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
-Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); }}));
+const tabs={ 
+  nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, 
+  mine:{tab:$('tab-mine'),sec:$('sec-mine')}, 
+  badges:{tab:$('tab-badges'),sec:$('sec-badges')},
+  lb:{tab:$('tab-lb'),sec:$('sec-lb')}, 
+  rules:{tab:$('tab-rules'),sec:$('sec-rules')}
+};
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ 
+  Object.keys(tabs).forEach(x=>{ 
+    tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); 
+    tabs[x].sec.classList.toggle('active', x===k); 
+  }); 
+  if(k==='mine') renderMyPicks(); 
+  if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); }
+}));
 
 /* ---------- Boot ---------- */
 (async ()=>{
