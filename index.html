@@ -56,7 +56,7 @@
   .lbPts{font-weight:800}
   .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   input[type="text"], input[type="email"]{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}
-  .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px}
+  .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px;margin-left:6px}
   @media (max-width: 900px){main{padding:14px 14px 40px}.card{padding:12px}.panel{padding:10px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.scoreBox .num{font-size:34px}.teamline img{width:40px;height:40px}.log{max-height:38vh}}
   @media (max-width: 720px){h1{font-size:16px}.sub{display:block;margin:2px 0 0 0}.pill{margin-left:0}.small{font-size:12px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.lbRow{grid-template-columns:auto 1fr auto; row-gap:6px}.lbRow .small{grid-column:1 / -1; justify-self:start}
     .lockRow .btn{flex:1 1 auto}
@@ -65,6 +65,28 @@
   }
   .rules{display:grid;gap:8px}
   .rules .r{display:flex;justify-content:space-between;gap:12px;padding:8px;border:1px solid #1c2430;background:#0f1318;border-radius:10px}
+
+  /* -------- NEW: Badges / HOF / History / Recap styles (non-destructive) -------- */
+  .badgeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+  .badgeCard{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center}
+  .badgeEmoji{font-size:28px;line-height:1}
+  .badgeInfo{min-width:0}
+  .badgeTitle{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badgeDesc{font-size:12px;color:var(--muted)}
+  .badgeCount{margin-left:auto;text-align:right}
+  .muted{opacity:.45}
+  .tier{border:2px solid transparent;border-radius:12px}
+  .tier-bronze{border-color:#b87333}
+  .tier-silver{border-color:#c0c0c0}
+  .tier-gold{border-color:#d4af37}
+  .tier-platinum{border-color:#e5e4e2}
+  .tier-diamond{border-color:#6ee2f5}
+  .legend{display:flex;gap:8px;flex-wrap:wrap}
+  .legend .chip{border:1px solid #2a394a;background:#0f1318;border-radius:999px;padding:4px 8px;font-size:12px}
+  .twoCol{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:900px){.twoCol{grid-template-columns:1fr}}
+  .wkRow{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:8px;border-radius:10px;border:1px solid #1c2430;background:#0f1318;margin-bottom:8px}
+  select, .select{background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:8px 10px;min-height:36px}
 </style>
 </head>
 <body>
@@ -85,10 +107,15 @@
     </div>
   </div>
 </header>
+
 <nav class="tabs" role="tablist" aria-label="Sections">
   <button class="tab" id="tab-nhl"   role="tab" aria-controls="sec-nhl"   aria-selected="true">NHL</button>
   <button class="tab" id="tab-mine"  role="tab" aria-controls="sec-mine"  aria-selected="false">My Picks</button>
   <button class="tab" id="tab-lb"    role="tab" aria-controls="sec-lb"    aria-selected="false">Leaderboards</button>
+  <button class="tab" id="tab-badges" role="tab" aria-controls="sec-badges" aria-selected="false">Badges</button>
+  <button class="tab" id="tab-history" role="tab" aria-controls="sec-history" aria-selected="false">History</button>
+  <button class="tab" id="tab-recap" role="tab" aria-controls="sec-recap" aria-selected="false">Weekly Recap</button>
+  <button class="tab" id="tab-hof"  role="tab" aria-controls="sec-hof"   aria-selected="false">Hall of Fame</button>
   <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>
 </nav>
 
@@ -129,6 +156,7 @@
         <div id="nhl-userLB"></div>
       </section>
     </section>
+
     <section id="nhl-gridCard" class="card">
       <div class="small" id="nhl-note">Loading NHL week…</div>
       <div class="sep"></div>
@@ -174,6 +202,85 @@
         <div id="lbNHLSeason"></div>
       </section>
     </div>
+  </main>
+</section>
+
+<!-- NEW: Badges -->
+<section id="sec-badges" class="section" aria-labelledby="tab-badges">
+  <main class="card">
+    <div class="lbHeaderRow">
+      <h2 style="margin:0">Badges</h2>
+      <div class="legend">
+        <span class="chip">Tier borders: <span class="small">Bronze→Diamond</span></span>
+        <span class="chip">Gray = locked</span>
+        <span class="chip">Counter = times earned</span>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <section class="panel">
+      <h3 style="margin:0 0 6px 0">Your Badges</h3>
+      <div id="myBadges" class="badgeGrid"></div>
+    </section>
+    <div class="sep"></div>
+    <section class="panel">
+      <h3 style="margin:0 0 6px 0">All Badges</h3>
+      <div id="allBadges" class="badgeGrid"></div>
+    </section>
+  </main>
+</section>
+
+<!-- NEW: History -->
+<section id="sec-history" class="section" aria-labelledby="tab-history">
+  <main class="card">
+    <div class="lbHeaderRow">
+      <h2 style="margin:0">My Weekly History</h2>
+      <span class="small">Season & badges are awarded on Mondays (CT)</span>
+    </div>
+    <div class="sep"></div>
+    <section class="panel">
+      <h3 style="margin:0 0 6px 0">NHL — Past Weeks</h3>
+      <div id="myHistory"></div>
+    </section>
+  </main>
+</section>
+
+<!-- NEW: Weekly Recap -->
+<section id="sec-recap" class="section" aria-labelledby="tab-recap">
+  <main class="card">
+    <div class="lbHeaderRow">
+      <h2 style="margin:0">Weekly Recap</h2>
+      <div class="field">
+        <label class="small" for="recapWeekSelect">Week</label>
+        <select id="recapWeekSelect"></select>
+        <button id="recapRefresh" class="btn small">Load</button>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="twoCol">
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Awards — Top 10</h3>
+        <div id="recapAwards"></div>
+      </section>
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Week Stats</h3>
+        <div id="recapStats" class="small">—</div>
+      </section>
+    </div>
+  </main>
+</section>
+
+<!-- NEW: Hall of Fame -->
+<section id="sec-hof" class="section" aria-labelledby="tab-hof">
+  <main class="card">
+    <div class="lbHeaderRow">
+      <h2 style="margin:0">Hall of Fame</h2>
+      <span class="small">Career totals (NHL)</span>
+    </div>
+    <div class="sep"></div>
+    <section class="panel">
+      <h3 style="margin:0 0 6px 0">Career Leaders</h3>
+      <div id="hofList"></div>
+    </section>
   </main>
 </section>
 
@@ -477,7 +584,7 @@ function leagueFactory(){
       updatePicksLeft();
       renderWeeklyBoards();
       renderMyPicks();
-      const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex';
+      const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
       const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
       toast('Pick saved ✓');
     }
@@ -722,8 +829,7 @@ async function renderSeasonBoards(){
   });
 }
 
-/* ---------- Weekly → Season awards (Top10 = 10..1 pts) ---------- */
-/* Only runs Monday >= 08:00 CT. Idempotent: skips if rows already exist for prev week. */
+/* ---------- Weekly → Season awards (legacy client-side; server RPC exists) ---------- */
 function isAwardWindowNow(){
   const n=nowCT();
   const wd=n.getDay(); // Monday = 1
@@ -734,7 +840,6 @@ async function maybeAwardSeasonPoints(){
   if(!isAwardWindowNow()) return;
   const prevWK = prevWeekKey();
 
-  // if already awarded for prevWK, bail
   const { data:already, error:chkErr } = await supa
     .from('season_points')
     .select('user_id', { count: 'exact' })
@@ -744,7 +849,6 @@ async function maybeAwardSeasonPoints(){
   if(chkErr){ console.error(chkErr); return; }
   if(already && already.length>0) return;
 
-  // compute previous week's standings from picks
   const rows = await allPicksForWeek(prevWK);
   if(!rows.length) return;
 
@@ -833,9 +937,195 @@ async function updatePicksLeft(){
   $('picksLeft').textContent=`NHL ${Math.max(MAX_PICKS-n,0)} left`;
 }
 
+/* ---------- NEW: Badges / History / Recap / HOF renderers ---------- */
+function tierClassFor(count, tiers){
+  // tiers: [{tier, threshold}] ascending by threshold
+  if(!tiers || !tiers.length || !count) return '';
+  let out='';
+  for(const t of tiers.sort((a,b)=>a.threshold-b.threshold)){
+    if(count>=t.threshold) out = `tier-${t.tier}`;
+  }
+  return out;
+}
+
+async function renderBadges(){
+  // Read catalog
+  const [{ data:badges }, { data:tiers }] = await Promise.all([
+    supa.from('badges').select('*').eq('active', true),
+    supa.from('badge_tiers').select('*')
+  ]);
+  const tiersById = {};
+  (tiers||[]).forEach(t=>{ (tiersById[t.badge_id] ||= []).push({tier:t.tier, threshold:t.threshold}); });
+
+  // "All badges" grid (catalog)
+  const allBox = $('allBadges'); allBox.innerHTML='';
+  (badges||[]).forEach(b=>{
+    const div=document.createElement('div');
+    div.className='badgeCard';
+    div.innerHTML = `<div class="badgeEmoji muted">${b.emoji}</div>
+      <div class="badgeInfo">
+        <div class="badgeTitle">${b.name}</div>
+        <div class="badgeDesc">${b.description}</div>
+      </div>
+      <div class="badgeCount small">×0</div>`;
+    allBox.appendChild(div);
+  });
+
+  // "My badges" grid (counts + tier border)
+  const mineBox = $('myBadges'); mineBox.innerHTML='';
+  if(!currentUser){
+    mineBox.innerHTML = '<div class="small">Sign in to see your badges.</div>';
+    return;
+  }
+  const { data:userBadges } = await supa.from('user_badges').select('*').eq('user_id', currentUser.id);
+  const counts = {}; (userBadges||[]).forEach(r=>counts[r.badge_id]=r.count);
+
+  (badges||[]).forEach(b=>{
+    const cnt = counts[b.id]||0;
+    const tclass = tierClassFor(cnt, tiersById[b.id]||[]);
+    const div = document.createElement('div');
+    div.className = `badgeCard tier ${tclass||''}`;
+    const muted = cnt ? '' : 'muted';
+    div.innerHTML = `
+      <div class="badgeEmoji ${muted}">${b.emoji}</div>
+      <div class="badgeInfo">
+        <div class="badgeTitle">${b.name}</div>
+        <div class="badgeDesc">${b.description}</div>
+      </div>
+      <div class="badgeCount"><div class="small">count</div><div style="font-weight:900">${cnt}</div></div>`;
+    mineBox.appendChild(div);
+  });
+}
+
+async function renderHistory(){
+  const box=$('myHistory');
+  if(!currentUser){ box.innerHTML='<div class="small">Sign in to see your weekly history.</div>'; return; }
+  box.innerHTML='<div class="small">Loading…</div>';
+  const { data, error } = await supa.from('weekly_results')
+    .select('week_key,total,rank,picks_count')
+    .eq('league','NHL')
+    .eq('user_id', currentUser.id)
+    .order('week_key', { ascending:false })
+    .limit(50);
+  if(error){ box.innerHTML='<div class="small">Error loading.</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="small">No history yet.</div>'; return; }
+  box.innerHTML='';
+  data.forEach(r=>{
+    const row=document.createElement('div'); row.className='wkRow';
+    row.innerHTML=`<span class="lbPos">${r.rank?ordinal(r.rank):'—'}</span>
+                   <div class="lbTeam"><span class="lbName">${r.week_key}</span></div>
+                   <div class="lbPts">${Number(r.total||0).toFixed(2)}</div>
+                   <div class="small">${r.picks_count||0} picks</div>`;
+    box.appendChild(row);
+  });
+}
+
+async function initRecapWeeks(){
+  const sel=$('recapWeekSelect'); sel.innerHTML='';
+  // Prefer keys from weekly_results; fall back to weekly_recaps
+  const [wr, wr2] = await Promise.all([
+    supa.from('weekly_results').select('week_key').eq('league','NHL').order('week_key', { ascending:false }).limit(40),
+    supa.from('weekly_recaps').select('week_key').order('week_key', { ascending:false }).limit(40)
+  ]);
+  const keys = new Set();
+  (wr.data||[]).forEach(r=>keys.add(r.week_key));
+  (wr2.data||[]).forEach(r=>keys.add(r.week_key));
+  if(keys.size===0){ sel.innerHTML='<option value="">—</option>'; return; }
+  [...keys].sort().reverse().forEach(k=>{
+    const opt=document.createElement('option'); opt.value=k; opt.textContent=k; sel.appendChild(opt);
+  });
+}
+
+async function renderRecap(){
+  const wk = $('recapWeekSelect').value || prevWeekKey();
+  const awardsBox=$('recapAwards'); const statsBox=$('recapStats');
+  awardsBox.innerHTML='<div class="small">Loading…</div>'; statsBox.textContent='—';
+
+  // Awards list (from weekly_results, rank ≤ 10). Also try recap payload if present.
+  const [{ data:top }, { data:recap }] = await Promise.all([
+    supa.from('weekly_results').select('user_id,rank,total').eq('league','NHL').eq('week_key', wk).lte('rank',10).order('rank', { ascending:true }),
+    supa.from('weekly_recaps').select('payload').eq('week_key', wk).maybeSingle()
+  ]);
+  const ids = (top||[]).map(r=>r.user_id);
+  const names = await getDisplayNames(ids);
+  awardsBox.innerHTML='';
+  if(!top || !top.length){ awardsBox.innerHTML='<div class="small">No recap data yet.</div>'; }
+  else{
+    top.forEach(r=>{
+      const div=document.createElement('div'); div.className='lbRow';
+      div.innerHTML=`<span class="lbPos">${ordinal(r.rank)}</span>
+        <div class="lbTeam"><span class="lbName">${names[r.user_id]||r.user_id.slice(0,6)}</span></div>
+        <div class="lbPts">${Number(r.total||0).toFixed(2)}</div>
+        <div class="small">Top 10</div>`;
+      awardsBox.appendChild(div);
+    });
+  }
+
+  // Week stats (if tracked)
+  const { data:stats } = await supa.from('weekly_stats')
+    .select('*').eq('league','NHL').eq('week_key', wk).maybeSingle();
+  if(stats){
+    statsBox.innerHTML = `
+      <div>Players: <b>${stats.players_count||0}</b></div>
+      <div>Avg Player Total: <b>${Number(stats.avg_player_total||0).toFixed(2)}</b></div>
+      <div>Games Count: <b>${stats.games_count||0}</b></div>
+      <div>Avg Game Score: <b>${Number(stats.avg_game_score||0).toFixed(2)}</b></div>
+    `;
+  }else{
+    statsBox.textContent='No stats saved yet.';
+  }
+}
+
+/* ---------- Picks-left badge ---------- already above ---------- */
+
 /* ---------- Tabs ---------- */
-const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
-Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); }}));
+const tabs={
+  nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')},
+  mine:{tab:$('tab-mine'),sec:$('sec-mine')},
+  lb:{tab:$('tab-lb'),sec:$('sec-lb')},
+  badges:{tab:$('tab-badges'),sec:$('sec-badges')},
+  history:{tab:$('tab-history'),sec:$('sec-history')},
+  recap:{tab:$('tab-recap'),sec:$('sec-recap')},
+  hof:{tab:$('tab-hof'),sec:$('sec-hof')},
+  rules:{tab:$('tab-rules'),sec:$('sec-rules')}
+};
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',async ()=>{
+  Object.keys(tabs).forEach(x=>{
+    tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false');
+    tabs[x].sec.classList.toggle('active', x===k);
+  });
+  if(k==='mine') { renderMyPicks(); }
+  if(k==='lb')   { renderWeeklyBoards(); renderSeasonBoards(); }
+  if(k==='badges'){ renderBadges(); }
+  if(k==='history'){ renderHistory(); }
+  if(k==='recap'){ await initRecapWeeks(); await renderRecap(); }
+  if(k==='hof'){ renderHOF(); }
+}));
+
+/* ---------- NEW: HOF ---------- */
+async function renderHOF(){
+  const box=$('hofList'); box.innerHTML='<div class="small">Loading…</div>';
+  // View defined in SQL: hof_career
+  const { data, error } = await supa.from('hof_career')
+    .select('user_id, season_points_all_time, weekly_wins, weekly_top10s')
+    .order('season_points_all_time', { ascending:false })
+    .limit(200);
+  if(error){ box.innerHTML='<div class="small">Error loading.</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="small">No career data yet.</div>'; return; }
+  const ids = data.map(r=>r.user_id);
+  const names = await getDisplayNames(ids);
+  box.innerHTML='';
+  data.forEach((r,i)=>{
+    const div=document.createElement('div'); div.className='lbRow';
+    div.innerHTML=`<span class="lbPos">${ordinal(i+1)}</span>
+      <div class="lbTeam"><span class="lbName">${names[r.user_id]||r.user_id.slice(0,6)}</span>
+        <span class="small" style="margin-left:8px">Wins ${r.weekly_wins||0} · Top10s ${r.weekly_top10s||0}</span>
+      </div>
+      <div class="lbPts">${r.season_points_all_time||0}</div>
+      <div class="small">Career pts</div>`;
+    box.appendChild(div);
+  });
+}
 
 /* ---------- Boot ---------- */
 (async ()=>{
@@ -862,6 +1152,10 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 
   await renderSeasonBoards();
   await renderMyPicks();
+
+  // Wire recap actions
+  $('recapRefresh').addEventListener('click', renderRecap);
+
   supa.auth.onAuthStateChange(async (_event, sess)=>{
     session=sess; currentUser=session?.user||null; showAuthUI();
     if(currentUser){ await loadOrCreatePlayer(); }
@@ -872,9 +1166,15 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
       const mine = await picksForUser(currentUser.id);
       mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
+    // Refresh badges/history after auth change if those tabs are open
+    if(tabs.badges.sec.classList.contains('active')) renderBadges();
+    if(tabs.history.sec.classList.contains('active')) renderHistory();
   });
+
   setInterval(renderWeeklyBoards, 60000);
 })();
 </script>
 </body>
 </html>
+
+
