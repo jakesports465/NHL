@@ -85,7 +85,6 @@
     </div>
   </div>
 </header>
-
 <nav class="tabs" role="tablist" aria-label="Sections">
   <button class="tab" id="tab-nhl"   role="tab" aria-controls="sec-nhl"   aria-selected="true">NHL</button>
   <button class="tab" id="tab-mine"  role="tab" aria-controls="sec-mine"  aria-selected="false">My Picks</button>
@@ -93,7 +92,6 @@
   <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>
 </nav>
 
-<!-- ===== NHL ===== -->
 <section id="sec-nhl" class="section active" aria-labelledby="tab-nhl">
   <main>
     <section id="nhl-top" class="card animate-enter" data-show="false" style="display:none">
@@ -139,7 +137,6 @@
   </main>
 </section>
 
-<!-- ===== MY PICKS ===== -->
 <section id="sec-mine" class="section" aria-labelledby="tab-mine">
   <main class="card">
     <div class="lbHeaderRow">
@@ -160,7 +157,6 @@
   </main>
 </section>
 
-<!-- ===== LEADERBOARD ===== -->
 <section id="sec-lb" class="section" aria-labelledby="tab-lb">
   <main class="card">
     <div class="lbHeaderRow">
@@ -181,7 +177,6 @@
   </main>
 </section>
 
-<!-- ===== SCORING RULES ===== -->
 <section id="sec-rules" class="section" aria-labelledby="tab-rules">
   <main class="card">
     <h2 style="margin:0 0 10px 0">Scoring Rules (Game-based)</h2>
@@ -203,9 +198,7 @@
   </main>
 </section>
 
-<!-- Supabase JS -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
 /* ---------- CONFIG ---------- */
 const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
@@ -214,13 +207,12 @@ const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
   auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
 });
 
-/* ---------- PERF: caches + dedup + parallel limiter (ADDED) ---------- */
+/* ---------- PERF helpers ---------- */
 const TZ='America/Chicago';
 const MAX_PICKS=5;
 const $ = id => document.getElementById(id);
-
-const PERF_NS = `hf:${new Date().toISOString().slice(0,10)}`; // rotate daily to avoid bloat
-const L1 = new Map(); // in-memory
+const PERF_NS = `hf:${new Date().toISOString().slice(0,10)}`;
+const L1 = new Map();
 function k(ns){ return `${PERF_NS}:${ns}`; }
 function getCache(ns){
   const key=k(ns);
@@ -241,7 +233,6 @@ function setCache(ns,val,ttlMs){
 }
 function delCache(ns){ try{ localStorage.removeItem(k(ns)); }catch{} L1.delete(k(ns)); }
 
-// dedup same url while in-flight
 const INFLIGHT = new Map();
 async function dedupFetch(url){
   if(INFLIGHT.has(url)) return INFLIGHT.get(url);
@@ -250,14 +241,12 @@ async function dedupFetch(url){
   INFLIGHT.set(url,p);
   return p;
 }
-// retry wrapper
 async function safeJson(url,retries=2){
   for(let i=0;i<=retries;i++){
     try{ return await dedupFetch(url); }
     catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,500*(i+1))); }
   }
 }
-// simple p-limit
 async function pLimitAll(items, limit, worker){
   const out=new Array(items.length); let i=0, active=0;
   return await new Promise(resolve=>{
@@ -274,12 +263,10 @@ async function pLimitAll(items, limit, worker){
   });
 }
 
-/* ---------- Helpers & week logic (Mon 08:00 CT) ---------- */
+/* ---------- Week logic (Mon 08:00 CT) ---------- */
 function nowCT(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
 function addDaysCT(d,days){ const n=new Date(d.getTime()); n.setDate(n.getDate()+days); return new Date(n.toLocaleString('en-US',{timeZone:TZ})); }
 function parts(d,opts){ const p=new Intl.DateTimeFormat('en-US',opts).formatToParts(d); const o={}; p.forEach(x=>o[x.type]=x.value); return o; }
-
-/* Week anchor = Monday 08:00 CT */
 function weekKey(){
   const n=nowCT();
   const wd=n.getDay(); /* Sun 0 ... Sat 6 */
@@ -291,21 +278,35 @@ function weekKey(){
   const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'});
   return `${p.year}-${p.month}-${p.day}-Mon08CT`;
 }
+/* derive dates from WEEK_KEY so label always matches storage */
 function weekDates(){
-  const n=nowCT();
-  const wd=n.getDay();
-  const daysSinceMon=(wd-1+7)%7;
-  const mon=addDaysCT(n,-daysSinceMon);
+  const [Y,M,D] = weekKey().split('-');
+  const start = new Date(`${Y}-${M}-${D}T08:00:00`);
+  const mon = new Date(start.toLocaleString('en-US',{timeZone:TZ}));
   const list=[];
   for(let i=0;i<7;i++){
-    const d=addDaysCT(mon,i);
-    const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'});
-    list.push(`${p.year}-${p.month}-${p.day}`);
+    const d=new Date(mon.getTime()); d.setDate(mon.getDate()+i);
+    const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0');
+    list.push(`${d.getFullYear()}-${mm}-${dd}`);
   }
-  const pM=parts(mon,{month:'2-digit',day:'2-digit'});
-  const pS=parts(addDaysCT(mon,6),{month:'2-digit',day:'2-digit'});
-  return {list,start:list[0],end:list[6],pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`};
+  const pretty = `${list[0].slice(5).replace('-','/')} → ${list[6].slice(5).replace('-','/')}`;
+  return { list, start:list[0], end:list[6], pretty };
 }
+/* helper to compute a week key from any CT date (anchor to that week's Monday 08:00) */
+function weekKeyFromDate(ctDate){
+  const wd=ctDate.getDay();
+  const daysSinceMon=(wd-1+7)%7;
+  const mon=addDaysCT(ctDate,-daysSinceMon);
+  const p=parts(mon,{year:'numeric',month:'2-digit',day:'2-digit'});
+  return `${p.year}-${p.month}-${p.day}-Mon08CT`;
+}
+/* previous week key (relative to "now") */
+function prevWeekKey(){
+  const n=nowCT();
+  const prev=addDaysCT(n,-7);
+  return weekKeyFromDate(prev);
+}
+
 const WEEK_KEY=weekKey(); const WEEK=weekDates();
 $('weekLabel').textContent=WEEK.pretty; $('lbWeekLabel').textContent=`Week: ${WEEK.pretty}`; $('mineWeekLabel').textContent=WEEK.pretty;
 
@@ -314,13 +315,16 @@ function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.l
 
 /* ---------- Fantasy weights ---------- */
 const H={ GOAL:4, PPG:1.5, SHG:2, SOG:0.1, SAVE:0.02, HIT:0.1, BLOCK:0.1, PIM:-0.25, CLOSE_GAME:8, OT:10, SO:6, BONUS_CAP:20 };
-function parseNHL(summary,pbp){
+
+/* parse scoring using only the Summary endpoint */
+function parseNHL(summary){
   const comp = summary?.header?.competitions?.[0]||{};
   let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
   const homePts=Number(homeC?.score??0), awayPts=Number(awayC?.score??0);
   const isFinal = (comp.status?.type?.state==='post' || comp.status?.type?.completed===true);
   const period = Number(comp.status?.period||0);
   const isSO = isFinal && /SO/.test(String(comp.status?.type?.shortDetail||''));
+
   const teams = summary?.boxscore?.teams||[];
   let shots=0, saves=0, hits=0, blocks=0, pim=0, ppg=0, shg=0;
   const find=(arr,k)=>arr?.find(s=>s.name===k||s.abbreviation===k)||null;
@@ -333,8 +337,10 @@ function parseNHL(summary,pbp){
     blocks+= v(find(st,'blockedShots'));
     pim   += v(find(st,'pim'));
   }
-  const sps=summary?.scoringPlays||[]; const goals=sps.length;
+  const sps=summary?.scoringPlays||[];
+  const goals=sps.length;
   for(const sp of sps){ const d=String(sp.text||sp.description||'').toLowerCase(); if(d.includes('power play')) ppg++; if(d.includes('short-handed')||d.includes('shorthanded')) shg++; }
+
   const offense = goals*H.GOAL + ppg*H.PPG + shg*H.SHG + shots*H.SOG;
   const defense = saves*H.SAVE + hits*H.HIT + blocks*H.BLOCK + pim*H.PIM;
   const closeBonus = (isFinal && Math.abs(homePts-awayPts)<=1) ? H.CLOSE_GAME : 0;
@@ -345,11 +351,9 @@ function parseNHL(summary,pbp){
   return { total:Number(total.toFixed(2)), homePts, awayPts, isFinal, bonus, closeBonus, otBonus, soBonus };
 }
 
-/* ---------- Supabase helpers (magic link + display name) ---------- */
+/* ---------- Supabase helpers ---------- */
 let session=null, currentUser=null, displayName='';
-
 function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
-
 async function loadOrCreatePlayer(){
   if(!currentUser) return;
   const uid=currentUser.id;
@@ -365,7 +369,6 @@ async function loadOrCreatePlayer(){
   }
   $('displayNameInput').value=displayName||'';
 }
-
 $('saveDisplayName').addEventListener('click', async ()=>{
   if(!currentUser) return;
   const name = ($('displayNameInput').value||'').trim();
@@ -373,9 +376,7 @@ $('saveDisplayName').addEventListener('click', async ()=>{
   const { error } = await supa.from('players').upsert({ id: currentUser.id, display_name: name });
   if(!error){ displayName=name; toast('Saved ✓'); renderWeeklyBoards(); renderSeasonBoards(); }
 });
-
 $('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });
-
 $('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const email=$('emailInput').value.trim();
@@ -386,13 +387,10 @@ $('loginForm').addEventListener('submit', async (e)=>{
   toast('Magic link sent! Check your email.');
 });
 
-/* ---------- Picks (Supabase) with short TTL caches (ADDED) ---------- */
+/* ---------- Picks (cached) ---------- */
 function uniqLimit(arr){ const out=[]; const seen=new Set(); (arr||[]).forEach(x=>{ const id=String(x); if(!seen.has(id)){ seen.add(id); out.push(id); } }); return out.slice(0,MAX_PICKS); }
-// cache keys
 const CK_MY = uid => `picks:${WEEK_KEY}:${uid}`;
 const CK_ALL = `allpicks:${WEEK_KEY}`;
-const CK_NAMES = ids => `names:${ids.sort().join(',')}`;
-// memo for names across page life
 const NAME_MEMO = new Map();
 
 async function picksForUser(uid){
@@ -405,7 +403,7 @@ async function picksForUser(uid){
     .eq('league','NHL')
     .eq('week_key', WEEK_KEY);
   const list = error ? [] : uniqLimit((data||[]).map(r=>String(r.game_id)));
-  setCache(ck, list, 15000); // 15s TTL
+  setCache(ck, list, 15000);
   return list;
 }
 async function setPick(uid, gameId){
@@ -425,9 +423,18 @@ async function allPicksThisWeek(){
     .eq('league','NHL')
     .eq('week_key',WEEK_KEY);
   const rows = error ? [] : (data||[]);
-  setCache(CK_ALL, rows, 20000); // 20s TTL
+  setCache(CK_ALL, rows, 20000);
   return rows;
 }
+/* generic “picks for any week” for awarder */
+async function allPicksForWeek(weekKeyArg){
+  const { data, error } = await supa.from('picks')
+    .select('user_id, game_id')
+    .eq('league','NHL')
+    .eq('week_key',weekKeyArg);
+  return error ? [] : (data||[]);
+}
+
 async function getDisplayNames(userIds){
   const ids = [...new Set(userIds||[])].filter(Boolean);
   if(ids.length===0) return {};
@@ -445,11 +452,11 @@ async function getDisplayNames(userIds){
   return map;
 }
 
-/* ---------- League (NHL) UI ---------- */
+/* ---------- League (NHL) ---------- */
 function leagueFactory(){
   const st={ events:[], selected:null, poll:null, gameRows:[] };
   const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), log:$('nhl-log'), gameLB:$('nhl-gameLB'), userLB:$('nhl-userLB') };
-  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`, pbp:(id)=>`https://cdn.espn.com/core/nhl/playbyplay?xhr=1&gameId=${id}` };
+  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
 
   dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
   dom.add.addEventListener('click', async ()=>{
@@ -525,10 +532,9 @@ function leagueFactory(){
     const rows = await pLimitAll(evs, 6, async (g)=>{
       try{
         const s=await safeJson(api.summary(g.id));
-        const p=await safeJson(api.pbp(g.id));
         const comp=s?.header?.competitions?.[0]||{};
         let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-        const sc=parseNHL(s,p);
+        const sc=parseNHL(s);
         return { id:g.id, awayPts:sc.awayPts, homePts:sc.homePts, score:sc.total, status:(comp.status?.type?.shortDetail||comp.status?.type?.description||'—') };
       }catch{ return null; }
     });
@@ -563,7 +569,7 @@ function leagueFactory(){
          <div id="NHL-homeScore" style="font-weight:800">—</div>
        </div>`;
     dom.gridCard.style.display='none'; dom.top.style.display='block';
-    updateGameOnce(); if(st.poll) clearInterval(st.poll); st.poll=setInterval(updateGameOnce,20000);
+    updateGameOnce(); if(st.poll) clearInterval(st.poll); st.poll=setInterval(updateGameOnce,45000);
     renderGameLB(); renderUserLB();
   }
 
@@ -571,7 +577,6 @@ function leagueFactory(){
     if(!st.selected) return; const id=st.selected.id;
     try{
       const s=await safeJson(api.summary(id));
-      const p=await safeJson(api.pbp(id));
       const comp=s?.header?.competitions||[];
       const c0=(comp[0]||{}); const status=c0.status||{};
       let homeC=null,awayC=null; (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
@@ -580,7 +585,7 @@ function leagueFactory(){
       dom.clock.textContent=status.displayClock||'—';
       dom.q.textContent=String(status.period??'—');
       dom.state.textContent=(status.type?.description||status.type?.shortDetail||'—');
-      const sc=parseNHL(s,p);
+      const sc=parseNHL(s);
       dom.fscore.textContent=sc.total.toFixed(2);
       dom.bonus.textContent=`Bonuses: ${sc.closeBonus?`Close +${sc.closeBonus}`:'—'} · ${sc.otBonus?`OT +${sc.otBonus}`:'—'} · ${sc.soBonus?`SO +${sc.soBonus}`:'—'} (cap ${H.BONUS_CAP})`;
       const sps=s?.scoringPlays||[];
@@ -618,32 +623,28 @@ function leagueFactory(){
       mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
     refreshGridScores();
-    setInterval(refreshGridScores,30000);
+    setInterval(refreshGridScores,45000);
   }
-
   return { loadWeek, state:st };
 }
 const NHL = leagueFactory();
 
-/* ---------- Score/meta caches with TTL (kept) ---------- */
+/* ---------- Summary/score caching ---------- */
 async function gameScore(gid){
   const ck=`score:${gid}`;
   const c=getCache(ck);
   if(c!=null) return c;
   try{
-    const [s,p]=await Promise.all([
-      safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`),
-      safeJson(`https://cdn.espn.com/core/nhl/playbyplay?xhr=1&gameId=${gid}`)
-    ]);
-    const parsed = parseNHL(s,p);
+    const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
+    const parsed = parseNHL(s);
     const val = parsed.total || 0;
     const comp = s?.header?.competitions?.[0]||{};
     const isFinal = (comp.status?.type?.state==='post' || comp.status?.type?.completed===true);
     const period = Number(comp.status?.period||0);
     const isLive = !isFinal && period>0;
-    let ttl = 10*60*1000;  // pregame
-    if(isLive) ttl = 60*1000; // live
-    if(isFinal) ttl = 6*60*60*1000; // final
+    let ttl = 10*60*1000;
+    if(isLive) ttl = 60*1000;
+    if(isFinal) ttl = 6*60*60*1000;
     setCache(ck, val, ttl);
     return val;
   }catch{ return 0; }
@@ -667,7 +668,7 @@ async function gameMeta(gid){
   }catch{ return {awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null}; }
 }
 
-/* ---------- Boards (same UI; faster data paths) ---------- */
+/* ---------- Boards ---------- */
 const lbWeekBox={ NHL:$('lbNHLWeek') };
 const lbSeasonBox={ NHL:$('lbNHLSeason') };
 function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
@@ -717,18 +718,63 @@ async function renderSeasonBoards(){
   });
 }
 
-/* ---------- My Picks (parallel render, per-container tickets) ---------- */
-const RENDER_TICKETS = new Map(); // containerId -> ticket number
-function nextTicket(key){
-  const n=(RENDER_TICKETS.get(key)||0)+1;
-  RENDER_TICKETS.set(key,n);
-  return n;
+/* ---------- Weekly → Season awards (Top10 = 10..1 pts) ---------- */
+/* Only runs Monday >= 08:00 CT. Idempotent: skips if rows already exist for prev week. */
+function isAwardWindowNow(){
+  const n=nowCT();
+  const wd=n.getDay(); // Monday = 1
+  const hr=Number(parts(n,{hour:'2-digit',hour12:false}).hour);
+  return wd===1 && hr>=8;
 }
-function isCurrent(key,t){
-  return RENDER_TICKETS.get(key)===t;
-}
-let LAST_ALL_IDS_JSON = ''; // avoid rebuilding identical panels inside TTL
+async function maybeAwardSeasonPoints(){
+  if(!isAwardWindowNow()) return;
+  const prevWK = prevWeekKey();
 
+  // if already awarded for prevWK, bail
+  const { data:already, error:chkErr } = await supa
+    .from('season_points')
+    .select('user_id', { count: 'exact' })
+    .eq('league','NHL')
+    .eq('week_key', prevWK)
+    .limit(1);
+  if(chkErr){ console.error(chkErr); return; }
+  if(already && already.length>0) return;
+
+  // compute previous week's standings from picks
+  const rows = await allPicksForWeek(prevWK);
+  if(!rows.length) return;
+
+  const byUser=new Map();
+  for(const r of rows){ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); }
+  const ids=[...byUser.keys()];
+  const computed = await pLimitAll(ids, 6, async (uid)=>{
+    const lst = uniqLimit(byUser.get(uid)||[]);
+    const scores = await Promise.all(lst.map(g=>gameScore(g)));
+    const total = scores.reduce((a,b)=>a+(b||0),0);
+    return { uid, total };
+  });
+  const ranked = computed.filter(Boolean).sort((a,b)=>b.total-a.total);
+  const PTS=[10,9,8,7,6,5,4,3,2,1];
+  const awards = ranked.slice(0,10).map((r,i)=>({
+    user_id: r.uid,
+    league: 'NHL',
+    week_key: prevWK,
+    points: PTS[i]
+  }));
+
+  if(awards.length){
+    const { error:insErr } = await supa
+      .from('season_points')
+      .upsert(awards, { onConflict: 'user_id,league,week_key' });
+    if(insErr){ console.error(insErr); }
+  }
+}
+
+/* ---------- My Picks ---------- */
+const RENDER_TICKETS = new Map();
+function nextTicket(key){ const n=(RENDER_TICKETS.get(key)||0)+1; RENDER_TICKETS.set(key,n); return n; }
+function isCurrent(key,t){ return RENDER_TICKETS.get(key)===t; }
+let LAST_ALL_IDS_JSON = '';
 function gameRowHTML(meta,score){
   return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${score.toFixed(2)}</div><div class="small">Game</div>`;
 }
@@ -756,14 +802,11 @@ async function renderMyPicks(){
   const myList = await picksForUser(currentUser.id);
   const tot = await renderPickList('myNHL', myList);
   $('myNHLTotal').textContent = tot.toFixed(2);
-
   const box=$('allPicks');
   const rows = await allPicksThisWeek();
   const byUser=new Map(); rows.forEach(r=>{ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); });
   const ids=[...byUser.keys()];
   if(!ids.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
-
-  // light diff: only rebuild panels if set of users changed
   const idsJson = JSON.stringify(ids.slice().sort());
   if(idsJson !== LAST_ALL_IDS_JSON){
     LAST_ALL_IDS_JSON = idsJson;
@@ -773,8 +816,6 @@ async function renderMyPicks(){
     });
     box.innerHTML=frags.join('');
   }
-
-  // Render each user’s list in parallel (limited)
   await pLimitAll(ids, 6, async (uid)=>{
     const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
     const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${t.toFixed(2)}`;
@@ -796,7 +837,6 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 (async ()=>{
   const { data:{ session:ses } } = await supa.auth.getSession();
   session=ses; currentUser = session?.user || null;
-
   function showAuthUI(){
     if(currentUser){
       $('loginForm').style.display='none';
@@ -808,15 +848,16 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
     }
   }
   showAuthUI();
-
   if(currentUser){ await loadOrCreatePlayer(); }
-
   const league = NHL; await league.loadWeek();
   await updatePicksLeft();
   await renderWeeklyBoards();
+
+  /* >>> award Top10 season points for PREVIOUS week (Mon ≥ 08:00 CT) <<< */
+  await maybeAwardSeasonPoints();
+
   await renderSeasonBoards();
   await renderMyPicks();
-
   supa.auth.onAuthStateChange(async (_event, sess)=>{
     session=sess; currentUser=session?.user||null; showAuthUI();
     if(currentUser){ await loadOrCreatePlayer(); }
@@ -828,11 +869,8 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
       mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
   });
-
   setInterval(renderWeeklyBoards, 60000);
 })();
 </script>
 </body>
 </html>
-
-
