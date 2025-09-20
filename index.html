@@ -14,7 +14,7 @@
   h1{margin:0;font-size:18px}
   .sub{color:var(--muted);font-size:13px;margin-left:6px}
   .pill{border:1px dashed #364353;border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
-  nav.tabs{display:flex;gap:8px;padding:10px 18px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:56px;z-index:19;overflow-x:auto;scrollbar-width:none}
+  nav.tabs{display:flex;gap:8px;padding:10px 18px;background:#0f1318;border-bottom:1px solid #1b232d;position:sticky;top:56px;z-index:19;overflow-x:auto;scrollbar-width:none}
   nav.tabs::-webkit-scrollbar{display:none}
   .tab{padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto}
   .tab[aria-selected="true"]{background:#162231;border-color:#31506a;font-weight:700}
@@ -56,7 +56,7 @@
   .lbPts{font-weight:800}
   .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   input[type="text"], input[type="email"]{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;min-height:40px}
-  .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px;margin-left:6px}
+  .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px}
   @media (max-width: 900px){main{padding:14px 14px 40px}.card{padding:12px}.panel{padding:10px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.scoreBox .num{font-size:34px}.teamline img{width:40px;height:40px}.log{max-height:38vh}}
   @media (max-width: 720px){h1{font-size:16px}.sub{display:block;margin:2px 0 0 0}.pill{margin-left:0}.small{font-size:12px}.gamesGrid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.lbRow{grid-template-columns:auto 1fr auto; row-gap:6px}.lbRow .small{grid-column:1 / -1; justify-self:start}
     .lockRow .btn{flex:1 1 auto}
@@ -207,59 +207,96 @@ const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
   auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
 });
 
-/* ---------- Helpers ---------- */
+/* ---------- PERF helpers ---------- */
 const TZ='America/Chicago';
 const MAX_PICKS=5;
 const $ = id => document.getElementById(id);
-
-/* perf cache */
 const PERF_NS = `hf:${new Date().toISOString().slice(0,10)}`;
 const L1 = new Map();
-const k = ns => `${PERF_NS}:${ns}`;
-const getCache = ns => { const key=k(ns); if(L1.has(key)) return L1.get(key); try{ const raw=localStorage.getItem(key); if(!raw) return null; const obj=JSON.parse(raw); if(obj.exp && Date.now()>obj.exp){ localStorage.removeItem(key); return null; } L1.set(key,obj.val); return obj.val; }catch{ return null; } };
-const setCache = (ns,val,ttlMs)=>{ const key=k(ns); L1.set(key,val); try{ localStorage.setItem(key, JSON.stringify({val,exp: ttlMs?Date.now()+ttlMs:null})); }catch{} };
-const delCache = ns => { try{ localStorage.removeItem(k(ns)); }catch{} L1.delete(k(ns)); };
+function k(ns){ return `${PERF_NS}:${ns}`; }
+function getCache(ns){
+  const key=k(ns);
+  if(L1.has(key)) return L1.get(key);
+  try{
+    const raw=localStorage.getItem(key);
+    if(!raw) return null;
+    const obj=JSON.parse(raw);
+    if(obj.exp && Date.now()>obj.exp){ localStorage.removeItem(key); return null; }
+    L1.set(key,obj.val);
+    return obj.val;
+  }catch{ return null; }
+}
+function setCache(ns,val,ttlMs){
+  const key=k(ns);
+  L1.set(key,val);
+  try{ localStorage.setItem(key, JSON.stringify({val,exp: ttlMs?Date.now()+ttlMs:null})); }catch{}
+}
+function delCache(ns){ try{ localStorage.removeItem(k(ns)); }catch{} L1.delete(k(ns)); }
 
-const INFLIGHT=new Map();
-async function dedupFetch(url){ if(INFLIGHT.has(url)) return INFLIGHT.get(url); const p=fetch(url,{cache:'no-store'}).then(r=>{if(!r.ok) throw new Error(r.status); return r.json();}).finally(()=>INFLIGHT.delete(url)); INFLIGHT.set(url,p); return p; }
-async function safeJson(url,retries=2){ for(let i=0;i<=retries;i++){ try{ return await dedupFetch(url); } catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r, 500*(i+1))); } } }
-async function pLimitAll(items, limit, worker){ const out=new Array(items.length); let i=0, active=0; return await new Promise(resolve=>{ const pump=()=>{ while(active<limit && i<items.length){ const idx=i++; active++; Promise.resolve(worker(items[idx],idx)).then(v=>{ out[idx]=v; }).catch(()=>{ out[idx]=undefined; }).finally(()=>{ active--; (i>=items.length && active===0)?resolve(out):pump(); }); } }; pump(); }); }
+const INFLIGHT = new Map();
+async function dedupFetch(url){
+  if(INFLIGHT.has(url)) return INFLIGHT.get(url);
+  const p = fetch(url,{cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .finally(()=>INFLIGHT.delete(url));
+  INFLIGHT.set(url,p);
+  return p;
+}
+async function safeJson(url,retries=2){
+  for(let i=0;i<=retries;i++){
+    try{ return await dedupFetch(url); }
+    catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,500*(i+1))); }
+  }
+}
+async function pLimitAll(items, limit, worker){
+  const out=new Array(items.length); let i=0, active=0;
+  return await new Promise(resolve=>{
+    const pump=()=>{
+      while(active<limit && i<items.length){
+        const idx=i++; active++;
+        Promise.resolve(worker(items[idx],idx))
+          .then(v=>{ out[idx]=v; })
+          .catch(()=>{ out[idx]=undefined; })
+          .finally(()=>{ active--; (i>=items.length && active===0)?resolve(out):pump(); });
+      }
+    };
+    pump();
+  });
+}
 
-/* ---------- Week logic (anchor = Monday 08:00 CT) ---------- */
+/* ---------- Week logic (Mon 08:00 CT) ---------- */
 function nowCT(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
 function addDaysCT(d,days){ const n=new Date(d.getTime()); n.setDate(n.getDate()+days); return new Date(n.toLocaleString('en-US',{timeZone:TZ})); }
 function parts(d,opts){ const p=new Intl.DateTimeFormat('en-US',opts).formatToParts(d); const o={}; p.forEach(x=>o[x.type]=x.value); return o; }
 
-/* single source of truth: compute the anchor (Mon 08:00 CT) without re-parsing */
-function anchorMondayCT(){
+/* Anchor week to Monday 08:00 CT */
+function weekKey(){
   const n=nowCT();
-  const wd=n.getDay();                 // Sun=0..Sat=6
-  const daysSinceMon=(wd-1+7)%7;       // 0 on Mon
+  const wd=n.getDay(); /* Sun 0 ... Sat 6 */
+  const daysSinceMon=(wd-1+7)%7;
   const mon=addDaysCT(n,-daysSinceMon);
   const hour=Number(parts(n,{hour:'2-digit',hour12:false}).hour);
-  return (hour>=8 || daysSinceMon>0) ? mon : addDaysCT(mon,-7);
-}
-
-function weekKey(){
-  const a=anchorMondayCT();
-  const p=parts(a,{year:'numeric',month:'2-digit',day:'2-digit'});
+  const after8 = hour>=8 || daysSinceMon>0;
+  const anchor = after8? mon : addDaysCT(mon,-7);
+  const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'});
   return `${p.year}-${p.month}-${p.day}-Mon08CT`;
 }
 
+/* Derive dates from WEEK_KEY so labels always match storage (no drift) */
 function weekDates(){
-  const mon=anchorMondayCT();          // stay in CT; no local/UTC round-trip
+  const [Y,M,D] = weekKey().split('-'); // YYYY, MM, DD, Mon08CT
+  const startLocal = new Date(`${Y}-${M}-${D}T08:00:00`);
+  const mon = new Date(startLocal.toLocaleString('en-US',{timeZone:TZ}));
   const list=[];
   for(let i=0;i<7;i++){
-    const d=addDaysCT(mon,i);
-    const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'});
-    list.push(`${p.year}-${p.month}-${p.day}`);
+    const d=new Date(mon.getTime()); d.setDate(mon.getDate()+i);
+    const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0');
+    list.push(`${d.getFullYear()}-${mm}-${dd}`);
   }
-  const pM=parts(mon,{month:'2-digit',day:'2-digit'});
-  const pS=parts(addDaysCT(mon,6),{month:'2-digit',day:'2-digit'});
-  return { list, start:list[0], end:list[6], pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}` };
+  const pretty = `${list[0].slice(5).replace('-','/')} → ${list[6].slice(5).replace('-','/')}`;
+  return { list, start:list[0], end:list[6], pretty };
 }
 
-/* helpers for awards */
+/* Helper to compute a week key from any CT date (week anchored to that Monday 08:00) */
 function weekKeyFromDate(ctDate){
   const wd=ctDate.getDay();
   const daysSinceMon=(wd-1+7)%7;
@@ -267,7 +304,12 @@ function weekKeyFromDate(ctDate){
   const p=parts(mon,{year:'numeric',month:'2-digit',day:'2-digit'});
   return `${p.year}-${p.month}-${p.day}-Mon08CT`;
 }
-function prevWeekKey(){ return weekKeyFromDate(addDaysCT(anchorMondayCT(),-7)); }
+/* Last week's key, relative to now */
+function prevWeekKey(){
+  const n=nowCT();
+  const prev=addDaysCT(n,-7);
+  return weekKeyFromDate(prev);
+}
 
 const WEEK_KEY=weekKey(); const WEEK=weekDates();
 $('weekLabel').textContent=WEEK.pretty; $('lbWeekLabel').textContent=`Week: ${WEEK.pretty}`; $('mineWeekLabel').textContent=WEEK.pretty;
@@ -278,6 +320,7 @@ function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.l
 /* ---------- Fantasy weights ---------- */
 const H={ GOAL:4, PPG:1.5, SHG:2, SOG:0.1, SAVE:0.02, HIT:0.1, BLOCK:0.1, PIM:-0.25, CLOSE_GAME:8, OT:10, SO:6, BONUS_CAP:20 };
 
+/* parse scoring using only the Summary endpoint */
 function parseNHL(summary){
   const comp = summary?.header?.competitions?.[0]||{};
   let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
@@ -387,7 +430,7 @@ async function allPicksThisWeek(){
   setCache(CK_ALL, rows, 20000);
   return rows;
 }
-/* generic for awards */
+/* generic “picks for any week” for awarder */
 async function allPicksForWeek(weekKeyArg){
   const { data, error } = await supa.from('picks')
     .select('user_id, game_id')
@@ -395,6 +438,7 @@ async function allPicksForWeek(weekKeyArg){
     .eq('week_key',weekKeyArg);
   return error ? [] : (data||[]);
 }
+
 async function getDisplayNames(userIds){
   const ids = [...new Set(userIds||[])].filter(Boolean);
   if(ids.length===0) return {};
@@ -430,7 +474,9 @@ function leagueFactory(){
     if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
     const ok = await setPick(currentUser.id,gid);
     if(ok){
-      updatePicksLeft(); renderWeeklyBoards(); renderMyPicks();
+      updatePicksLeft();
+      renderWeeklyBoards();
+      renderMyPicks();
       const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex';
       const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
       toast('Pick saved ✓');
@@ -472,7 +518,9 @@ function leagueFactory(){
           if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
           const ok = await setPick(currentUser.id,gid);
           if(ok){
-            updatePicksLeft(); renderWeeklyBoards(); renderMyPicks();
+            updatePicksLeft();
+            renderWeeklyBoards();
+            renderMyPicks();
             const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
             pickBtn.style.display='none';
             toast('Pick saved ✓');
@@ -675,16 +723,18 @@ async function renderSeasonBoards(){
 }
 
 /* ---------- Weekly → Season awards (Top10 = 10..1 pts) ---------- */
-/* Runs only Monday >= 08:00 CT; idempotent */
+/* Only runs Monday >= 08:00 CT. Idempotent: skips if rows already exist for prev week. */
 function isAwardWindowNow(){
   const n=nowCT();
-  const wd=n.getDay(); // Mon=1
+  const wd=n.getDay(); // Monday = 1
   const hr=Number(parts(n,{hour:'2-digit',hour12:false}).hour);
   return wd===1 && hr>=8;
 }
 async function maybeAwardSeasonPoints(){
   if(!isAwardWindowNow()) return;
   const prevWK = prevWeekKey();
+
+  // if already awarded for prevWK, bail
   const { data:already, error:chkErr } = await supa
     .from('season_points')
     .select('user_id', { count: 'exact' })
@@ -694,6 +744,7 @@ async function maybeAwardSeasonPoints(){
   if(chkErr){ console.error(chkErr); return; }
   if(already && already.length>0) return;
 
+  // compute previous week's standings from picks
   const rows = await allPicksForWeek(prevWK);
   if(!rows.length) return;
 
@@ -709,8 +760,12 @@ async function maybeAwardSeasonPoints(){
   const ranked = computed.filter(Boolean).sort((a,b)=>b.total-a.total);
   const PTS=[10,9,8,7,6,5,4,3,2,1];
   const awards = ranked.slice(0,10).map((r,i)=>({
-    user_id: r.uid, league: 'NHL', week_key: prevWK, points: PTS[i]
+    user_id: r.uid,
+    league: 'NHL',
+    week_key: prevWK,
+    points: PTS[i]
   }));
+
   if(awards.length){
     const { error:insErr } = await supa
       .from('season_points')
@@ -802,7 +857,7 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
   await updatePicksLeft();
   await renderWeeklyBoards();
 
-  /* award Top10 season points for PREVIOUS week (Mon ≥ 08:00 CT) */
+  /* >>> award Top10 season points for PREVIOUS week (Mon ≥ 08:00 CT) <<< */
   await maybeAwardSeasonPoints();
 
   await renderSeasonBoards();
