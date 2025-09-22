@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Hockey Fantasy — NHL (Mon→Sun · 5 picks)</title>
+<title>NHL Puck'Em</title>
 <style>
   :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }
   html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;-webkit-text-size-adjust:100%}
@@ -78,7 +78,7 @@
 </head>
 <body>
 <header>
-  <h1>Hockey Fantasy <span class="sub">NHL · Mon→Sun · 5 picks</span></h1>
+  <h1>NHL Puck'Em <span class="sub">Every Monday→Sunday · 5 picks</span></h1>
   <span id="picksLeft" class="pill">Sign in to play</span>
   <span class="small" style="margin-left:auto">Week: <b id="weekLabel">—</b></span>
   <div id="authBox" class="field" style="margin-left:auto;gap:6px">
@@ -97,7 +97,7 @@
 
 <nav class="tabs" role="tablist" aria-label="Sections">
   <button class="tab" id="tab-nhl"   role="tab" aria-controls="sec-nhl"   aria-selected="true">NHL</button>
-  <button class="tab" id="tab-mine"  role="tab" aria-controls="sec-mine"  aria-selected="false">My Picks</button>
+  <button class="tab" id="tab-mine"  role="tab" aria-controls="sec-mine"  aria-selected="false">Picks</button>
   <button class="tab" id="tab-lb"    role="tab" aria-controls="sec-lb"    aria-selected="false">Leaderboards</button>
   <button class="tab" id="tab-badges" role="tab" aria-controls="sec-badges" aria-selected="false">Badges</button>
   <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>
@@ -146,13 +146,13 @@
 <section id="sec-mine" class="section" aria-labelledby="tab-mine">
   <main class="card">
     <div class="lbHeaderRow">
-      <h2 style="margin:0">My Picks</h2>
+      <h2 style="margin:0">Picks</h2>
       <span class="small">Week: <b id="mineWeekLabel">—</b></span>
     </div>
     <div class="sep"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
       <section class="panel">
-        <h3 style="margin:0 0 6px 0">NHL — My Picks <span id="myNHLTotal" class="badge">0.00</span></h3>
+        <h3 style="margin:0 0 6px 0">My Picks <span id="myNHLTotal" class="badge">0.00</span></h3>
         <div id="myNHL"></div>
       </section>
       <section class="panel">
@@ -173,11 +173,11 @@
     <div class="sep"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <section class="panel">
-        <h3 style="margin:0 0 6px 0">NHL — This Week</h3>
+        <h3 style="margin:0 0 6px 0">This Week</h3>
         <div id="lbNHLWeek"></div>
       </section>
       <section class="panel">
-        <h3 style="margin:0 0 6px 0">NHL — Season</h3>
+        <h3 style="margin:0 0 6px 0">Season</h3>
         <div id="lbNHLSeason"></div>
       </section>
     </div>
@@ -872,4 +872,5 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
