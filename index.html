@@ -4,12 +4,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>NHL Puck'Em</title>
-
-<!-- PERF: warm up TLS/DNS for hot origins -->
-<link rel="preconnect" href="https://acmqdokxwnkkjmfgfyhh.supabase.co" crossorigin>
-<link rel="preconnect" href="https://site.api.espn.com" crossorigin>
-<link rel="dns-prefetch" href="https://site.api.espn.com">
-
 <style>
   :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }
   html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;-webkit-text-size-adjust:100%}
@@ -40,7 +34,7 @@
   .gameBody{padding:12px}
   .teamsRow{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .team{display:flex;align-items:center;gap:8px;min-width:0}
-  .team img{width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0f1318;object-fit:cover} /* explicit size -> fewer reflows */
+  .team img{width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0f1318}
   .team .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .scoreTag{display:inline-block;margin-left:6px;padding:2px 6px;border:1px solid #26313c;border-radius:6px;font-weight:700;min-width:24px;text-align:center}
   .lockRow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
@@ -48,7 +42,7 @@
   .topGrid{display:grid;grid-template-columns:1fr 240px 240px;gap:14px;align-items:start}
   @media(max-width:980px){.topGrid{grid-template-columns:1fr}}
   .teamline{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:#0f1318;border:1px solid #1c2430}
-  .teamline img{width:44px;height:44px;border-radius:8px;border:1px solid #1e2732;background:#0d1218;object-fit:cover}
+  .teamline img{width:44px;height:44px;border-radius:8px;border:1px solid #1e2732;background:#0d1218}
   .statusBox,.scoreBox{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
   .scoreBox{text-align:center}
   .scoreBox .num{font-size:38px;font-weight:900}
@@ -57,7 +51,7 @@
   .lbRow{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:8px;border-radius:10px;border:1px solid #1c2430;background:#0f1318;margin-bottom:8px}
   .lbPos{width:42px;text-align:center;font-weight:900;border:1px solid #26313c;border-radius:8px;padding:4px 0;opacity:.95}
   .lbTeam{display:flex;gap:10px;align-items:center;min-width:0}
-  .lbTeam img{width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto;object-fit:cover}
+  .lbTeam img{width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto}
   .lbName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .lbPts{font-weight:800}
   .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -245,16 +239,18 @@
   </main>
 </section>
 
-<!-- Supabase JS (PERF: defer so HTML paints first) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 /* ---------- CONFIG ---------- */
 const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
-let supa; // will init after script load (defer)
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
+  auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+});
 
-/* ---------- PERF: caches + dedup + parallel limiter (unchanged, with tweaks) ---------- */
+/* ---------- PERF: caches + dedup + parallel limiter (unchanged) ---------- */
 const TZ='America/Chicago';
 const MAX_PICKS=5;
 const $ = id => document.getElementById(id);
@@ -284,9 +280,7 @@ function delCache(ns){ try{ localStorage.removeItem(k(ns)); }catch{} L1.delete(k
 const INFLIGHT = new Map();
 async function dedupFetch(url){
   if(INFLIGHT.has(url)) return INFLIGHT.get(url);
-  // PERF: allow HTTP cache (ETag/304) instead of forcing no-store
-  const p = fetch(url,{cache:'default'})
-    .then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
+  const p = fetch(url,{cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
     .finally(()=>INFLIGHT.delete(url));
   INFLIGHT.set(url,p);
   return p;
@@ -460,36 +454,110 @@ async function pushSummaryToSQL(gameId, summaryJson){
   if(error){ console.error('upsert_nhl_game_from_summary failed:', error.message); }
 }
 
-async function getGameScoreFromDB(gid){
-  const { data, error } = await supa
-    .from('game_scores')
-    .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,bonus_cap,is_final')
-    .eq('league','NHL')
-    .eq('week_key',WEEK_KEY)
-    .eq('game_id', String(gid))
-    .maybeSingle();
-  if(error || !data) return null;
-  return data;
+/* ---------- NEW: weights + client-side fallback scorer ---------- */
+const WEIGHTS = { goal:4.0, ppg:1.5, shg:2.0, sog:0.1, sv:0.02, hit:0.1, block:0.1, pim:-0.25, close:8, ot:10, so:12, cap:20 };
+
+function scoreFromSummary(summary){
+  try{
+    const comp = summary?.header?.competitions?.[0] || {};
+    const st   = comp?.status || {};
+    const period = Number(st?.period ?? 0);
+    const done = Boolean(st?.type?.completed) || ['post','completed'].includes(String(st?.type?.state||'').toLowerCase());
+    let home=0, away=0;
+    (comp.competitors||[]).forEach(c=>{ const s = Number(c?.score||0); if(c?.homeAway==='home') home=s; else if(c?.homeAway==='away') away=s; });
+    const margin = Math.abs(home-away);
+
+    // team stats (combined)
+    const teams = summary?.boxscore?.teams || summary?.gamepackageJSON?.boxscore?.teams || [];
+    const stats = { shots:0, saves:0, hits:0, blocks:0, pim:0 };
+    for(const t of teams){
+      for(const s of (t?.statistics||[])){
+        const name = String(s?.name||'').toLowerCase();
+        const asInt = v => { const m=String(v??'').match(/-?\d+/); return m?Number(m[0]):0; };
+        const v = asInt(s?.value ?? s?.displayValue);
+        if(name==='shotsongoal' || name==='shotstotal') stats.shots += v;
+        else if(name==='saves') stats.saves += v;
+        else if(name==='hits') stats.hits += v;
+        else if(name==='blockedshots' || name==='blockshots') stats.blocks += v;
+        else if(name==='penaltyminutes' || name==='pim') stats.pim += v;
+      }
+    }
+
+    // plays for PPG/SHG
+    const plays = summary?.scoringPlays || summary?.gamepackageJSON?.scoringPlays || [];
+    let goals = 0, ppg = 0, shg = 0;
+    for(const p of plays){
+      goals += 1;
+      const d = (p?.text || p?.description || '').toLowerCase();
+      if(d.includes('power play')) ppg++;
+      if(d.includes('short-handed') || d.includes('shorthanded')) shg++;
+    }
+    if(goals===0 && (home+away)>0) goals = home+away;
+
+    // bonuses (same as SQL rules)
+    const closeB = (done && margin<=1) ? WEIGHTS.close : 0;
+    const otB    = (done && period>3)  ? WEIGHTS.ot    : 0;
+    const soFlag = String(st?.type?.shortDetail||'').toUpperCase().includes('SO');
+    const soB    = soFlag ? WEIGHTS.so : 0;
+    const bonus  = Math.min(closeB + otB + soB, WEIGHTS.cap);
+
+    const total = (goals*WEIGHTS.goal) + (ppg*WEIGHTS.ppg) + (shg*WEIGHTS.shg) +
+                  (stats.shots*WEIGHTS.sog) + (stats.saves*WEIGHTS.sv) +
+                  (stats.hits*WEIGHTS.hit) + (stats.blocks*WEIGHTS.block) +
+                  (stats.pim*WEIGHTS.pim) + bonus;
+
+    return {
+      away_pts: away, home_pts: home, total: Number(total.toFixed(2)),
+      close_bonus: closeB, ot_bonus: otB, so_bonus: soB, is_final: done
+    };
+  }catch{
+    return null;
+  }
 }
 
-/* ---------- PERF: summary memo (30s) ---------- */
+/* ---------- NEW: safer DB read with retries + fallback ---------- */
+async function getGameScoreFromDB(gid, lastSummary=null){
+  const SELECT = 'total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,is_final';
+  const tryRead = async () => {
+    const { data, error } = await supa
+      .from('game_scores')
+      .select(SELECT)
+      .eq('league','NHL')
+      .eq('week_key',WEEK_KEY)
+      .eq('game_id', String(gid))
+      .maybeSingle();
+    if(error) { console.warn('game_scores read error', error.message); }
+    return data || null;
+  };
+  for(let i=0;i<3;i++){
+    const row = await tryRead();
+    if(row) return row;
+    await new Promise(r=>setTimeout(r, 200*(i+1)));
+  }
+  if(lastSummary){
+    const comp = scoreFromSummary(lastSummary);
+    if(comp) return comp;
+  }
+  return null;
+}
+
+/* Convenience: cached ESPN summary */
+const SUM_CACHE = new Map();
 async function getSummaryCached(gid){
-  const ck = `sum:${gid}`;
-  const hit = getCache(ck);
-  if(hit) return hit;
-  const s = await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
-  setCache(ck, s, 30000);
+  if(SUM_CACHE.has(gid)) return SUM_CACHE.get(gid);
+  const url = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`;
+  const s = await safeJson(url).catch(()=>null);
+  if(s) SUM_CACHE.set(gid,s);
   return s;
 }
 
 /* ---------- League (NHL) UI ---------- */
 function leagueFactory(){
-  const st={ events:[], selected:null };
-  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB') };
+  const st={ events:[], selected:null, poll:null, gameRows:[] };
+  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), log:$('nhl-log'), gameLB:$('nhl-gameLB'), userLB:$('nhl-userLB') };
   const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
 
-  dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; startTimers(isMobile()); });
-
+  dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
   dom.add.addEventListener('click', async ()=>{
     if(!currentUser){ alert('Sign in first.'); return; }
     if(!st.selected) return;
@@ -510,83 +578,62 @@ function leagueFactory(){
     }
   });
 
-  function isMobile(){ return matchMedia('(max-width: 720px)').matches; }
-
-  function makeCard(g){
-    const started=Date.now()>=new Date(g.start).getTime();
-    const card=document.createElement('div');
-    card.className='gameCard';
-    const puck=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-    card.innerHTML=`
-      <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
-      <div class="gameBody">
-        <div class="teamsRow">
-          <div class="team">
-            ${g.away.logo?`<img src="${g.away.logo}" alt="" loading="lazy" decoding="async" width="22" height="22">`:``}
-            <div class="name">${g.away.name}</div><span class="scoreTag" id="NHL-a-${g.id}">0</span>
-          </div>
-          <div class="small" style="opacity:.8">@</div>
-          <div class="team" style="justify-content:flex-end">
-            ${g.home.logo?`<img src="${g.home.logo}" alt="" loading="lazy" decoding="async" width="22" height="22">`:``}
-            <div class="name">${g.home.name}</div><span class="scoreTag" id="NHL-h-${g.id}">0</span>
-          </div>
-        </div>
-        <div class="small" style="margin-top:6px;opacity:.9">Score: <span id="NHL-scr-${g.id}">—</span> · <span id="NHL-st-${g.id}">pre</span> · Puck drop: ${puck}</div>
-        <div class="lockRow">
-          <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
-          <button class="btn pickBtn" data-gid="${g.id}" ${started?'style="display:none"':''}>Add to my picks</button>
-          <button class="btn small viewBtn">Open</button>
-        </div>
-        ${started?'<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
-      </div>`;
-    card.querySelector('.viewBtn').addEventListener('click',()=>openGame(g));
-    const pickBtn=card.querySelector('.pickBtn');
-    if(pickBtn){
-      pickBtn.addEventListener('click', async ()=>{
-        if(!currentUser){ alert('Sign in first.'); return; }
-        if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
-        const myList = await picksForUser(currentUser.id);
-        const gid=String(g.id);
-        if(myList.includes(gid)){ alert('Already picked.'); return; }
-        if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-        const ok = await setPick(currentUser.id,gid);
-        if(ok){
-          updatePicksLeft();
-          renderWeeklyBoards();
-          renderMyPicks();
-          const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
-          pickBtn.style.display='none';
-          toast('Pick saved ✓');
-        }
-      });
-    }
-    return card;
-  }
-
-  // PERF: progressive grid render
   function renderGrid(){
     dom.grid.innerHTML='';
-    const evs = st.events||[];
-    let i=0;
-    const CHUNK = isMobile() ? 6 : 12;
-    const addSome = () => {
-      const end = Math.min(i+CHUNK, evs.length);
-      for(; i<end; i++){ dom.grid.appendChild(makeCard(evs[i])); }
-      if(i<evs.length){
-        (window.requestIdleCallback||setTimeout)(addSome, 0);
+    (st.events||[]).forEach(g=>{
+      const started=Date.now()>=new Date(g.start).getTime();
+      const card=document.createElement('div');
+      card.className='gameCard';
+      const puck=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+      card.innerHTML=`
+        <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
+        <div class="gameBody">
+          <div class="teamsRow">
+            <div class="team">${g.away.logo?`<img src="${g.away.logo}" alt="">`:``}<div class="name">${g.away.name}</div><span class="scoreTag" id="NHL-a-${g.id}">0</span></div>
+            <div class="small" style="opacity:.8">@</div>
+            <div class="team" style="justify-content:flex-end">${g.home.logo?`<img src="${g.home.logo}" alt="">`:``}<div class="name">${g.home.name}</div><span class="scoreTag" id="NHL-h-${g.id}">0</span></div>
+          </div>
+          <div class="small" style="margin-top:6px;opacity:.9">Score: <span id="NHL-scr-${g.id}">—</span> · <span id="NHL-st-${g.id}">pre</span> · Puck drop: ${puck}</div>
+          <div class="lockRow">
+            <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
+            <button class="btn pickBtn" data-gid="${g.id}" ${started?'style="display:none"':''}>Add to my picks</button>
+            <button class="btn small viewBtn">Open</button>
+          </div>
+          ${started?'<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
+        </div>`;
+      card.querySelector('.viewBtn').addEventListener('click',()=>openGame(g));
+      const pickBtn=card.querySelector('.pickBtn');
+      if(pickBtn){
+        pickBtn.addEventListener('click', async ()=>{
+          if(!currentUser){ alert('Sign in first.'); return; }
+          if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
+          const myList = await picksForUser(currentUser.id);
+          const gid=String(g.id);
+          if(myList.includes(gid)){ alert('Already picked.'); return; }
+          if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
+          const ok = await setPick(currentUser.id,gid);
+          if(ok){
+            updatePicksLeft();
+            renderWeeklyBoards();
+            renderMyPicks();
+            const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
+            pickBtn.style.display='none';
+            toast('Pick saved ✓');
+          }
+        });
       }
-    };
-    addSome();
+      dom.grid.appendChild(card);
+    });
   }
 
   async function refreshGridScores(){
     const evs = st.events||[]; if(!evs.length) return;
-    const limit = isMobile()? 3 : 6; // PERF: lower concurrency on phones
-    const rows = await pLimitAll(evs, limit, async (g)=>{
+    const rows = await pLimitAll(evs, 6, async (g)=>{
       try{
-        const s=await getSummaryCached(g.id);      // PERF: 30s memo
+        const s = await getSummaryCached(g.id);
+        if(!s) return null;
         await pushSummaryToSQL(g.id, s);
-        const row = await getGameScoreFromDB(g.id);
+        const row = await getGameScoreFromDB(g.id, s); // <-- pass summary for fallback
         const comp=s?.header?.competitions?.[0]||{};
         let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
         return {
@@ -598,7 +645,7 @@ function leagueFactory(){
         };
       }catch{ return null; }
     });
-    const valid=rows.filter(Boolean);
+    const valid=(rows||[]).filter(Boolean);
     for(const r of valid){
       const scEl=$(`NHL-scr-${r.id}`), stEl=$(`NHL-st-${r.id}`), aEl=$(`NHL-a-${r.id}`), hEl=$(`NHL-h-${r.id}`);
       if(scEl) scEl.textContent=`${r.awayPts}–${r.homePts}`;
@@ -606,30 +653,26 @@ function leagueFactory(){
       if(aEl) aEl.textContent=r.awayPts;
       if(hEl) hEl.textContent=r.homePts;
     }
-    const list = evs.map(g=>{
+    st.gameRows = evs.map(g=>{
       const r = valid.find(x=>x && String(x.id)===String(g.id));
       if(!r) return null;
       return { id:g.id, awayName:g.away.name, homeName:g.home.name, awayLogo:g.away.logo, homeLogo:g.home.logo, score:r.score, status:r.status };
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
-    renderGameLB(list);
+    renderGameLB();
   }
 
-  function renderGameLB(rows){
-    const tgt=$('nhl-gameLB'); if(!tgt) return;
-    tgt.innerHTML = (rows||[]).slice(0,15).map(r=>{
+  function renderGameLB(){
+    if(!st.gameRows) return;
+    const tgt=$('nhl-gameLB');
+    if(!tgt) return;
+    tgt.innerHTML = st.gameRows.slice(0,15).map(r=>{
       return `<div class="lbRow">
-        <div class="lbTeam">
-          ${r.awayLogo?`<img src="${r.awayLogo}" alt="" loading="lazy" decoding="async" width="20" height="20">`:''}
-          <span class="lbName" style="max-width:280px">${r.awayName} @ ${r.homeName}</span>
-          ${r.homeLogo?`<img src="${r.homeLogo}" alt="" loading="lazy" decoding="async" width="20" height="20" style="margin-left:6px">`:''}
-        </div>
+        <div class="lbTeam">${r.awayLogo?`<img src="${r.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${r.awayName} @ ${r.homeName}</span>${r.homeLogo?`<img src="${r.homeLogo}" alt="" style="margin-left:6px">`:''}</div>
         <div class="lbPts">${Number(r.score||0).toFixed(2)}</div>
         <div class="small">${r.status||''}</div>
       </div>`;
     }).join('');
   }
-
-  let currentGameAbort=null; // PERF: cancel obsolete fetches
 
   function openGame(g){
     st.selected=g;
@@ -637,50 +680,46 @@ function leagueFactory(){
     dom.live.textContent=`${g.away.name} @ ${g.home.name}`;
     dom.teamSide.innerHTML=
       `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
-         <div style="display:flex;gap:10px;align-items:center">
-           ${g.away.logo?`<img src="${g.away.logo}" alt="" loading="lazy" decoding="async" width="44" height="44">`:''}
-           <div style="font-weight:700">${g.away.name}</div>
-         </div>
+         <div style="display:flex;gap:10px;align-items:center">${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}<div style="font-weight:700">${g.away.name}</div></div>
          <div id="NHL-awayScore" style="font-weight:800">—</div>
        </div>
        <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
-         <div style="display:flex;gap:10px;align-items:center">
-           ${g.home.logo?`<img src="${g.home.logo}" alt="" loading="lazy" decoding="async" width="44" height="44">`:''}
-           <div style="font-weight:700">${g.home.name}</div>
-         </div>
+         <div style="display:flex;gap:10px;align-items:center">${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}<div style="font-weight:700">${g.home.name}</div></div>
          <div id="NHL-homeScore" style="font-weight:800">—</div>
        </div>`;
     dom.gridCard.style.display='none'; dom.top.style.display='block';
-    stopTimers(); // PERF: prevent double intervals
-    updateGameOnce();
-    startTimers(isMobile()); // will start the game timer only
+    updateGameOnce(); if(st.poll) clearInterval(st.poll); st.poll=setInterval(updateGameOnce,20000);
+    renderGameLB();
   }
 
   async function updateGameOnce(){
     if(!st.selected) return; const id=st.selected.id;
-    if(currentGameAbort) currentGameAbort.abort();
-    currentGameAbort = new AbortController();
-    const signal = currentGameAbort.signal;
     try{
-      const s = await fetch(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`, {signal, cache:'default'}).then(r=>r.json());
-      await pushSummaryToSQL(id, s);
-      const row = await getGameScoreFromDB(id);
+      const s = await getSummaryCached(id);
+      if(!s) return;
+      const comp=s?.header?.competitions||[];
+      const c0=(comp[0]||{}); const status=c0.status||{};
+      let homeC=null,awayC=null; (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
 
-      const comp=s?.header?.competitions?.[0]||{};
-      let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+      await pushSummaryToSQL(id, s);
+      const row = await getGameScoreFromDB(id, s); // <-- pass summary for fallback
 
       $('NHL-homeScore').textContent=String(row?.home_pts ?? homeC?.score ?? 0);
       $('NHL-awayScore').textContent=String(row?.away_pts ?? awayC?.score ?? 0);
-      const status=comp.status||{};
-      $('nhl-clock').textContent=status.displayClock||'—';
-      $('nhl-q').textContent=String(status.period??'—');
-      $('nhl-state').textContent=(status.type?.description||status.type?.shortDetail||'—');
+      dom.clock.textContent=status.displayClock||'—';
+      dom.q.textContent=String(status.period??'—');
+      dom.state.textContent=(status.type?.description||status.type?.shortDetail||'—');
 
       dom.fscore.textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
-      const cb = row?.close_bonus||0, ob=row?.ot_bonus||0, sb=row?.so_bonus||0, cap=row?.bonus_cap||20;
-      dom.bonus.textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'} (cap ${cap})`;
+      const cb = row?.close_bonus||0, ob=row?.ot_bonus||0, sb=row?.so_bonus||0;
+      dom.bonus.textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'} (cap 20)`;
 
-      // optional: could render last plays here if you add a log node
+      const sps=s?.scoringPlays||[];
+      dom.log.innerHTML='';
+      for(const sp of sps.slice(-10).reverse()){
+        const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');
+        const div=document.createElement('div'); div.textContent=`[${q} ${t}] ${d}`; dom.log.appendChild(div);
+      }
     }catch(e){ /* ignore */ }
   }
 
@@ -710,13 +749,16 @@ function leagueFactory(){
       mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
     refreshGridScores();
+    setInterval(refreshGridScores,30000);
   }
 
-  return { loadWeek, state:st, refreshGridScores, updateGameOnce };
+  return { loadWeek, state:st };
 }
 const NHL = leagueFactory();
 
 /* ---------- DB-driven helpers for boards/picks ---------- */
+function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
+
 async function renderWeeklyBoards(){
   const box=$('lbNHLWeek');
   if(!box) return;
@@ -762,11 +804,7 @@ function isCurrent(key,t){ return RENDER_TICKETS.get(key)===t; }
 let LAST_ALL_IDS_JSON = '';
 
 function gameRowHTML(meta,score){
-  return `<div class="lbTeam">
-    ${meta.awayLogo?`<img src="${meta.awayLogo}" alt="" loading="lazy" decoding="async" width="20" height="20">`:''}
-    <span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>
-    ${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" loading="lazy" decoding="async" width="20" height="20" style="margin-left:6px">`:''}
-  </div><div class="lbPts">${Number(score||0).toFixed(2)}</div><div class="small">Game</div>`;
+  return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${Number(score||0).toFixed(2)}</div><div class="small">Game</div>`;
 }
 async function gameMeta(gid){
   const ck=`meta:${gid}`;
@@ -779,7 +817,7 @@ async function gameMeta(gid){
     return m;
   }
   try{
-    const s=await getSummaryCached(gid);
+    const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
     const comp=s?.header?.competitions?.[0]||{}; let home=null,away=null; (comp.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
     const m={ awayName:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', homeName:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', awayLogo:cdnNHL(away?.team||null), homeLogo:cdnNHL(home?.team||null) };
     setCache(ck,m,24*60*60*1000);
@@ -795,13 +833,13 @@ async function renderPickList(containerId, gidList){
     if(isCurrent(containerId,myTicket)) el.innerHTML='<div class="small">No picks yet.</div>';
     return 0;
   }
-  const limit = matchMedia('(max-width: 720px)').matches ? 3 : 6;
-  const results = await pLimitAll(clean, limit, async (gid)=>{
+  const results = await pLimitAll(clean, 6, async (gid)=>{
     try{
       const s=await getSummaryCached(gid);
-      await pushSummaryToSQL(gid, s);
+      if(s) await pushSummaryToSQL(gid, s);
     }catch{}
-    const [meta,row] = await Promise.all([gameMeta(gid), getGameScoreFromDB(gid)]);
+    const [meta,rowSummary] = await Promise.all([gameMeta(gid), getSummaryCached(gid)]);
+    const row = await getGameScoreFromDB(gid, rowSummary); // pass summary for fallback
     return {meta,score:row?.total||0};
   });
   if(!isCurrent(containerId,myTicket)) return 0;
@@ -832,8 +870,7 @@ async function renderMyPicks(){
     box.innerHTML=frags.join('');
   }
 
-  const limit = matchMedia('(max-width: 720px)').matches ? 3 : 6;
-  await pLimitAll(ids, limit, async (uid)=>{
+  await pLimitAll(ids, 6, async (uid)=>{
     const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
     const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${Number(t||0).toFixed(2)}`;
   });
@@ -869,39 +906,8 @@ async function updatePicksLeft(){
 const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
 Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); } if(k==='badges'){ refreshBadgesUI(); }}));
 
-/* ---------- PERF: visibility-aware timers ---------- */
-let gridTimer=null, gameTimer=null;
-function isMobile(){ return matchMedia('(max-width: 720px)').matches; }
-function startTimers(mobile){
-  const GRID_REFRESH_MS = mobile ? 45000 : 30000;
-  const GAME_REFRESH_MS = mobile ? 25000 : 20000;
-  if(!gridTimer) gridTimer = setInterval(()=>NHL.refreshGridScores(), GRID_REFRESH_MS);
-  if(NHL?.state?.selected && !gameTimer) gameTimer = setInterval(()=>NHL.updateGameOnce(), GAME_REFRESH_MS);
-}
-function stopTimers(){
-  if(gridTimer){ clearInterval(gridTimer); gridTimer=null; }
-  if(gameTimer){ clearInterval(gameTimer); gameTimer=null; }
-}
-document.addEventListener('visibilitychange', ()=>{
-  if(document.hidden){ stopTimers(); }
-  else{
-    NHL.refreshGridScores();
-    if(NHL?.state?.selected) NHL.updateGameOnce();
-    startTimers(isMobile());
-  }
-});
-
 /* ---------- Boot ---------- */
 (async ()=>{
-  // wait for Supabase script (defer)
-  await new Promise(r=>{
-    if(window.supabase) return r();
-    const i=setInterval(()=>{ if(window.supabase){ clearInterval(i); r(); } }, 10);
-  });
-  supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
-    auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
-  });
-
   const { data:{ session:ses } } = await supa.auth.getSession();
   session=ses; currentUser = session?.user || null;
 
@@ -939,9 +945,8 @@ document.addEventListener('visibilitychange', ()=>{
     await refreshBadgesUI();
   });
 
-  // start timers after first paint/loads
-  startTimers(isMobile());
+  setInterval(renderWeeklyBoards, 60000);
 })();
 </script>
 </body>
-</html>
+</html>P
