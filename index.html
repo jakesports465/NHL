@@ -315,7 +315,7 @@
 <section id="sec-rules" class="section" aria-labelledby="tab-rules">
   <main class="card">
     <h2 style="margin:0 0 10px 0">Scoring Rules (Game-based)</h2>
-    <div class="small" style="margin-bottom:8px">Bonuses are capped to keep thrillers competitive with blowouts.</div>
+    <div class="small" style="margin-bottom:8px">Close Game, Overtime, and Shootout will stack.</div>
     <div class="rules">
       <div class="r"><span>Goal</span><b>+4</b></div>
       <div class="r"><span>Power-Play Goal (bonus)</span><b>+1.5</b></div>
@@ -722,7 +722,7 @@ function leagueFactory(){
       dom.state.textContent=(status.type?.description||status.type?.shortDetail||'—');
 
       dom.fscore.textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
-      const cb = row?.close_bonus||0, ob=row?.ot_bonus||0, sb=row?.so_bonus||0, cap=row?.bonus_cap||20;
+      const cb = row?.close_bonus||0, ob=row?.ot_bonus||0, sb=row?.so_bonus||0, cap=row?.bonus_cap||200;
       dom.bonus.textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'} (cap ${cap})`;
 
       const sps=s?.scoringPlays||[];
@@ -965,4 +965,5 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
