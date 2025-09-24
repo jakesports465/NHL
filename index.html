@@ -735,12 +735,12 @@ function leagueFactory(){
 
   /* === Added: render breakdown helper === */
   function renderBreakdown(row){
-    const W = { goal:4.0, ppg:1.5, shg:2.0, sog:0.1, sv:0.02, hit:0.1, block:0.1, pim:-0.25, close:4.0, ot:2.0, so:2.0 };
+    const W = { goal:4, ppg:1.5, shg:2.0, sog:0.1, sv:0.02, hit:0.1, block:0.1, pim:-0.25, close:4, ot:2, so:2 };
     const safe = n => Number(n||0);
     const items = [
       { label:'Goals',         count:safe(row.goals),  per:W.goal,  pts:safe(row.goals)*W.goal },
-      { label:'Power-Play G',  count:safe(row.ppg),    per:W.ppg,   pts:safe(row.ppg)*W.ppg },
-      { label:'Short-Handed G',count:safe(row.shg),    per:W.shg,   pts:safe(row.shg)*W.shg },
+      { label:'PowerPlay Goals',  count:safe(row.ppg),    per:W.ppg,   pts:safe(row.ppg)*W.ppg },
+      { label:'Shorthanded Goals',count:safe(row.shg),    per:W.shg,   pts:safe(row.shg)*W.shg },
       { label:'Shots on Goal', count:safe(row.shots),  per:W.sog,   pts:safe(row.shots)*W.sog },
       { label:'Saves',         count:safe(row.saves),  per:W.sv,    pts:safe(row.saves)*W.sv },
       { label:'Hits',          count:safe(row.hits),   per:W.hit,   pts:safe(row.hits)*W.hit },
@@ -1039,3 +1039,4 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
