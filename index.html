@@ -735,7 +735,7 @@ function leagueFactory(){
 
   /* === Added: render breakdown helper === */
   function renderBreakdown(row){
-    const W = { goal:4, ppg:1.5, shg:2.0, sog:0.1, sv:0.02, hit:0.1, block:0.1, pim:-0.25, close:4, ot:2, so:2 };
+    const W = { goal:4, ppg:1.5, shg:1.0, sog:0.1, sv:0.05, hit:0.05, block:0.1, pim:-0.1, close:4, ot:2, so:2 };
     const safe = n => Number(n||0);
     const items = [
       { label:'Goals',         count:safe(row.goals),  per:W.goal,  pts:safe(row.goals)*W.goal },
@@ -1039,4 +1039,5 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
