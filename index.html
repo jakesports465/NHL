@@ -722,8 +722,8 @@ function leagueFactory(){
       dom.state.textContent=(status.type?.description||status.type?.shortDetail||'—');
 
       dom.fscore.textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
-      const cb = row?.close_bonus||0, ob=row?.ot_bonus||0, sb=row?.so_bonus||0, cap=row?.bonus_cap||200;
-      dom.bonus.textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'} (cap ${cap})`;
+      const cb = row?.close_bonus||0, ob=row?.ot_bonus||0, sb=row?.so_bonus||0, cap=row?.bonus_cap||20;
+      dom.bonus.textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'}`;
 
       const sps=s?.scoringPlays||[];
       dom.log.innerHTML='';
@@ -965,5 +965,6 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
