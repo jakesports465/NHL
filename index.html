@@ -168,6 +168,12 @@
 
   /* Respect safe-area on bottom for sticky UI/scroll end */
   body{padding-bottom:env(safe-area-inset-bottom)}
+
+  /* === Added: simple table styling for Fantasy Breakdown === */
+  .fTable{width:100%; border-collapse:collapse; font-size:13px}
+  .fTable th,.fTable td{border:1px solid #1c2430; padding:6px 8px; text-align:right}
+  .fTable th:first-child,.fTable td:first-child{text-align:left}
+  .fTable tfoot td{font-weight:800}
 </style>
 </head>
 <body>
@@ -216,18 +222,41 @@
           <div class="small">State: <b id="nhl-state">—</b></div>
         </div>
       </div>
+
       <div class="sep"></div>
       <div class="lockRow">
         <button id="nhl-back" class="btn small">← Back to games</button>
         <button id="nhl-addPick" class="btn small">Add to my picks</button>
       </div>
+
       <div class="sep"></div>
+
+      <!-- === Added: Fantasy Breakdown panel === -->
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Fantasy Breakdown</h3>
+        <table class="fTable" id="nhl-breakdown">
+          <thead>
+            <tr><th>Stat</th><th>Count</th><th>Pts / Unit</th><th>Points</th></tr>
+          </thead>
+          <tbody>
+            <!-- filled by JS -->
+          </tbody>
+          <tfoot>
+            <tr><td colspan="3">Bonuses</td><td id="bd-bonuses">0.00</td></tr>
+            <tr><td colspan="3">Total</td><td id="bd-total">0.00</td></tr>
+          </tfoot>
+        </table>
+      </section>
+
+      <div class="sep"></div>
+
       <section class="panel">
         <h3 style="margin:0 0 6px 0">Top Games — Fantasy (Top 15)</h3>
         <div id="nhl-gameLB"></div>
       </section>
       <div class="sep"></div>
     </section>
+
     <section id="nhl-gridCard" class="card">
       <div class="small" id="nhl-note">Loading NHL week…</div>
       <div class="sep"></div>
@@ -548,10 +577,11 @@ async function pushSummaryToSQL(gameId, summaryJson){
   if(error){ console.error('upsert_nhl_game_from_summary failed:', error.message); }
 }
 
+/* === Modified: include stat fields for breakdown === */
 async function getGameScoreFromDB(gid){
   const { data, error } = await supa
     .from('game_scores')
-    .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,bonus_cap,is_final')
+    .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,is_final,goals,ppg,shg,shots,saves,hits,blocks,pim')
     .eq('league','NHL')
     .eq('week_key',WEEK_KEY)
     .eq('game_id', String(gid))
@@ -703,6 +733,46 @@ function leagueFactory(){
     renderGameLB(); renderUserLB();
   }
 
+  /* === Added: render breakdown helper === */
+  function renderBreakdown(row){
+    const W = { goal:4.0, ppg:1.5, shg:2.0, sog:0.1, sv:0.02, hit:0.1, block:0.1, pim:-0.25, close:4.0, ot:2.0, so:2.0 };
+    const safe = n => Number(n||0);
+    const items = [
+      { label:'Goals',         count:safe(row.goals),  per:W.goal,  pts:safe(row.goals)*W.goal },
+      { label:'Power-Play G',  count:safe(row.ppg),    per:W.ppg,   pts:safe(row.ppg)*W.ppg },
+      { label:'Short-Handed G',count:safe(row.shg),    per:W.shg,   pts:safe(row.shg)*W.shg },
+      { label:'Shots on Goal', count:safe(row.shots),  per:W.sog,   pts:safe(row.shots)*W.sog },
+      { label:'Saves',         count:safe(row.saves),  per:W.sv,    pts:safe(row.saves)*W.sv },
+      { label:'Hits',          count:safe(row.hits),   per:W.hit,   pts:safe(row.hits)*W.hit },
+      { label:'Blocked Shots', count:safe(row.blocks), per:W.block, pts:safe(row.blocks)*W.block },
+      { label:'Penalty Minutes',count:safe(row.pim),   per:W.pim,   pts:safe(row.pim)*W.pim },
+    ];
+    const tbody = document.querySelector('#nhl-breakdown tbody');
+    if(!tbody) return;
+    tbody.innerHTML = items.map(it=>`
+      <tr>
+        <td>${it.label}</td>
+        <td>${it.count}</td>
+        <td>${it.per.toFixed(2)}</td>
+        <td>${it.pts.toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const bonus = safe(row.close_bonus)+safe(row.ot_bonus)+safe(row.so_bonus);
+    const offenseDefense = items.reduce((s,x)=>s+x.pts,0);
+    const total = offenseDefense + bonus;
+
+    const bdBonuses = document.getElementById('bd-bonuses');
+    const bdTotal = document.getElementById('bd-total');
+    if(bdBonuses) bdBonuses.textContent = bonus.toFixed(2);
+    if(bdTotal) bdTotal.textContent = (row?.total!=null ? Number(row.total).toFixed(2) : total.toFixed(2));
+
+    // Also reflect bonuses line up top
+    const cb = safe(row.close_bonus), ob=safe(row.ot_bonus), sb=safe(row.so_bonus);
+    document.getElementById('nhl-bonuses').textContent =
+      `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'}`;
+  }
+
   async function updateGameOnce(){
     if(!st.selected) return; const id=st.selected.id;
     try{
@@ -717,19 +787,23 @@ function leagueFactory(){
 
       $('NHL-homeScore').textContent=String(row?.home_pts ?? homeC?.score ?? 0);
       $('NHL-awayScore').textContent=String(row?.away_pts ?? awayC?.score ?? 0);
-      dom.clock.textContent=status.displayClock||'—';
-      dom.q.textContent=String(status.period??'—');
-      dom.state.textContent=(status.type?.description||status.type?.shortDetail||'—');
+      $('nhl-clock').textContent=status.displayClock||'—';
+      $('nhl-q').textContent=String(status.period??'—');
+      $('nhl-state').textContent=(status.type?.description||status.type?.shortDetail||'—');
 
-      dom.fscore.textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
-      const cb = row?.close_bonus||0, ob=row?.ot_bonus||0, sb=row?.so_bonus||0, cap=row?.bonus_cap||20;
-      dom.bonus.textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'}`;
+      $('nhl-fscore').textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
+
+      // === Added: fill Fantasy Breakdown table
+      if(row) renderBreakdown(row);
 
       const sps=s?.scoringPlays||[];
-      dom.log.innerHTML='';
+      if(!document.getElementById('nhl-log')){
+        const log = document.createElement('div'); log.id='nhl-log'; log.className='log'; document.querySelector('#nhl-top').appendChild(log);
+      }
+      const logBox=document.getElementById('nhl-log'); logBox.innerHTML='';
       for(const sp of sps.slice(-10).reverse()){
         const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');
-        const div=document.createElement('div'); div.textContent=`[${q} ${t}] ${d}`; dom.log.appendChild(div);
+        const div=document.createElement('div'); div.textContent=`[${q} ${t}] ${d}`; logBox.appendChild(div);
       }
     }catch(e){ /* ignore */ }
   }
@@ -965,6 +1039,3 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
-
-
-
