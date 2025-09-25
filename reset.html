@@ -13,11 +13,19 @@
     "https://acmqdokxwnkkjmfgfyhh.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w"
   );
+
+  async function init() {
+    // Handle token from email link
+    const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+    if (error) {
+      document.getElementById("msg").textContent = error.message;
+    }
+  }
+  init();
+
   document.getElementById('setpass').onclick = async () => {
     const p = document.getElementById('newpass').value;
     const { error } = await supabase.auth.updateUser({ password: p });
     document.getElementById('msg').textContent = error ? error.message : 'Password updated. You may close this tab.';
   };
 </script>
-
-
