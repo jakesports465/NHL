@@ -742,22 +742,39 @@ function leagueFactory(){
 
 
   function openGame(g){
-    st.selected=g;
-    $('nhl-top').setAttribute('data-show','true');
-    dom.live.textContent=`${g.away.name} @ ${g.home.name}`;
-    dom.teamSide.innerHTML=
-      `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
-         <div style="display:flex;gap:10px;align-items:center">${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}<div style="font-weight:700">${g.away.name}</div></div>
-         <div id="NHL-awayScore" style="font-weight:800">—</div>
+  st.selected = g;
+  $('nhl-top').setAttribute('data-show','true');
+  dom.live.textContent=`${g.away.name} @ ${g.home.name}`;
+  dom.teamSide.innerHTML=
+    `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
+       <div style="display:flex;gap:10px;align-items:center">
+         ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
+         <div style="font-weight:700">${g.away.name}</div>
        </div>
-       <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
-         <div style="display:flex;gap:10px;align-items:center">${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}<div style="font-weight:700">${g.home.name}</div></div>
-         <div id="NHL-homeScore" style="font-weight:800">—</div>
-       </div>`;
-    dom.gridCard.style.display='none'; dom.top.style.display='block';
-    updateGameOnce(); if(st.poll) clearInterval(st.poll); st.poll=setInterval(updateGameOnce,20000);
-    renderGameLB(); renderUserLB();
-  }
+       <div id="NHL-awayScore" style="font-weight:800">—</div>
+     </div>
+     <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
+       <div style="display:flex;gap:10px;align-items:center">
+         ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
+         <div style="font-weight:700">${g.home.name}</div>
+       </div>
+       <div id="NHL-homeScore" style="font-weight:800">—</div>
+     </div>`;
+
+  dom.gridCard.style.display='none'; 
+  dom.top.style.display='block';
+
+  updateGameOnce(); 
+  if(st.poll) clearInterval(st.poll); 
+  st.poll = setInterval(updateGameOnce, 20000);
+
+  renderGameLB(); 
+  renderUserLB();
+
+  // 👇 add this line
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 
   /* === Added: render breakdown helper === */
   function renderBreakdown(row){
@@ -1065,6 +1082,7 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
 
