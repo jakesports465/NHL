@@ -703,17 +703,43 @@ function leagueFactory(){
   }
 
   function renderGameLB(){
-    if(!st.gameRows) return;
-    const tgt=$('nhl-gameLB');
-    if(!tgt) return;
-    tgt.innerHTML = st.gameRows.slice(0,150).map(r=>{
-      return `<div class="lbRow">
-        <div class="lbTeam">${r.awayLogo?`<img src="${r.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${r.awayName} @ ${r.homeName}</span>${r.homeLogo?`<img src="${r.homeLogo}" alt="" style="margin-left:6px">`:''}</div>
-        <div class="lbPts">${Number(r.score||0).toFixed(2)}</div>
-        <div class="small">${r.status||''}</div>
-      </div>`;
-    }).join('');
+  if(!st.gameRows) return;
+  const tgt = $('nhl-gameLB'); if(!tgt) return;
+
+  tgt.innerHTML = st.gameRows.map(r => `
+    <div class="lbRow" data-gid="${r.id}" style="cursor:pointer" role="button" tabindex="0" aria-label="Open ${r.awayName} at ${r.homeName}">
+      <div class="lbTeam">
+        ${r.awayLogo?`<img src="${r.awayLogo}" alt="">`:''}
+        <span class="lbName" style="max-width:280px">${r.awayName} @ ${r.homeName}</span>
+        ${r.homeLogo?`<img src="${r.homeLogo}" alt="" style="margin-left:6px">`:''}
+      </div>
+      <div class="lbPts">${Number(r.score||0).toFixed(2)}</div>
+      <div class="small">${r.status||''}</div>
+    </div>
+  `).join('');
+
+  // one-time delegation (idempotent)
+  if(!tgt._wired){
+    tgt.addEventListener('click', (e)=>{
+      const row = e.target.closest('.lbRow[data-gid]');
+      if(!row) return;
+      const id = row.getAttribute('data-gid');
+      const g = NHL.state.events.find(x => String(x.id) === String(id));
+      if(g) openGame(g);
+    });
+    tgt.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){
+        const row = e.target.closest('.lbRow[data-gid]');
+        if(!row) return;
+        const id = row.getAttribute('data-gid');
+        const g = NHL.state.events.find(x => String(x.id) === String(id));
+        if(g){ e.preventDefault(); openGame(g); }
+      }
+    });
+    tgt._wired = true;
   }
+}
+
 
   function openGame(g){
     st.selected=g;
@@ -1039,5 +1065,6 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
