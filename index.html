@@ -706,7 +706,7 @@ function leagueFactory(){
     if(!st.gameRows) return;
     const tgt=$('nhl-gameLB');
     if(!tgt) return;
-    tgt.innerHTML = st.gameRows.slice(0,150).map(r=>{
+    tgt.innerHTML = st.gameRows.slice(0,10).map(r=>{
       return `<div class="lbRow">
         <div class="lbTeam">${r.awayLogo?`<img src="${r.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${r.awayName} @ ${r.homeName}</span>${r.homeLogo?`<img src="${r.homeLogo}" alt="" style="margin-left:6px">`:''}</div>
         <div class="lbPts">${Number(r.score||0).toFixed(2)}</div>
@@ -1039,4 +1039,5 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
