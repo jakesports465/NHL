@@ -1,47 +1,23 @@
 <!doctype html>
-<meta charset="utf-8" />
+<meta charset="utf-8">
 <title>Reset Password</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <div style="max-width:420px;margin:64px auto;font-family:system-ui">
   <h3>Set a new password</h3>
-  <input id="pw" type="password" placeholder="New password (min 6)" style="width:100%;padding:10px" />
-  <button id="btn" style="margin-top:10px;padding:10px 14px" disabled>Update</button>
-  <div id="msg" style="margin-top:8px;color:#ccc"></div>
+  <input id="newpass" type="password" placeholder="New password" style="width:100%;padding:10px">
+  <button id="setpass" style="margin-top:10px;padding:10px 14px">Update</button>
+  <div id="msg" style="margin-top:8px"></div>
 </div>
-
 <script>
-  const supa = window.supabase.createClient(
+  const supabase = window.supabase.createClient(
     "https://acmqdokxwnkkjmfgfyhh.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w"
   );
-
-  const msg = (t, err=false) => { 
-    const el = document.getElementById('msg'); 
-    el.style.color = err ? '#f66' : '#9bd';
-    el.textContent = t; 
-  };
-
-  // 1) Exchange the code in the URL for a session
-  (async () => {
-    try {
-      const { data, error } = await supa.auth.exchangeCodeForSession(window.location.href);
-      if (error) { msg("Reset link invalid or expired.", true); return; }
-      document.getElementById('btn').disabled = false;
-      msg("Code verified. Enter a new password.");
-    } catch (e) {
-      msg("Reset link invalid or expired.", true);
-    }
-  })();
-
-  // 2) Update the password for the now-authenticated recovery session
-  document.getElementById('btn').onclick = async () => {
-    const password = document.getElementById('pw').value;
-    if (!password || password.length < 6) { msg("Password must be at least 6 characters.", true); return; }
-    const { error } = await supa.auth.updateUser({ password });
-    if (error) { msg(error.message, true); return; }
-    msg("Password updated. You can close this tab and log in.");
-    // Optional: sign out this ephemeral session
-    try { await supa.auth.signOut(); } catch {}
+  document.getElementById('setpass').onclick = async () => {
+    const p = document.getElementById('newpass').value;
+    const { error } = await supabase.auth.updateUser({ password: p });
+    document.getElementById('msg').textContent = error ? error.message : 'Password updated. You may close this tab.';
   };
 </script>
+
+
