@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Reset Password</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<div style="max-width:420px;margin:64px auto;font-family:system-ui">
+  <h3>Set a new password</h3>
+  <input id="newpass" type="password" placeholder="New password" style="width:100%;padding:10px">
+  <button id="setpass" style="margin-top:10px;padding:10px 14px">Update</button>
+  <div id="msg" style="margin-top:8px"></div>
+</div>
+<script>
+  const supabase = window.supabase.createClient(
+    "https://acmqdokxwnkkjmfgfyhh.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w"
+  );
+  document.getElementById('setpass').onclick = async () => {
+    const p = document.getElementById('newpass').value;
+    const { error } = await supabase.auth.updateUser({ password: p });
+    document.getElementById('msg').textContent = error ? error.message : 'Password updated. You may close this tab.';
+  };
+</script>
+
