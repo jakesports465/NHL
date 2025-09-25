@@ -650,9 +650,16 @@ function leagueFactory(){
           Puck drop: ${puck}
         </div>
 
-        <!-- Added: Fantasy score line -->
-        <div class="small" style="margin-top:4px">
-          Fantasy: <span id="NHL-fant-${g.id}">—</span>
+        <!-- Emphasized Fantasy score pill -->
+        <div class="small" style="margin-top:8px">
+          <span id="NHL-fant-${g.id}-wrap"
+                style="display:inline-flex;align-items:center;gap:8px;
+                       background:#0e1a14;border:1px solid #2e5e3f;color:#9be7b0;
+                       padding:6px 12px;border-radius:999px;font-weight:800;
+                       letter-spacing:.2px;">
+            <span style="opacity:.9">Fantasy</span>
+            <span id="NHL-fant-${g.id}" style="font-variant-numeric:tabular-nums">—</span>
+          </span>
         </div>
 
         <div class="lockRow">
@@ -690,6 +697,7 @@ function leagueFactory(){
     dom.grid.appendChild(card);
   });
 }
+
 
 
   async function refreshGridScores(){
@@ -1136,6 +1144,7 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
 
