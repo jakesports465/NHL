@@ -377,7 +377,7 @@ const TZ='America/Chicago';
 const MAX_PICKS=5;
 const $ = id => document.getElementById(id);
 
-const PERF_NS = `hf:${new Date().toISOString().slice(0,10)}`;
+const PERF_NS = `hf:${new Date().toISOString().slice(0,150)}`;
 const L1 = new Map();
 function k(ns){ return `${PERF_NS}:${ns}`; }
 function getCache(ns){
@@ -1039,5 +1039,6 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
