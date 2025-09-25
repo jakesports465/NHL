@@ -181,18 +181,31 @@
   <h1>NHL Puck'Em <span class="sub">Every Monday→Sunday · 5 picks</span></h1>
   <span id="picksLeft" class="pill">Sign in to play</span>
   <span class="small" style="margin-left:auto">Week: <b id="weekLabel">—</b></span>
-  <div id="authBox" class="field" style="margin-left:auto;gap:6px">
-    <form id="loginForm" class="field" style="gap:6px">
-      <input id="emailInput" type="email" placeholder="your@email.com" required>
-      <button class="btn small" type="submit">Send magic link</button>
-    </form>
-    <div id="userBox" class="field" style="display:none;gap:6px">
-      <span class="small" id="whoami">—</span>
-      <input id="displayNameInput" type="text" placeholder="Display name" style="max-width:180px">
-      <button id="saveDisplayName" class="btn small" type="button">Save</button>
-      <button id="logoutBtn" class="btn small" type="button">Sign out</button>
-    </div>
+  <div id="authBox" class="field" style="margin-left:auto;gap:6px;flex-wrap:wrap">
+  <!-- Sign up -->
+  <form id="signupForm" class="field" style="gap:6px">
+    <input id="suEmail" type="email" placeholder="email@example.com" required>
+    <input id="suPass"  type="password" placeholder="Password (min 6)" required>
+    <button class="btn small" type="submit">Sign up</button>
+  </form>
+
+  <!-- Log in -->
+  <form id="loginPwForm" class="field" style="gap:6px">
+    <input id="liEmail" type="email" placeholder="email@example.com" required>
+    <input id="liPass"  type="password" placeholder="Password" required>
+    <button class="btn small" type="submit">Log in</button>
+    <a href="#" id="forgotLink" class="small" style="text-decoration:underline">Forgot?</a>
+  </form>
+
+  <!-- Signed-in state (unchanged) -->
+  <div id="userBox" class="field" style="display:none;gap:6px">
+    <span class="small" id="whoami">—</span>
+    <input id="displayNameInput" type="text" placeholder="Display name" style="max-width:180px">
+    <button id="saveDisplayName" class="btn small" type="button">Save</button>
+    <button id="logoutBtn" class="btn small" type="button">Sign out</button>
   </div>
+</div>
+
 </header>
 
 <nav class="tabs" role="tablist" aria-label="Sections">
@@ -497,14 +510,35 @@ $('saveDisplayName').addEventListener('click', async ()=>{
 
 $('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });
 
-$('loginForm').addEventListener('submit', async (e)=>{
+// Sign up
+$('signupForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const email=$('emailInput').value.trim();
-  if(!email) return;
-  const redirectTo = window.location.href;
-  const { error } = await supa.auth.signInWithOtp({ email, options:{emailRedirectTo: redirectTo, shouldCreateUser:true } });
-  if(error){ alert(error.message); return; }
-  toast('Magic link sent! Check your email.');
+  const email = $('suEmail').value.trim();
+  const password = $('suPass').value;
+  const { error } = await supa.auth.signUp({ email, password });
+  if (error) { alert(error.message); return; }
+  toast('Account created! Check email if confirmations are ON.');
+});
+
+// Log in
+$('loginPwForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('liEmail').value.trim();
+  const password = $('liPass').value;
+  const { error } = await supa.auth.signInWithPassword({ email, password });
+  if (error) { alert(error.message); return; }
+  toast('Logged in ✓');
+});
+
+// Forgot password
+$('forgotLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const email = prompt('Enter your account email:');
+  if (!email) return;
+  const redirectTo = location.origin + location.pathname.replace(/[^/]*$/, '') + 'reset.html';
+  const { error } = await supa.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) { alert(error.message); return; }
+  toast('Reset email sent.');
 });
 
 /* ---------- Picks (Supabase) ---------- */
@@ -1106,15 +1140,18 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
   session=ses; currentUser = session?.user || null;
 
   function showAuthUI(){
-    if(currentUser){
-      $('loginForm').style.display='none';
-      $('userBox').style.display='flex';
-      $('whoami').textContent = currentUser.email || '(no email)';
-    }else{
-      $('loginForm').style.display='flex';
-      $('userBox').style.display='none';
-    }
+  if(currentUser){
+    $('signupForm').style.display = 'none';
+    $('loginPwForm').style.display = 'none';
+    $('userBox').style.display = 'flex';
+    $('whoami').textContent = currentUser.email || '(no email)';
+  }else{
+    $('signupForm').style.display = 'flex';
+    $('loginPwForm').style.display = 'flex';
+    $('userBox').style.display = 'none';
   }
+}
+
   showAuthUI();
 
   if(currentUser){ await loadOrCreatePlayer(); }
@@ -1144,6 +1181,7 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
 
