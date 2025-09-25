@@ -618,89 +618,143 @@ function leagueFactory(){
   });
 
   function renderGrid(){
-    dom.grid.innerHTML='';
-    (st.events||[]).forEach(g=>{
-      const started=Date.now()>=new Date(g.start).getTime();
-      const card=document.createElement('div');
-      card.className='gameCard';
-      const puck=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-      card.innerHTML=`
-        <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
-        <div class="gameBody">
-          <div class="teamsRow">
-            <div class="team">${g.away.logo?`<img src="${g.away.logo}" alt="">`:``}<div class="name">${g.away.name}</div><span class="scoreTag" id="NHL-a-${g.id}">0</span></div>
-            <div class="small" style="opacity:.8">@</div>
-            <div class="team" style="justify-content:flex-end">${g.home.logo?`<img src="${g.home.logo}" alt="">`:``}<div class="name">${g.home.name}</div><span class="scoreTag" id="NHL-h-${g.id}">0</span></div>
-          </div>
-          <div class="small" style="margin-top:6px;opacity:.9">Score: <span id="NHL-scr-${g.id}">—</span> · <span id="NHL-st-${g.id}">pre</span> · Puck drop: ${puck}</div>
-          <div class="lockRow">
-            <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
-            <button class="btn pickBtn" data-gid="${g.id}" ${started?'style="display:none"':''}>Add to my picks</button>
-            <button class="btn small viewBtn">Open</button>
-          </div>
-          ${started?'<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
-        </div>`;
-      card.querySelector('.viewBtn').addEventListener('click',()=>openGame(g));
-      const pickBtn=card.querySelector('.pickBtn');
-      if(pickBtn){
-        pickBtn.addEventListener('click', async ()=>{
-          if(!currentUser){ alert('Sign in first.'); return; }
-          if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
-          const myList = await picksForUser(currentUser.id);
-          const gid=String(g.id);
-          if(myList.includes(gid)){ alert('Already picked.'); return; }
-          if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-          const ok = await setPick(currentUser.id,gid);
-          if(ok){
-            updatePicksLeft();
-            renderWeeklyBoards();
-            renderMyPicks();
-            const tag=$(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
-            pickBtn.style.display='none';
-            toast('Pick saved ✓');
-          }
-        });
-      }
-      dom.grid.appendChild(card);
+  dom.grid.innerHTML='';
+  (st.events||[]).forEach(g=>{
+    const started = Date.now() >= new Date(g.start).getTime();
+    const card = document.createElement('div');
+    card.className = 'gameCard';
+    const puck = new Date(g.start).toLocaleString([], {
+      weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'
     });
-  }
+
+    card.innerHTML = `
+      <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
+      <div class="gameBody">
+        <div class="teamsRow">
+          <div class="team">
+            ${g.away.logo ? `<img src="${g.away.logo}" alt="">` : ``}
+            <div class="name">${g.away.name}</div>
+            <span class="scoreTag" id="NHL-a-${g.id}">0</span>
+          </div>
+          <div class="small" style="opacity:.8">@</div>
+          <div class="team" style="justify-content:flex-end">
+            ${g.home.logo ? `<img src="${g.home.logo}" alt="">` : ``}
+            <div class="name">${g.home.name}</div>
+            <span class="scoreTag" id="NHL-h-${g.id}">0</span>
+          </div>
+        </div>
+
+        <div class="small" style="margin-top:6px;opacity:.9">
+          Score: <span id="NHL-scr-${g.id}">—</span> ·
+          <span id="NHL-st-${g.id}">pre</span> ·
+          Puck drop: ${puck}
+        </div>
+
+        <!-- Added: Fantasy score line -->
+        <div class="small" style="margin-top:4px">
+          Fantasy: <span id="NHL-fant-${g.id}">—</span>
+        </div>
+
+        <div class="lockRow">
+          <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
+          <button class="btn pickBtn" data-gid="${g.id}" ${started ? 'style="display:none"' : ''}>Add to my picks</button>
+          <button class="btn small viewBtn">Open</button>
+        </div>
+
+        ${started ? '<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
+      </div>`;
+
+    card.querySelector('.viewBtn').addEventListener('click', ()=>openGame(g));
+
+    const pickBtn = card.querySelector('.pickBtn');
+    if(pickBtn){
+      pickBtn.addEventListener('click', async ()=>{
+        if(!currentUser){ alert('Sign in first.'); return; }
+        if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
+        const myList = await picksForUser(currentUser.id);
+        const gid = String(g.id);
+        if(myList.includes(gid)){ alert('Already picked.'); return; }
+        if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
+        const ok = await setPick(currentUser.id, gid);
+        if(ok){
+          updatePicksLeft();
+          renderWeeklyBoards();
+          renderMyPicks();
+          const tag = $(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
+          pickBtn.style.display='none';
+          toast('Pick saved ✓');
+        }
+      });
+    }
+
+    dom.grid.appendChild(card);
+  });
+}
+
 
   async function refreshGridScores(){
-    const evs = st.events||[]; if(!evs.length) return;
-    const rows = await pLimitAll(evs, 6, async (g)=>{
-      try{
-        const s=await safeJson(api.summary(g.id));
-        // push into SQL (math happens server-side)
-        await pushSummaryToSQL(g.id, s);
-        // read final/rolling fantasy total + box score from DB
-        const row = await getGameScoreFromDB(g.id);
-        const comp=s?.header?.competitions?.[0]||{};
-        let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-        return {
-          id:g.id,
-          awayPts: row?.away_pts ?? Number(awayC?.score??0),
-          homePts: row?.home_pts ?? Number(homeC?.score??0),
-          score: row?.total ?? 0,
-          status:(comp.status?.type?.shortDetail||comp.status?.type?.description||'—')
-        };
-      }catch{ return null; }
-    });
-    const valid=rows.filter(Boolean);
-    for(const r of valid){
-      const scEl=$(`NHL-scr-${r.id}`), stEl=$(`NHL-st-${r.id}`), aEl=$(`NHL-a-${r.id}`), hEl=$(`NHL-h-${r.id}`);
-      if(scEl) scEl.textContent=`${r.awayPts}–${r.homePts}`;
-      if(stEl) stEl.textContent=r.status||'—';
-      if(aEl) aEl.textContent=r.awayPts;
-      if(hEl) hEl.textContent=r.homePts;
+  const evs = st.events || [];
+  if(!evs.length) return;
+
+  const rows = await pLimitAll(evs, 6, async (g)=>{
+    try{
+      const s = await safeJson(api.summary(g.id));
+      // push into SQL (math happens server-side)
+      await pushSummaryToSQL(g.id, s);
+      // read final/rolling fantasy total + box score from DB
+      const row = await getGameScoreFromDB(g.id);
+      const comp = s?.header?.competitions?.[0] || {};
+      let homeC=null, awayC=null;
+      (comp.competitors||[]).forEach(c=>{
+        if(c.homeAway==='home') homeC=c;
+        if(c.homeAway==='away') awayC=c;
+      });
+      return {
+        id: g.id,
+        awayPts: row?.away_pts ?? Number(awayC?.score ?? 0),
+        homePts: row?.home_pts ?? Number(homeC?.score ?? 0),
+        score: row?.total ?? 0,
+        status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
+      };
+    }catch{ 
+      return null; 
     }
-    st.gameRows = evs.map(g=>{
-      const r = valid.find(x=>x && String(x.id)===String(g.id));
-      if(!r) return null;
-      return { id:g.id, awayName:g.away.name, homeName:g.home.name, awayLogo:g.away.logo, homeLogo:g.home.logo, score:r.score, status:r.status };
-    }).filter(Boolean).sort((a,b)=>b.score-a.score);
-    renderGameLB();
-    renderUserLB();
+  });
+
+  const valid = rows.filter(Boolean);
+  for(const r of valid){
+    const scEl = $(`NHL-scr-${r.id}`);
+    const stEl = $(`NHL-st-${r.id}`);
+    const aEl  = $(`NHL-a-${r.id}`);
+    const hEl  = $(`NHL-h-${r.id}`);
+    const fEl  = $(`NHL-fant-${r.id}`); // 👈 fantasy score element
+
+    if(scEl) scEl.textContent = `${r.awayPts}–${r.homePts}`;
+    if(stEl) stEl.textContent = r.status || '—';
+    if(aEl)  aEl.textContent  = r.awayPts;
+    if(hEl)  hEl.textContent  = r.homePts;
+    if(fEl)  fEl.textContent  = Number(r.score || 0).toFixed(2); // 👈 fill in fantasy score
   }
+
+  st.gameRows = evs.map(g=>{
+    const r = valid.find(x => x && String(x.id)===String(g.id));
+    if(!r) return null;
+    return {
+      id: g.id,
+      awayName: g.away.name,
+      homeName: g.home.name,
+      awayLogo: g.away.logo,
+      homeLogo: g.home.logo,
+      score: r.score,
+      status: r.status
+    };
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+
+  renderGameLB();
+  renderUserLB();
+}
+
+
 
   function renderGameLB(){
   if(!st.gameRows) return;
@@ -1082,6 +1136,7 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
 
