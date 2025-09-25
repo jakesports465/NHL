@@ -1,31 +1,52 @@
-<!doctype html>
-<meta charset="utf-8">
-<title>Reset Password</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<div style="max-width:420px;margin:64px auto;font-family:system-ui">
-  <h3>Set a new password</h3>
-  <input id="newpass" type="password" placeholder="New password" style="width:100%;padding:10px">
-  <button id="setpass" style="margin-top:10px;padding:10px 14px">Update</button>
-  <div id="msg" style="margin-top:8px"></div>
-</div>
 <script>
-  const supabase = window.supabase.createClient(
-    "https://acmqdokxwnkkjmfgfyhh.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w"
-  );
+  const SUPA_URL  = "https://acmqdokxwnkkjmfgfyhh.supabase.co";
+  const SUPA_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w";
 
-  async function init() {
-    // Handle token from email link
-    const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-    if (error) {
-      document.getElementById("msg").textContent = error.message;
+  const supabase = window.supabase.createClient(SUPA_URL, SUPA_ANON, {
+    auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+  });
+
+  const $ = (id) => document.getElementById(id);
+  const msg = $('msg');
+
+  async function ensureSessionFromUrl() {
+    // 1) PKCE-style links -> ?code=...
+    const code = new URLSearchParams(location.search).get('code');
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) return true;
     }
-  }
-  init();
 
-  document.getElementById('setpass').onclick = async () => {
-    const p = document.getElementById('newpass').value;
+    // 2) Legacy hash links -> #access_token=...&refresh_token=...
+    const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const access_token = hash.get('access_token');
+    const refresh_token = hash.get('refresh_token');
+    if (access_token && refresh_token) {
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (!error) return true;
+    }
+
+    // 3) Maybe we already have it
+    const { data: s } = await supabase.auth.getSession();
+    return !!s?.session;
+  }
+
+  (async () => {
+    const ok = await ensureSessionFromUrl();
+    if (!ok) {
+      msg.textContent = "Reset link is missing auth context. Open the link directly from your email (don’t copy/paste). If it still fails, click “Forgot?” again to get a fresh link.";
+      return;
+    }
+    msg.textContent = "Ready. Enter a new password and press Update.";
+  })();
+
+  $('setpass').onclick = async () => {
+    const p = $('newpass').value;
+    if (!p || p.length < 6) {
+      msg.textContent = "Password must be at least 6 characters.";
+      return;
+    }
     const { error } = await supabase.auth.updateUser({ password: p });
-    document.getElementById('msg').textContent = error ? error.message : 'Password updated. You may close this tab.';
+    msg.textContent = error ? error.message : "Password updated. You can close this tab and log in.";
   };
 </script>
