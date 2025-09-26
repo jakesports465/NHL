@@ -174,9 +174,23 @@ function weekDates(){const n=nowCT();const wd=n.getDay();const days=(wd-1+7)%7;c
 const WEEK_KEY=weekKey();const WEEK=weekDates();
 document.getElementById('wkPretty').textContent=WEEK.pretty;
 
-const api={scoreboard:d=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,summary:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`};
+/* ===== APIs ===== */
+const api={
+  scoreboard:d=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
+  summary:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`,
+  pbp:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${id}`
+};
 const cdn=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'):(t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:'');
+const clean=s=>(s||'').replace(/\s+/g,' ').trim();
+function mapPlay(x){return{per:x?.period?.number??x?.periodNumber??x?.period??'?',clk:x?.clock?.displayValue??x?.clock??'',text:clean(x?.text||x?.description||x?.shortText||'')}}; 
+async function getPbp(id){
+  const p=await fetch(api.pbp(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+  const all=(p?.allPlays||p?.plays||[]).map(mapPlay);
+  const scoring=all.filter(pl=>/goal/i.test(pl.text));
+  return {all,scoring};
+}
 
+/* ===== State & helpers ===== */
 const ST={events:[],rows:[],spotId:null,paused:false,idx:0};
 const $=id=>document.getElementById(id);
 const stamp=()=>{$('lastUpd').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});};
@@ -254,13 +268,26 @@ async function updateSpotlight(){
   $('clockBox').textContent='Clock '+(comp?.status?.displayClock||'—');
   $('stateBox').textContent=status;
 
-  const scoring=(s?.scoringPlays||[]).slice(-20).reverse();
-  $('scoreList').innerHTML=scoring.length?scoring.map(sp=>{
-    const t=`[P${sp.period?.number||'?'} ${sp.clock?.displayValue||''}]`;
-    const d=(sp.text||sp.description||'').replace(/\s+/g,' ');
-    return `<div class="play"><span class="dot goal"></span><div><div>${d}</div><div class="when">${t}</div></div></div>`;
-  }).join(''):'<div class="small">No data yet.</div>';
+  /* ---------- FIXED: Scoring Plays with PBP fallback ---------- */
+  let scoring = (s?.scoringPlays || []).map(mapPlay);
+  if (scoring.length === 0) { // finals / odd feeds
+    const fb = await getPbp(id);
+    scoring = fb.scoring;
+  }
+  const scoringView = scoring.slice(-20).reverse();
+  $('scoreList').innerHTML = scoringView.length
+    ? scoringView.map(sp=>`
+        <div class="play">
+          <span class="dot goal"></span>
+          <div>
+            <div>${sp.text}</div>
+            <div class="when">[P${sp.per} ${sp.clk}]</div>
+          </div>
+        </div>`).join('')
+    : '<div class="small">No data yet.</div>';
+  /* ------------------------------------------------------------ */
 
+  // Recent plays (unchanged – already working)
   const recent=(s?.allPlays||s?.plays||[]).slice(-30).reverse();
   $('recentList').innerHTML=recent.length?recent.map(p=>{
     const t=`[P${p.period?.number||'?'} ${p.clock?.displayValue||''}]`;
