@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>QuickPucks — Chat Lounge</title>
+<style>
+  :root{
+    --bg:#0b0d10; --card:#12161b; --panel:#0f1318;
+    --text:#e8eef4; --muted:#8ea0b3; --br:#1b232d; --accent:#3c82f6;
+    --chip:#243241; --chip-br:#364353;
+  }
+
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  *,*::before,*::after{box-sizing:border-box}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+
+  /* Scrollbars to match app */
+  *{scrollbar-width:thin;scrollbar-color:#334658 transparent}
+  *::-webkit-scrollbar{height:10px;width:10px}
+  *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+
+  header{padding:12px 14px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{margin:0;font-size:18px;font-weight:800}
+  .pill{border:1px dashed var(--chip-br);border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
+
+  nav.tabs{display:flex;gap:8px;padding:10px 12px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:52px;z-index:19;overflow-x:auto;scrollbar-width:none}
+  nav.tabs::-webkit-scrollbar{display:none}
+  .tab{padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto}
+  .tab[aria-selected="true"]{background:#162231;border-color:#31506a;font-weight:700}
+
+  main{max-width:1160px;margin:0 auto;padding:14px 14px 64px}
+  .section{display:none}
+  .section.active{display:block}
+  .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:12px;margin-bottom:14px}
+  .panel{background:var(--panel);border:1px solid #1c2430;border-radius:12px;padding:10px;margin-bottom:10px}
+  .small{font-size:12px;color:var(--muted)}
+  .chip{border:1px dashed var(--chip-br);border-radius:999px;padding:6px 10px;font-size:12px}
+
+  /* Collapsible stacks */
+  details{background:#0f1318;border:1px solid #1c2430;border-radius:12px;margin-bottom:8px}
+  summary{cursor:pointer;padding:10px;font-weight:700;list-style:none}
+  summary::-webkit-details-marker{display:none}
+
+  /* Chat window */
+  .chatWrap{display:flex;flex-direction:column;height:60vh}
+  .chatList{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+  .msg{background:#11171e;border:1px solid #1f2a36;border-radius:10px;padding:8px 10px}
+  .msg .who{font-weight:700;font-size:13px;margin-bottom:4px;color:var(--muted)}
+  .msg .text{white-space:pre-wrap;word-wrap:break-word}
+  .msg.me{border-color:#335a7a;background:#12202d}
+  .sys{opacity:.8;font-size:12px}
+
+  .chatInput{display:flex;gap:8px;margin-top:10px}
+  .chatInput input{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;font-size:15px}
+  .chatInput button{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:8px;cursor:pointer}
+  .chatInput button[disabled]{opacity:.6;cursor:not-allowed}
+
+  /* Room list tiles */
+  .roomRow{padding:8px;border:1px solid #1c2430;border-radius:8px;background:#0f1318;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .roomRow:hover{background:#15202b}
+
+  /* Auth nudge */
+  .authNudge{display:inline-flex;align-items:center;gap:8px;background:#0e1620;border:1px solid #233242;border-radius:999px;padding:6px 10px}
+  .authNudge a{color:#cfe2f5;text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chat Lounge</h1>
+  <span class="pill">QuickPucks Community</span>
+  <span id="whoTag" class="pill" style="margin-left:auto">Not signed in</span>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Chat Sections">
+  <button class="tab" role="tab" aria-selected="true"  aria-controls="sec-season">Season</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-weekly">Weekly</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-games">Games</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-custom">Custom Rooms</button>
+</nav>
+
+<main>
+  <!-- ===== Season-wide chat (single room, bound at runtime) ===== -->
+  <section id="sec-season" class="section active">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Season Chat</h2>
+        <span class="small">Be cool. Normal swearing is fine; hateful/illegal content is blocked.</span>
+      </div>
+      <div class="chatWrap">
+        <div id="seasonList" class="chatList">
+          <div class="sys small">Loading…</div>
+        </div>
+        <div class="chatInput">
+          <input id="seasonInput" placeholder="Type your message…">
+          <button id="seasonSend">Send</button>
+        </div>
+        <div class="small" id="seasonHint" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Weekly (auto-populated) ===== -->
+  <section id="sec-weekly" class="section">
+    <div class="card">
+      <h2 style="margin-top:0">Weekly Chat</h2>
+      <div id="weeklyMount"><div class="small">Loading weeks…</div></div>
+    </div>
+  </section>
+
+  <!-- ===== Games by Division (auto-populated) ===== -->
+  <section id="sec-games" class="section">
+    <div class="card">
+      <h2 style="margin-top:0">Games Chat</h2>
+      <div id="gamesMount"><div class="small">Loading games…</div></div>
+    </div>
+  </section>
+
+  <!-- ===== Custom Rooms (public list + create) ===== -->
+  <section id="sec-custom" class="section">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Custom Rooms</h2>
+        <span class="small">Anyone can read. Optional passwords to post.</span>
+      </div>
+
+      <div id="customRooms" class="panel">
+        <div class="small">Loading rooms…</div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0">Create a Room</h3>
+        <div class="small" style="margin-bottom:8px">Add a name and (optionally) a password if you want posting restricted.</div>
+        <input id="roomName" placeholder="Room name (e.g., Winged Wheel Talk)" style="margin-bottom:6px;width:100%">
+        <input id="roomPass" placeholder="Password (optional)" style="margin-bottom:6px;width:100%">
+        <button id="createBtn">Create</button>
+        <span id="createHint" class="small" style="margin-left:8px"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ================== Supabase client ================== */
+const supa = supabase.createClient("YOUR_SUPABASE_URL","YOUR_SUPABASE_ANON_KEY");
+
+/* ================== Utilities ================== */
+const $ = id => document.getElementById(id);
+function el(tag, attrs={}, ...kids){
+  const n=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)){
+    if(k==='class') n.className=v;
+    else if(k==='style') Object.assign(n.style,v);
+    else n.setAttribute(k,v);
+  }
+  kids.forEach(k=>n.append(k));
+  return n;
+}
+function groupBy(arr,sel){ const m=new Map(); (arr||[]).forEach(x=>{const k=sel(x); const a=m.get(k)||[]; a.push(x); m.set(k,a);}); return m; }
+
+/* ================== State ================== */
+const ST = {
+  myId: null,
+  myEmail: null,
+  rooms: new Map(),       // id -> room
+  chans: new Map()        // id -> realtime channel
+};
+
+/* ================== Auth (display only) ================== */
+async function initAuth(){
+  const { data:{ session } } = await supa.auth.getSession();
+  ST.myId    = session?.user?.id    || null;
+  ST.myEmail = session?.user?.email || null;
+  $('whoTag').textContent = ST.myEmail ? ST.myEmail : 'Not signed in';
+  supa.auth.onAuthStateChange((_e, ses)=>{
+    ST.myId    = ses?.user?.id || null;
+    ST.myEmail = ses?.user?.email || null;
+    $('whoTag').textContent = ST.myEmail ? ST.myEmail : 'Not signed in';
+  });
+}
+
+/* ================== Content filter (client-side assist; server still enforces) ================== */
+function clientFilter(text){
+  // Allow everyday swearing; block illegal/exploitative content & the worst slurs.
+  const bad=[
+    /child\s*(porn|sex|nude|exploita|abuse)/i,
+    /under\s*1[0-7]/i,
+    /\brape\b/i,
+    /\bkill\s*(yourself|himself|herself|themself|them)\b/i,
+    /\bnazi\b|\bhitler\b|\bkkk\b/i
+  ];
+  return !bad.some(r=>r.test(text||''));
+}
+
+/* ================== UI builders ================== */
+function buildChatBlock(room){
+  const listId = `msgs-${room.id}`;
+  const inId   = `in-${room.id}`;
+  const btnId  = `btn-${room.id}`;
+
+  const wrap = el('div', {class:'chatWrap'},
+    el('div', {class:'chatList', id:listId}, el('div',{class:'sys small'},'Loading…')),
+    el('div', {class:'chatInput'},
+      el('input', {id:inId, placeholder:`Message ${room.name}…`}),
+      el('button', {id:btnId}, 'Send')
+    )
+  );
+
+  setTimeout(()=>{
+    const list=$(`${listId}`), input=$(`${inId}`), btn=$(`${btnId}`);
+    if(!list||!input||!btn) return;
+    btn.onclick = async ()=>{
+      const msg = (input.value||'').trim();
+      if(!msg) return;
+      if(!clientFilter(msg)){ alert('Message blocked by content filter.'); return; }
+      if(!ST.myId){ alert('Sign in to send messages.'); return; }
+
+      // If passworded, join attempt (server still enforces)
+      if(room.has_password){
+        const ok = await ensureJoined(room.id);
+        if(!ok) return;
+      }
+      const { error } = await supa.from('chat_messages').insert({
+        room_id: room.id, user_id: ST.myId, body: msg
+      });
+      if(error){ alert(error.message); return; }
+      input.value='';
+    };
+  });
+
+  return wrap;
+}
+
+function buildDetails(summaryText, contentEl, open=false){
+  const d = el('details', open?{open:true}:{});
+  d.append(el('summary', {}, summaryText), contentEl);
+  return d;
+}
+
+function appendMsg(listEl, m){
+  const me = ST.myId && m.user_id===ST.myId;
+  const card = el('div', {class:`msg ${me?'me':''}`},
+    el('div', {class:'who'}, me ? 'Me' : (m.user_id||'user').slice(0,6)),
+    el('div', {class:'text'}, m.body||'')
+  );
+  listEl.append(card);
+}
+
+async function loadMessages(room_id, listEl, limit=80){
+  const { data, error } = await supa
+    .from('chat_messages')
+    .select('id, user_id, body, created_at')
+    .eq('room_id', room_id)
+    .order('created_at', { ascending:false })
+    .limit(limit);
+  if(error){ listEl.innerHTML = `<div class="small">Error loading messages.</div>`; return; }
+  const msgs=(data||[]).slice().reverse();
+  listEl.innerHTML='';
+  msgs.forEach(m=>appendMsg(listEl,m));
+  listEl.scrollTop=listEl.scrollHeight;
+}
+
+function ensureChannel(room_id, listEl){
+  if(ST.chans.has(room_id)) return;
+  const ch = supa.channel(`room:${room_id}`)
+    .on('postgres_changes',
+      { event:'INSERT', schema:'public', table:'chat_messages', filter:`room_id=eq.${room_id}` },
+      payload => { appendMsg(listEl, payload.new); listEl.scrollTop=listEl.scrollHeight; }
+    )
+    .subscribe();
+  ST.chans.set(room_id, ch);
+}
+
+/* ================== Season binding ================== */
+function renderSeason(room){
+  const list = $('seasonList');
+  const input= $('seasonInput');
+  const send = $('seasonSend');
+  const hint = $('seasonHint');
+
+  if(hint){
+    hint.innerHTML = ST.myId
+      ? `<span class="chip">You’re signed in as ${ST.myEmail||ST.myId.slice(0,6)}.</span>`
+      : `<span class="authNudge">You’re not signed in. <a href="/login.html">Sign in</a> to post.</span>`;
+  }
+
+  loadMessages(room.id, list);
+  ensureChannel(room.id, list);
+
+  send.onclick = async ()=>{
+    const msg=(input.value||'').trim(); if(!msg) return;
+    if(!clientFilter(msg)){ alert('Message blocked by content filter.'); return; }
+    if(!ST.myId){ alert('Sign in to send messages.'); return; }
+    const { error } = await supa.from('chat_messages').insert({
+      room_id: room.id, user_id: ST.myId, body: msg
+    });
+    if(error){ alert(error.message); return; }
+    input.value='';
+  };
+}
+
+/* ================== Weekly (collapsible by week_key) ================== */
+function renderWeekly(rooms){
+  const mount = $('weeklyMount'); mount.innerHTML='';
+  if(!rooms.length){ mount.append(el('div',{class:'small'},'No weekly rooms yet.')); return; }
+
+  const byWeek = groupBy(rooms, r=>r.week_key || '—');
+  [...byWeek.keys()].sort().reverse().forEach(wk=>{
+    const inner = el('div');
+    byWeek.get(wk).forEach(room=>{
+      const block = buildChatBlock(room);
+      inner.append(block);
+      const list = block.querySelector('.chatList');
+      loadMessages(room.id, list);
+      ensureChannel(room.id, list);
+    });
+    mount.append(buildDetails(`Week ${wk}`, inner, false));
+  });
+}
+
+/* ================== Games (Division → Matchup collapsible) ================== */
+function renderGames(rooms){
+  const mount=$('gamesMount'); mount.innerHTML='';
+  if(!rooms.length){ mount.append(el('div',{class:'small'},'No game rooms yet.')); return; }
+
+  // Group by division (home or away), then by matchup like "DET @ BOS"
+  const byDiv = groupBy(rooms, r=> (r.meta?.home_division || r.meta?.away_division || 'Other'));
+  [...byDiv.keys()].sort().forEach(div=>{
+    const teamWrap = el('div');
+
+    // “Matchup key” using abbreviations for compact labels
+    const byMatchup = groupBy(byDiv.get(div), r=>{
+      const ha = (r.meta?.home_abbr || 'HOME');
+      const aa = (r.meta?.away_abbr || 'AWAY');
+      return `${aa} @ ${ha}`;
+    });
+
+    [...byMatchup.keys()].sort().forEach(mk=>{
+      const gameList = el('div');
+      byMatchup.get(mk).forEach(room=>{
+        const block = buildChatBlock(room);
+        gameList.append(block);
+        const list = block.querySelector('.chatList');
+        loadMessages(room.id, list);
+        ensureChannel(room.id, list);
+      });
+      teamWrap.append(buildDetails(mk, gameList, false));
+    });
+
+    mount.append(buildDetails(`${div} Division`, teamWrap, false));
+  });
+}
+
+/* ================== Custom rooms ================== */
+function renderCustom(rooms){
+  const box=$('customRooms'); box.innerHTML='';
+  if(!rooms.length){ box.append(el('div',{class:'small'},'No custom rooms yet.')); return; }
+
+  rooms.forEach(r=>{
+    const row = el('div', {class:'roomRow', role:'button', tabindex:'0'},
+      el('div', {}, `${r.name}${r.has_password?' 🔒':''}`),
+      el('div', {class:'small'}, r.description||'')
+    );
+    row.onclick = ()=>{
+      // Open a chat block inline above list
+      const shell = el('div', {class:'panel'});
+      shell.append(el('h3', {style:'margin-top:0'}, r.name), buildChatBlock(r));
+      box.prepend(shell);
+      const list = shell.querySelector('.chatList');
+      loadMessages(r.id, list);
+      ensureChannel(r.id, list);
+    };
+    box.append(row);
+  });
+}
+
+async function ensureJoined(room_id){
+  const room = ST.rooms.get(room_id); if(!room) return true;
+  if(!room.has_password) return true;
+  const pwd = prompt('This room is protected. Enter password to post:');
+  if(pwd===null) return false;
+  const { data, error } = await supa.rpc('join_chat_room', { p_room_id: room_id, p_password: pwd });
+  if(error){ alert(error.message); return false; }
+  if(data!==true){ alert('Incorrect password'); return false; }
+  return true;
+}
+
+/* ================== Rooms loader ================== */
+async function loadRooms(){
+  const { data, error } = await supa.rpc('list_chat_rooms');
+  if(error){ console.error(error); return; }
+
+  ST.rooms.clear();
+  (data||[]).forEach(r=>ST.rooms.set(r.id, r));
+
+  const season = (data||[]).find(r=>r.room_type==='season');
+  const weekly = (data||[]).filter(r=>r.room_type==='week');
+  const games  = (data||[]).filter(r=>r.room_type==='game');
+  const custom = (data||[]).filter(r=>r.room_type==='custom');
+
+  if(season) renderSeason(season);
+  renderWeekly(weekly);
+  renderGames(games);
+  renderCustom(custom);
+}
+
+/* ================== Create custom room ================== */
+$('createBtn').onclick = async ()=>{
+  const nm = ($('roomName').value||'').trim();
+  const pw = ($('roomPass').value||'').trim();
+  $('createHint').textContent='';
+  if(!nm){ $('createHint').textContent='Name required.'; return; }
+  const { error } = await supa.rpc('create_custom_room', {
+    p_name: nm, p_description: null, p_password: pw.length?pw:null
+  });
+  if(error){ $('createHint').textContent = error.message; return; }
+  $('createHint').textContent='Created ✓';
+  $('roomName').value=''; $('roomPass').value='';
+  await loadRooms();
+};
+
+/* ================== Tabs ================== */
+document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const id = btn.getAttribute('aria-controls');
+    document.querySelectorAll('nav.tabs .tab').forEach(b=>b.setAttribute('aria-selected','false'));
+    btn.setAttribute('aria-selected','true');
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  });
+});
+
+/* ================== Boot ================== */
+(async ()=>{
+  await initAuth();
+  await loadRooms();
+  // Periodic refresh of room *lists* (messages are realtime)
+  setInterval(loadRooms, 60000);
+})();
+</script>
+</body>
+</html>
