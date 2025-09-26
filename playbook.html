@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>NHL Puck'Em — Playbook</title>
+<style>
+  :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }
+
+  /* Unified scrollbars */
+  *{scrollbar-width:thin; scrollbar-color:#334658 transparent}
+  *::-webkit-scrollbar{width:10px;height:10px}
+  *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+  *::-webkit-scrollbar-track{background:transparent}
+
+  /* Base */
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+  *,*::before,*::after{box-sizing:border-box}
+  :focus-visible{outline:2px solid #3c82f6;outline-offset:2px;border-radius:8px}
+
+  header{padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top));border-bottom:1px solid var(--br);background:#0f1318;position:sticky;top:0;z-index:20;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  h1{margin:0;font-size:18px}
+  .sub{color:var(--muted);font-size:13px;margin-left:6px}
+  .pill{border:1px dashed #364353;border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
+
+  nav.tabs{display:flex;gap:8px;padding:10px 12px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:56px;z-index:19;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory}
+  nav.tabs::-webkit-scrollbar{display:none}
+  .tab{padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto;scroll-snap-align:start}
+  .tab[aria-selected="true"]{background:#162231;border-color:#31506a;font-weight:700}
+
+  main{max-width:1160px;margin:0 auto;padding:14px 14px 64px}
+  .section{display:none}
+  .section.active{display:block}
+  .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:12px}
+  .panel{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
+  .sep{height:1px;background:var(--br);margin:12px 0}
+  .small{font-size:12px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+  .list{display:grid;gap:8px}
+  .li{padding:10px;border:1px solid #1c2430;border-radius:10px;background:#0f1318}
+  .code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0b1117;border:1px solid #1b2633;border-radius:8px;padding:3px 6px}
+
+  /* Tables */
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border:1px solid #1c2430;padding:8px;text-align:left}
+  thead th{background:#101722}
+  tfoot td{font-weight:800}
+
+  /* Callouts */
+  .call{border:1px solid #2d3b4a;background:#0f1620;border-radius:10px;padding:10px}
+  .good{border-color:#2e5e3f;background:#0e1a14;color:#9be7b0}
+  .warn{border-color:#5e523f;background:#1a140e;color:#f3d39b}
+  .tip{border-color:#33506a;background:#0e1621}
+
+  /* Footer link row */
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14px;min-height:40px;text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>NHL Puck'Em <span class="sub">Playbook</span></h1>
+  <span class="pill">Guide • Rules • FAQs</span>
+  <a class="btn" href="./index.html" style="margin-left:auto">← Back to App</a>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Playbook Sections">
+  <button class="tab" id="tab-overview" role="tab" aria-controls="sec-overview" aria-selected="true">Overview</button>
+  <button class="tab" id="tab-how" role="tab" aria-controls="sec-how" aria-selected="false">How to Play</button>
+  <button class="tab" id="tab-scoring" role="tab" aria-controls="sec-scoring" aria-selected="false">Scoring Rules</button>
+  <button class="tab" id="tab-leader" role="tab" aria-controls="sec-leader" aria-selected="false">Leaderboards</button>
+  <button class="tab" id="tab-picks" role="tab" aria-controls="sec-picks" aria-selected="false">Picks & Strategy</button>
+  <button class="tab" id="tab-badges" role="tab" aria-controls="sec-badges" aria-selected="false">Badges</button>
+  <button class="tab" id="tab-faq" role="tab" aria-controls="sec-faq" aria-selected="false">FAQ</button>
+  <button class="tab" id="tab-gloss" role="tab" aria-controls="sec-gloss" aria-selected="false">Glossary</button>
+  <button class="tab" id="tab-tech" role="tab" aria-controls="sec-tech" aria-selected="false">Data & Refresh</button>
+  <button class="tab" id="tab-account" role="tab" aria-controls="sec-account" aria-selected="false">Accounts</button>
+  <button class="tab" id="tab-trouble" role="tab" aria-controls="sec-trouble" aria-selected="false">Troubleshooting</button>
+</nav>
+
+<!-- ===== Overview ===== -->
+<section id="sec-overview" class="section active" aria-labelledby="tab-overview">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">What is NHL Puck’Em?</h2>
+    <p>Puck’Em is a weekly, game-based fantasy mini-league. Each Monday 08:00 CT a new week opens. You pick up to five NHL games; your score is based on how chaotic/fun those games are — goals, shots, hits, blocked shots, goalie saves, PP/SHG bonuses, and end-state bonuses like OT/SO/close game.</p>
+    <div class="grid" style="margin-top:8px">
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Weekly Flow</h3>
+        <ol class="list" style="padding-left:16px">
+          <li>Browse the week’s slate (Mon→Sun).</li>
+          <li>Lock in up to <b>5 picks</b> before puck drop.</li>
+          <li>Watch live fantasy totals climb in the viewer.</li>
+          <li>Leaderboard finalizes when the last game ends Sunday night.</li>
+        </ol>
+      </section>
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Why game-based?</h3>
+        <p>Instead of drafting players, we score the whole game’s action. It’s fast to pick, makes any matchup watchable, and rewards bangers just as much as goal-fests.</p>
+      </section>
+    </div>
+    <div class="sep"></div>
+    <div class="call tip">Tip: Picks lock individually at each game’s scheduled puck drop. You can still pick later games in the same week.</div>
+  </main>
+</section>
+
+<!-- ===== How to Play ===== -->
+<section id="sec-how" class="section" aria-labelledby="tab-how">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">How to Play</h2>
+    <div class="grid">
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">1) Sign in</h3>
+        <p>Create an account, set a display name, and you’re in.</p>
+        <ul class="list">
+          <li class="li"><b>Display Name</b> is shown on leaderboards.</li>
+          <li class="li">You can reset your password from the header.</li>
+        </ul>
+      </section>
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">2) Make Picks</h3>
+        <ul class="list">
+          <li class="li">Open the NHL tab, click <b>Open</b> on any game card to see details.</li>
+          <li class="li">Hit <b>Add to my picks</b>. A ✓ “Picked” tag appears.</li>
+          <li class="li">Max <b>5</b> picks per week. Each pick locks at puck drop.</li>
+        </ul>
+      </section>
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">3) Track Live</h3>
+        <p>The viewer shows fantasy totals, bonuses, and live plays (scoring & recent). We also push results into the weekly & season tables.</p>
+      </section>
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">4) Win the Week</h3>
+        <p>Highest summed total of your 5 picks takes the week. Season points accumulate from weekly placements.</p>
+      </section>
+    </div>
+  </main>
+</section>
+
+<!-- ===== Scoring Rules ===== -->
+<section id="sec-scoring" class="section" aria-labelledby="tab-scoring">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Scoring Rules (per game)</h2>
+    <div class="grid">
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Core Events</h3>
+        <table>
+          <thead><tr><th>Event</th><th>Points</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Goal</td><td>+4.0</td><td>Any strength</td></tr>
+            <tr><td>Power-Play Goal</td><td>+1.5</td><td>Bonus added on top</td></tr>
+            <tr><td>Short-Handed Goal</td><td>+1.0</td><td>Bonus added on top</td></tr>
+            <tr><td>Shot on Goal</td><td>+0.1</td><td>Combined both teams</td></tr>
+            <tr><td>Goalie Saves</td><td>+0.05</td><td>Combined both teams</td></tr>
+            <tr><td>Hits</td><td>+0.05</td><td>Combined both teams</td></tr>
+            <tr><td>Blocked Shots</td><td>+0.05</td><td>Combined both teams</td></tr>
+            <tr><td>Penalty Minutes</td><td>−0.1 / min</td><td>Combined both teams</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">End-State Bonuses</h3>
+        <table>
+          <thead><tr><th>Condition</th><th>Bonus</th><th>Stacks?</th></tr></thead>
+          <tbody>
+            <tr><td>Close Game (final margin ≤ 1)</td><td>+4</td><td>Yes</td></tr>
+            <tr><td>Overtime Played</td><td>+2</td><td>Yes</td></tr>
+            <tr><td>Shootout Played</td><td>+2</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+        <div class="call good" style="margin-top:8px">Example: A 4–3 game that goes to a shootout earns Close (+4) + OT (+2) + SO (+2) = +8 bonus on top of stat scoring.</div>
+      </section>
+    </div>
+    <div class="sep"></div>
+    <div class="panel">
+      <h3 style="margin:0 0 6px 0">Fantasy Breakdown in the App</h3>
+      <p>Open a game → you’ll see a <b>Fantasy Breakdown</b> table that totals goals, PP/SHG, shots, saves, hits, blocks, PIM, and the bonuses listed above.</p>
+    </div>
+  </main>
+</section>
+
+<!-- ===== Leaderboards ===== -->
+<section id="sec-leader" class="section" aria-labelledby="tab-leader">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Leaderboards</h2>
+    <div class="grid">
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Weekly</h3>
+        <ul class="list">
+          <li class="li">Ranks all players by the sum of their five picks for the current week.</li>
+          <li class="li">Updates live as games finish and data posts to the database.</li>
+          <li class="li">Ties are shown with the same rank number.</li>
+        </ul>
+      </section>
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Season</h3>
+        <ul class="list">
+          <li class="li">Awards season points based on weekly finish (configurable).</li>
+          <li class="li">Season table is a simple running total of those points.</li>
+        </ul>
+      </section>
+    </div>
+    <div class="sep"></div>
+    <div class="call tip">Note: Leaderboards reflect the database truth, which is written from ESPN summaries/play-by-play and recomputed server-side.</div>
+  </main>
+</section>
+
+<!-- ===== Picks & Strategy ===== -->
+<section id="sec-picks" class="section" aria-labelledby="tab-picks">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Picks & Strategy</h2>
+    <div class="grid">
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">Picking Basics</h3>
+        <ul class="list">
+          <li class="li">Max <b>5</b> games per week.</li>
+          <li class="li">Each pick locks at that game’s scheduled start time.</li>
+          <li class="li">You can still add later games after earlier ones lock.</li>
+        </ul>
+      </section>
+      <section class="panel">
+        <h3 style="margin:0 0 6px 0">What Scores Well?</h3>
+        <ul class="list">
+          <li class="li">High-event matchups: shots, hits, and blocks quietly stack big totals.</li>
+          <li class="li">Tight games with a chance of OT/SO (bonuses stack).</li>
+          <li class="li">Power-play monsters and aggressive penalty kills (PPG/SHG bonuses).</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</section>
+
+<!-- ===== Badges ===== -->
+<section id="sec-badges" class="section" aria-labelledby="tab-badges">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Badges</h2>
+    <p>Badges celebrate weekly and streak achievements. Examples:</p>
+    <div class="grid">
+      <section class="panel"><b>First Star</b><div class="small">Finish 1st weekly.</div></section>
+      <section class="panel"><b>Solid Ten</b><div class="small">Top 10 weekly.</div></section>
+      <section class="panel"><b>Heater</b><div class="small">Top 5 three weeks in a row.</div></section>
+      <section class="panel"><b>Sniper</b><div class="small">Picked the #1 scoring game that week.</div></section>
+      <section class="panel"><b>Clean Sweep</b><div class="small">All 5 picks in Top 10.</div></section>
+    </div>
+  </main>
+</section>
+
+<!-- ===== FAQ ===== -->
+<section id="sec-faq" class="section" aria-labelledby="tab-faq">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Frequently Asked Questions</h2>
+    <div class="list">
+      <div class="li"><b>When does the week start?</b><br>Every Monday at <b>08:00 CT</b>. That’s also the anchor for the week key.</div>
+      <div class="li"><b>Why did a goal not show in Scoring Plays?</b><br>We filter out “no goal / goalie stopped / disallowed” messages and also backfill from play-by-play if the summary’s scoring list is empty.</div>
+      <div class="li"><b>Are live totals final?</b><br>No. Official stats can be corrected post-game. We recompute from summary/PBP; final totals reflect those corrections.</div>
+      <div class="li"><b>Can I change picks?</b><br>Up until the game locks (its puck drop). After that, it’s frozen.</div>
+    </div>
+  </main>
+</section>
+
+<!-- ===== Glossary ===== -->
+<section id="sec-gloss" class="section" aria-labelledby="tab-gloss">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Glossary</h2>
+    <table>
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><span class="code">Week Key</span></td><td>String like <span class="code">YYYY-MM-DD-Mon08CT</span> anchoring the Monday 08:00 CT start.</td></tr>
+        <tr><td>Close Game</td><td>Final goal differential ≤ 1 (includes OT/SO outcomes).</td></tr>
+        <tr><td>Fantasy Breakdown</td><td>Per-game table of counted stats and bonuses in the game viewer.</td></tr>
+      </tbody>
+    </table>
+  </main>
+</section>
+
+<!-- ===== Data & Refresh ===== -->
+<section id="sec-tech" class="section" aria-labelledby="tab-tech">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Data Sources & Refresh</h2>
+    <div class="list">
+      <div class="li">Scoreboards & summaries: ESPN NHL endpoints.</div>
+      <div class="li">We push summaries/play-by-play into SQL via a secured RPC and compute totals server-side. The app refreshes grid cards ~30s and game detail ~20s.</div>
+      <div class="li">If a feed hiccups, we retry with exponential backoff and a deduped request layer.</div>
+    </div>
+    <div class="sep"></div>
+    <div class="call warn">Heads-up: ESPN can revise official stats postgame; totals will update accordingly on next refresh.</div>
+  </main>
+</section>
+
+<!-- ===== Accounts & Privacy ===== -->
+<section id="sec-account" class="section" aria-labelledby="tab-account">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Accounts & Privacy</h2>
+    <ul class="list">
+      <li class="li">Sign in with email + password. Reset links are supported.</li>
+      <li class="li">Display names appear on picks and leaderboards.</li>
+      <li class="li">We store only what’s needed for gameplay: user id, display name, picks, and scoring results.</li>
+    </ul>
+  </main>
+</section>
+
+<!-- ===== Troubleshooting ===== -->
+<section id="sec-trouble" class="section" aria-labelledby="tab-trouble">
+  <main class="card">
+    <h2 style="margin:0 0 8px 0">Troubleshooting</h2>
+    <div class="list">
+      <div class="li"><b>“No data yet” in Scoring Plays</b><br>Wait a refresh cycle; we’ll fall back to play-by-play. If still empty on a finished game, hard reload — caching can be sticky.</div>
+      <div class="li"><b>Times look wrong</b><br>We display using Central Time anchors. Local browser timezones may affect human-readable stamps.</div>
+      <div class="li"><b>I don’t see my pick</b><br>Refresh “Picks” tab; picks also show under “Everyone’s Picks — This Week.”</div>
+    </div>
+    <div class="sep"></div>
+    <div class="row">
+      <a class="btn" href="./index.html">Open the App</a>
+      <a class="btn" href="./playbook.html">Reload Playbook</a>
+    </div>
+  </main>
+</section>
+
+<script>
+  // Simple tab controller to mirror your main page UX
+  const tabs = {
+    overview:{tab:document.getElementById('tab-overview'),sec:document.getElementById('sec-overview')},
+    how:{tab:document.getElementById('tab-how'),sec:document.getElementById('sec-how')},
+    scoring:{tab:document.getElementById('tab-scoring'),sec:document.getElementById('sec-scoring')},
+    leader:{tab:document.getElementById('tab-leader'),sec:document.getElementById('sec-leader')},
+    picks:{tab:document.getElementById('tab-picks'),sec:document.getElementById('sec-picks')},
+    badges:{tab:document.getElementById('tab-badges'),sec:document.getElementById('sec-badges')},
+    faq:{tab:document.getElementById('tab-faq'),sec:document.getElementById('sec-faq')},
+    gloss:{tab:document.getElementById('tab-gloss'),sec:document.getElementById('sec-gloss')},
+    tech:{tab:document.getElementById('tab-tech'),sec:document.getElementById('sec-tech')},
+    account:{tab:document.getElementById('tab-account'),sec:document.getElementById('sec-account')},
+    trouble:{tab:document.getElementById('tab-trouble'),sec:document.getElementById('sec-trouble')}
+  };
+  Object.keys(tabs).forEach(key=>{
+    const t=tabs[key].tab, s=tabs[key].sec;
+    t.addEventListener('click', ()=>{
+      Object.keys(tabs).forEach(k=>{
+        tabs[k].tab.setAttribute('aria-selected', k===key? 'true':'false');
+        tabs[k].sec.classList.toggle('active', k===key);
+      });
+      // scroll to top of content on tab switch
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+  });
+</script>
+</body>
+</html>
