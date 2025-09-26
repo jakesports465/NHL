@@ -174,23 +174,18 @@ function weekDates(){const n=nowCT();const wd=n.getDay();const days=(wd-1+7)%7;c
 const WEEK_KEY=weekKey();const WEEK=weekDates();
 document.getElementById('wkPretty').textContent=WEEK.pretty;
 
-/* ===== APIs ===== */
+/* ===== APIs (with cache buster) ===== */
+const cb=()=>`&_=${Date.now()}`;
 const api={
-  scoreboard:d=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
-  summary:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`,
-  pbp:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${id}`
+  scoreboard:d=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}${cb()}`,
+  summary:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}${cb()}`,
+  pbp:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${id}${cb()}`
 };
 const cdn=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'):(t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:'');
 const clean=s=>(s||'').replace(/\s+/g,' ').trim();
-function mapPlay(x){return{per:x?.period?.number??x?.periodNumber??x?.period??'?',clk:x?.clock?.displayValue??x?.clock??'',text:clean(x?.text||x?.description||x?.shortText||'')}}; 
-async function getPbp(id){
-  const p=await fetch(api.pbp(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
-  const all=(p?.allPlays||p?.plays||[]).map(mapPlay);
-  const scoring=all.filter(pl=>/goal/i.test(pl.text));
-  return {all,scoring};
-}
+const isGoalText = txt => /goal|scores|scored/i.test(txt||'');
 
-/* ===== State & helpers ===== */
+/* ===== State ===== */
 const ST={events:[],rows:[],spotId:null,paused:false,idx:0};
 const $=id=>document.getElementById(id);
 const stamp=()=>{$('lastUpd').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});};
@@ -200,7 +195,40 @@ async function getGameScore(gid){
   return data||null;
 }
 
-/* ===== Renders ===== */
+/* ===== Build scoring with robust fallbacks ===== */
+function mapPlay(x){
+  return {
+    per: x?.period?.number ?? x?.periodNumber ?? x?.period ?? '?',
+    clk: x?.clock?.displayValue ?? x?.clock ?? '',
+    text: clean(x?.text || x?.description || x?.shortText || '')
+  };
+}
+function uniqueByText(arr){
+  const seen=new Set(); const out=[];
+  for(const p of arr){ const k=`${p.per}|${p.clk}|${p.text}`; if(!seen.has(k)){seen.add(k); out.push(p);} }
+  return out;
+}
+async function getScoringPlaysRobust(eventId, summaryJson){
+  // 1) Try summary.scoringPlays
+  let list = (summaryJson?.scoringPlays || []).map(mapPlay);
+
+  // 2) If empty, try the PBP endpoint and pull goals
+  if(!list.length){
+    const pbp = await fetch(api.pbp(eventId),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+    const fromPbp = (pbp?.allPlays || pbp?.plays || []).map(mapPlay).filter(p=>isGoalText(p.text));
+    list = fromPbp;
+  }
+
+  // 3) Still empty? Try any play arrays inside summary (some finals only leave allPlays/plays)
+  if(!list.length){
+    const alt = (summaryJson?.allPlays || summaryJson?.plays || []).map(mapPlay).filter(p=>isGoalText(p.text));
+    list = alt;
+  }
+
+  return uniqueByText(list);
+}
+
+/* ===== UI bits (unchanged visuals) ===== */
 function topCard(g,r){
   return `<div class="tCard" data-gid="${g.id}">
     <div class="tRow">
@@ -219,7 +247,6 @@ function topCard(g,r){
     <div><span class="fantPill">Fantasy <b>${Number(r.score||0).toFixed(2)}</b></span></div>
   </div>`;
 }
-
 function miniCard(g,row,status){
   const a=row?.away_pts??0,h=row?.home_pts??0;
   const when=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
@@ -233,7 +260,6 @@ function miniCard(g,row,status){
     <div class="subline"><div class="status">${status||when}</div><div class="gFant">Fantasy ${(row?.total!=null?Number(row.total):0).toFixed(2)}</div></div>
   </div>`;
 }
-
 function renderTopStrip(){
   const strip=$('topStrip');
   const top=ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,12);
@@ -242,9 +268,9 @@ function renderTopStrip(){
     el.onclick=()=>{ST.spotId=el.getAttribute('data-gid');ST.paused=true;setPauseBtn();updateSpotlight();window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'});};
   });
 }
-
 function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed',ST.paused?'true':'false'); $('btnPause').textContent=ST.paused?'Resume':'Pause'; }
 
+/* ===== Spotlight (with fixed scoring) ===== */
 async function updateSpotlight(){
   const id=ST.spotId||(ST.rows[0]?.id); if(!id) return;
   const g=ST.events.find(e=>String(e.id)===String(id)); if(!g) return;
@@ -268,12 +294,8 @@ async function updateSpotlight(){
   $('clockBox').textContent='Clock '+(comp?.status?.displayClock||'—');
   $('stateBox').textContent=status;
 
-  /* ---------- FIXED: Scoring Plays with PBP fallback ---------- */
-  let scoring = (s?.scoringPlays || []).map(mapPlay);
-  if (scoring.length === 0) { // finals / odd feeds
-    const fb = await getPbp(id);
-    scoring = fb.scoring;
-  }
+  // ---- FIXED scoring list here ----
+  const scoring = await getScoringPlaysRobust(id, s);
   const scoringView = scoring.slice(-20).reverse();
   $('scoreList').innerHTML = scoringView.length
     ? scoringView.map(sp=>`
@@ -285,9 +307,8 @@ async function updateSpotlight(){
           </div>
         </div>`).join('')
     : '<div class="small">No data yet.</div>';
-  /* ------------------------------------------------------------ */
 
-  // Recent plays (unchanged – already working)
+  // Recent plays (unchanged)
   const recent=(s?.allPlays||s?.plays||[]).slice(-30).reverse();
   $('recentList').innerHTML=recent.length?recent.map(p=>{
     const t=`[P${p.period?.number||'?'} ${p.clock?.displayValue||''}]`;
@@ -296,7 +317,7 @@ async function updateSpotlight(){
   }).join(''):'<div class="small">No data yet.</div>';
 }
 
-/* Load / refresh */
+/* ===== Load / refresh / render ===== */
 async function loadWeek(){
   const all=[];
   for(const d of WEEK.list){
@@ -312,7 +333,6 @@ async function loadWeek(){
   all.sort((a,b)=>new Date(a.start)-new Date(b.start));
   ST.events=all;
 }
-
 async function refreshRows(){
   if(!ST.events.length) return;
   const batch=await Promise.all(ST.events.map(async g=>{
@@ -327,7 +347,6 @@ async function refreshRows(){
   ST.rows=batch.filter(Boolean);
   stamp();
 }
-
 function renderMini(){
   const grid=$('miniGrid');
   grid.innerHTML=ST.events.map(g=>{
@@ -338,7 +357,6 @@ function renderMini(){
     el.onclick=()=>{ST.spotId=el.getAttribute('data-gid');ST.paused=true;setPauseBtn();updateSpotlight();window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'});};
   });
 }
-
 function tickRotate(){
   if(ST.paused||ST.rows.length===0) return;
   const top=ST.rows.slice().sort((a,b)=>b.score-a.score);
@@ -347,6 +365,7 @@ function tickRotate(){
   updateSpotlight();
 }
 
+/* ===== Controls ===== */
 $('btnPause').onclick=()=>{ST.paused=!ST.paused;setPauseBtn();};
 $('btnFS').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();};
 document.addEventListener('keydown',e=>{
@@ -360,6 +379,7 @@ document.addEventListener('click',e=>{
   acc.setAttribute('aria-expanded',open?'false':'true');
 });
 
+/* ===== Boot ===== */
 (async ()=>{
   document.querySelectorAll('img.logo').forEach(img=>{img.width=42;img.height=42;});
   await loadWeek(); await refreshRows();
@@ -368,5 +388,6 @@ document.addEventListener('click',e=>{
   setInterval(tickRotate,8000);
 })();
 </script>
+
 </body>
 </html>
