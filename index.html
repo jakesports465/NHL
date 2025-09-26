@@ -205,12 +205,10 @@
   <span id="picksLeft" class="pill">Sign in to play</span>
   <span class="small" style="margin-left:auto">Week: <b id="weekLabel">—</b></span>
   <div id="authBox" class="field" style="margin-left:auto;gap:6px;flex-wrap:wrap">
-  <!-- Sign up -->
-  <form id="signupForm" class="field" style="gap:6px">
-    <input id="suEmail" type="email" placeholder="email@example.com" required>
-    <input id="suPass"  type="password" placeholder="Password (min 6)" required>
-    <button class="btn small" type="submit">Sign up</button>
-  </form>
+  <!-- Sign up (link to separate page) -->
+<a class="btn small" href="signup.html">Sign up</a>
+
+
 
   <!-- Log in -->
   <form id="loginPwForm" class="field" style="gap:6px">
@@ -533,15 +531,7 @@ $('saveDisplayName').addEventListener('click', async ()=>{
 
 $('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });
 
-// Sign up
-$('signupForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = $('suEmail').value.trim();
-  const password = $('suPass').value;
-  const { error } = await supa.auth.signUp({ email, password });
-  if (error) { alert(error.message); return; }
-  toast('Account created! Check email if confirmations are ON.');
-});
+
 
 // Log in
 $('loginPwForm').addEventListener('submit', async (e) => {
