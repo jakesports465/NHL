@@ -3,457 +3,392 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>NHL Puck’Em — Viewer</title>
+<title>Puck’Em — Viewer</title>
+<link rel="preconnect" href="https://site.api.espn.com">
 <style>
-  :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d; --accent:#2e5e3f; --accent2:#31506a }
+  :root{
+    --bg:#0b0d10; --card:#12161b; --panel:#0f1318; --muted:#8ea0b3; --text:#e8eef4;
+    --br:#1b232d; --ok:#9be7b0; --okBr:#2e5e3f; --accent2:#31506a;
+  }
 
-  html,body{ margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent }
-  *,*::before,*::after{ box-sizing:border-box }
-  :focus-visible{ outline:2px solid #3c82f6; outline-offset:2px; border-radius:8px }
+  html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  *,*::before,*::after{box-sizing:border-box}
+  :focus-visible{outline:2px solid #3c82f6; outline-offset:2px; border-radius:8px}
 
-  /* Nice, subtle scrollbar */
+  /* Sleek themed scrollbars */
   *{ scrollbar-width:thin; scrollbar-color:#334152 #0f1318 }
   *::-webkit-scrollbar{ width:10px; height:10px }
   *::-webkit-scrollbar-track{ background:#0f1318; border-left:1px solid #17202a }
   *::-webkit-scrollbar-thumb{ background:#334152; border:2px solid #0f1318; border-radius:12px }
   *::-webkit-scrollbar-thumb:hover{ background:#3f536b }
 
-  header{ position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top)); background:#0f1318; border-bottom:1px solid var(--br) }
-  h1{ margin:0; font-size:18px }
-  .sub{ color:var(--muted); font-size:13px; margin-left:6px }
-  .pill{ border:1px dashed #364353; border-radius:999px; padding:4px 10px; font-size:12px; white-space:nowrap }
+  .wrap{max-width:1300px;margin:0 auto;padding:16px}
+  header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#0f1318,transparent);border-bottom:1px solid var(--br)}
+  header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px}
+  .sub{color:var(--muted)}
+  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;min-height:42px}
+  .btn[aria-pressed="true"]{background:#182633;border-color:var(--accent2)}
+  .iconBtn{padding:8px 10px;min-height:auto}
+  .kbd{font:12px/1.2 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#cfe2f5;background:#0e1620;border:1px solid #243241;border-radius:8px;padding:6px 8px}
 
-  main{ max-width:1160px; margin:0 auto; padding:14px 14px 64px }
-  .card{ background:var(--card); border:1px solid var(--br); border-radius:14px; padding:12px }
-  .panel{ background:#0f1318; border:1px solid #1c2430; border-radius:12px; padding:10px }
-  .small{ font-size:12px; color:var(--muted) }
-  .sep{ height:1px; background:var(--br); margin:12px 0 }
-  .btn{ background:#14202b; border:1px solid #243241; color:var(--text); padding:10px 12px; border-radius:10px; cursor:pointer; font-size:13px; min-height:36px }
-  .btn.inline{ padding:8px 10px }
+  .card{background:var(--card);border:1px solid var(--br);border-radius:14px}
+  .panel{background:var(--panel);border:1px solid #1c2430;border-radius:14px}
+  .section{padding:14px}
+  h2{margin:0 0 10px 0}
+  .small{font-size:13px;color:var(--muted)}
+  .sep{height:1px;background:var(--br);margin:12px 0}
 
-  /* Grid */
-  .gamesGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px }
-  .gameCard{ background:#11171e; border:1px solid #1f2a36; border-radius:14px; overflow:hidden }
-  .band{ height:6px }
-  .gameBody{ padding:12px }
-  .teamsRow{ display:flex; align-items:center; justify-content:space-between; gap:8px }
-  .team{ display:flex; align-items:center; gap:8px; min-width:0 }
-  .team img{ width:22px; height:22px; border-radius:6px; border:1px solid #1e2732; background:#0f1318 }
-  .team .name{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-  .scoreTag{ display:inline-block; margin-left:6px; padding:2px 6px; border:1px solid #26313c; border-radius:6px; font-weight:700; min-width:24px; text-align:center }
-  .rowMeta{ margin-top:6px; opacity:.9 }
-  .fantPill{ display:inline-flex; align-items:center; gap:8px; background:#0e1a14; border:1px solid var(--accent); color:#9be7b0; padding:6px 12px; border-radius:999px; font-weight:800; letter-spacing:.2px }
+  /* Top strip — horizontally scrollable cards of best games */
+  .topStrip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(280px,1fr);gap:12px;overflow:auto;padding:12px}
+  .tCard{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:280px;display:grid;gap:6px;cursor:pointer}
+  .teams{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .scoreTag{border:1px solid #26313c;border-radius:6px;padding:2px 6px;min-width:28px;text-align:center;font-weight:800}
+  .fantPill{display:inline-flex;align-items:center;gap:8px;background:#0e1a14;border:1px solid var(--okBr);color:var(--ok);padding:6px 10px;border-radius:999px;font-weight:900}
 
-  /* Spotlight */
-  .h3-tight{ margin:0 0 6px 0; font-size:14px; color:var(--muted) }
-  .topGrid{ display:grid; grid-template-columns:1.2fr 0.9fr 0.9fr; gap:12px; align-items:start }
-  @media(max-width:980px){ .topGrid{ grid-template-columns:1fr } }
-  .teamline{ display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:12px; background:#0f1318; border:1px solid #1c2430 }
-  .teamline img{ width:40px; height:40px; border-radius:8px; border:1px solid #1e2732; background:#0d1218 }
-  .scoreBox,.statusBox{ background:#0f1318; border:1px solid #1c2430; border-radius:12px; padding:12px }
-  .scoreBox .num{ font-size:32px; font-weight:900 }
+  /* Spotlight layout */
+  .spot{display:grid;grid-template-columns:1.25fr 0.9fr;gap:14px;align-items:start}
+  @media (max-width:1100px){ .spot{grid-template-columns:1fr} }
 
-  .plays-list{ max-height:26vh; overflow:auto; border:1px solid #1c2430; border-radius:10px; padding:8px; background:#0f1318 }
-  .play-row{ padding:4px 0; border-bottom:1px dashed #1e2732 }
-  .play-row:last-child{ border-bottom:0 }
+  .teamline{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:12px;background:#0f1318;border:1px solid #1c2430}
+  .teamline img{width:48px;height:48px;border-radius:10px;border:1px solid #1e2732;background:#0d1218}
 
-  /* Top Games LB */
-  .lbRow{ display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center; padding:8px; border-radius:10px; border:1px solid #1c2430; background:#0f1318; margin-bottom:8px }
-  .lbTeam{ display:flex; gap:10px; align-items:center; min-width:0 }
-  .lbTeam img{ width:20px; height:20px; border-radius:4px; border:1px solid #1c2330; background:#0d1218 }
-  .lbName{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-  .lbPts{ font-weight:800 }
+  .scoreRow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:560px){ .scoreRow{grid-template-columns:1fr} }
+  .scoreBox{text-align:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
+  .scoreNum{font-size:42px;font-weight:900}
+
+  /* Plays panel */
+  .plays{max-height:34vh;overflow:auto;border:1px solid #1c2430;border-radius:10px;padding:8px;background:#0f1318}
+  .play{padding:4px 0;border-bottom:1px dashed #1e2732}
+  .play:last-child{border-bottom:0}
 
   /* Rink block */
-  .rinkWrap{ background:#0f1318; border:1px solid #1c2430; border-radius:12px; padding:10px }
-  .rinkTop{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px }
-  .rink{ position:relative; width:100%; aspect-ratio: 200 / 85; background:#e8eef4; border-radius:24px; overflow:hidden; box-shadow: inset 0 0 0 6px #cfd8e3 }
-  /* Draw simple rink lines via gradients */
+  .rinkWrap{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px}
+  .rinkTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .rink{position:relative;width:100%;aspect-ratio:200/85;background:#e8eef4;border-radius:24px;overflow:hidden;box-shadow:inset 0 0 0 6px #cfd8e3}
   .rink::before{
-    content:"";
-    position:absolute; inset:0;
+    content:"";position:absolute;inset:0;opacity:.9;
     background:
       radial-gradient(closest-side, transparent 0 96%, #cfd8e3 97% 100%) left/50% 100% no-repeat,
       radial-gradient(closest-side, transparent 0 96%, #cfd8e3 97% 100%) right/50% 100% no-repeat,
-      linear-gradient(#c0392b,#c0392b) 50%/2px 100% no-repeat,           /* red line */
-      linear-gradient(#2362c2,#2362c2) 25%/2px 100% no-repeat,           /* blue */
-      linear-gradient(#2362c2,#2362c2) 75%/2px 100% no-repeat;           /* blue */
-    opacity:.9;
+      linear-gradient(#c0392b,#c0392b) 50%/2px 100% no-repeat,
+      linear-gradient(#2362c2,#2362c2) 25%/2px 100% no-repeat,
+      linear-gradient(#2362c2,#2362c2) 75%/2px 100% no-repeat;
   }
-  .puck{
-    position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
-    background:#111; box-shadow: 0 2px 4px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.15)
-  }
-  .zoneLabel{
-    position:absolute; left:50%; transform:translateX(-50%); top:6px; font-weight:700; color:#2a3a4d; font-size:12px; opacity:.7
-  }
+  .puck{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#111;box-shadow:0 2px 4px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.15)}
+  .zoneLabel{position:absolute;left:50%;transform:translateX(-50%);top:6px;font-weight:700;color:#2a3a4d;font-size:12px;opacity:.7}
 
   @media (prefers-reduced-motion:no-preference){
-    .animate-enter{ transition:opacity .2s ease, transform .2s ease }
-    .animate-enter[data-show="true"]{ opacity:1; transform:none }
-    .animate-enter[data-show="false"]{ opacity:.98; transform:translateY(2px) }
+    .animate-enter{transition:opacity .2s ease, transform .2s ease}
+    .animate-enter[data-show="true"]{opacity:1; transform:none}
+    .animate-enter[data-show="false"]{opacity:.98; transform:translateY(2px)}
   }
 </style>
 </head>
 <body>
 <header>
-  <h1>NHL Puck’Em <span class="sub">Viewer</span></h1>
-  <span class="pill" id="weekLabel">—</span>
+  <div class="bar wrap">
+    <div>
+      <div style="font-size:18px;font-weight:800">NHL Puck’Em — Viewer</div>
+      <div class="sub">Week: <b id="wkPretty">—</b> · <span id="lastUpd" class="small">—</span></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button id="btnPause" class="btn" aria-pressed="false">⏸️ Pause Rotate</button>
+      <button id="btnFS" class="btn iconBtn" title="Fullscreen">⛶</button>
+    </div>
+  </div>
 </header>
 
-<main>
-  <!-- Spotlight -->
-  <section id="spotlight" class="card animate-enter" data-show="false" style="display:none">
-    <div class="small" id="sp-title">—</div>
+<main class="wrap" style="padding-top:12px">
+  <!-- Top Games strip (scrolling) -->
+  <section class="card section">
+    <h2>Top Games (Fantasy)</h2>
+    <div id="topStrip" class="topStrip" aria-live="polite"></div>
+  </section>
 
-    <!-- Top row: Teams / Fantasy / Status -->
-    <div class="topGrid" style="margin-top:8px">
-      <div id="sp-teamSide"></div>
-      <div class="scoreBox">
-        <div class="small" style="margin-bottom:4px">Fantasy Score</div>
-        <div id="sp-fantasy" class="num">—</div>
-        <div id="sp-bonuses" class="small">—</div>
+  <div class="sep"></div>
+
+  <!-- Spotlight column + side info (no bottom grid) -->
+  <section class="spot">
+    <!-- Spotlight -->
+    <div class="card section animate-enter" id="spotlight" data-show="false" style="display:block">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">
+        <span id="spotTitle">Game Spotlight</span>
+        <span class="small" id="spotState">—</span>
+      </h2>
+
+      <div class="sep"></div>
+      <div id="spotTeams"></div>
+
+      <div class="sep"></div>
+
+      <div class="scoreRow">
+        <div class="scoreBox">
+          <div class="small">Fantasy Score</div>
+          <div id="spotFantasy" class="scoreNum">—</div>
+          <div id="spotBonuses" class="small">—</div>
+        </div>
+        <div class="scoreBox">
+          <div class="small">Game Clock</div>
+          <div class="scoreNum" id="spotClock" style="font-size:36px">—</div>
+          <div class="small">P<span id="spotPer">—</span></div>
+        </div>
       </div>
-      <div class="statusBox">
-        <div class="small" style="margin-bottom:4px">Game Status</div>
-        <div class="small">State: <b id="sp-status">—</b></div>
-      </div>
-    </div>
 
-    <div class="sep"></div>
+      <div class="sep"></div>
 
-    <!-- Middle row: Rink + Plays side-by-side on wide screens -->
-    <div class="topGrid" style="grid-template-columns:1.4fr 1fr 1fr">
-      <section class="rinkWrap">
-        <div class="rinkTop">
-          <h3 class="h3-tight" style="margin:0">Rink (Live/Sim)</h3>
-          <div style="display:flex; gap:8px; align-items:center">
-            <label class="small" style="display:flex; gap:6px; align-items:center; cursor:pointer">
+      <!-- Rink + Latest Plays stacked on narrow, side-by-side on wide -->
+      <div class="spot" style="grid-template-columns:1.2fr 1fr">
+        <section class="rinkWrap">
+          <div class="rinkTop">
+            <div class="small" style="font-weight:700">Rink (Live / Sim)</div>
+            <label class="small" style="display:flex;align-items:center;gap:8px;cursor:pointer">
               <input id="simToggle" type="checkbox"> Simulate
             </label>
           </div>
-        </div>
-        <div class="rink" id="rink">
-          <div class="zoneLabel" id="zoneLbl">—</div>
-          <div id="puck" class="puck" style="left:50%; top:50%"></div>
-        </div>
-      </section>
+          <div class="rink" id="rink">
+            <div class="zoneLabel" id="zoneLbl">—</div>
+            <div id="puck" class="puck" style="left:50%;top:50%"></div>
+          </div>
+        </section>
 
-      <section class="panel" id="playsPanel">
-        <h3 class="h3-tight">Latest Plays</h3>
-        <div id="playsList" class="plays-list small"></div>
-      </section>
+        <section class="panel" style="padding:10px">
+          <div class="small" style="margin:0 0 6px 0;font-weight:700">Latest Plays</div>
+          <div id="spotLog" class="plays"></div>
+        </section>
+      </div>
+    </div>
 
-      <section class="panel">
-        <h3 class="h3-tight">Top Games — Fantasy</h3>
-        <div id="gameLB"></div>
-      </section>
+    <!-- Right column: quick help / controls -->
+    <div class="card section">
+      <h2>Controls</h2>
+      <div class="sep"></div>
+      <div class="small">Click a card in “Top Games” to jump the spotlight.</div>
+      <div class="small" style="margin-top:8px">Press <span class="kbd">Space</span> to pause/resume rotation.</div>
+      <div class="small" style="margin-top:8px">Press <span class="kbd">F</span> for fullscreen.</div>
     </div>
   </section>
 
-  <!-- Grid of the week -->
-  <section id="gridCard" class="card">
-    <div class="small" id="note">Loading NHL week…</div>
-    <div class="sep"></div>
-    <div id="grid" class="gamesGrid"></div>
-  </section>
+  <div class="sep"></div>
+  <div class="small">Tip: the Top Games strip auto-updates; the spotlight rotates through the top-scoring fantasy games unless paused.</div>
 </main>
 
-<!-- Supabase JS -->
+<!-- Supabase (read-only) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
-/* ---------- CONFIG ---------- */
+/* ------- Config (reuse your keys) ------- */
 const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
-const supa = supabase.createClient(SUPA_URL, SUPA_ANON, { auth: { persistSession: false } });
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON, { auth: { persistSession:false } });
 
-const $ = id => document.getElementById(id);
-function setText(id, v){ const el=$(id); if(el) el.textContent=v; }
-
-/* ---------- helpers ---------- */
-const INFLIGHT=new Map();
-async function dedupFetch(url){
-  if(INFLIGHT.has(url)) return INFLIGHT.get(url);
-  const p=fetch(url,{cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).finally(()=>INFLIGHT.delete(url));
-  INFLIGHT.set(url,p); return p;
-}
-async function safeJson(url,retries=2){
-  for(let i=0;i<=retries;i++){ try{ return await dedupFetch(url); }catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,500*(i+1))); } }
-}
-async function pLimitAll(items, limit, worker){
-  const out=new Array(items.length); let i=0, active=0;
-  return await new Promise(resolve=>{
-    const pump=()=>{ while(active<limit && i<items.length){ const idx=i++; active++;
-      Promise.resolve(worker(items[idx],idx)).then(v=>{ out[idx]=v; }).catch(()=>{ out[idx]=undefined; }).finally(()=>{ active--; (i>=items.length && active===0)?resolve(out):pump(); });
-    }};
-    pump();
-  });
-}
-
-/* ---------- week logic ---------- */
+/* ------- Week helpers (Mon 08:00 CT) ------- */
 const TZ='America/Chicago';
-function nowCT(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
-function addDaysCT(d,days){ const n=new Date(d.getTime()); n.setDate(n.getDate()+days); return new Date(n.toLocaleString('en-US',{timeZone:TZ})); }
-function parts(d,opts){ const p=new Intl.DateTimeFormat('en-US',opts).formatToParts(d); const o={}; p.forEach(x=>o[x.type]=x.value); return o; }
-function weekKey(){ const n=nowCT(); const wd=n.getDay(); const daysSinceMon=(wd-1+7)%7; const mon=addDaysCT(n,-daysSinceMon); const hour=Number(parts(n,{hour:'2-digit',hour12:false}).hour); const after8 = hour>=8 || daysSinceMon>0; const anchor = after8? mon : addDaysCT(mon,-7); const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`; }
-function weekDates(){ const n=nowCT(); const wd=n.getDay(); const daysSinceMon=(wd-1+7)%7; const mon=addDaysCT(n,-daysSinceMon); const list=[]; for(let i=0;i<7;i++){ const d=addDaysCT(mon,i); const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); list.push(`${p.year}-${p.month}-${p.day}`);} const pM=parts(mon,{month:'2-digit',day:'2-digit'}); const pS=parts(addDaysCT(mon,6),{month:'2-digit',day:'2-digit'}); return {list,start:list[0],end:list[6],pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`};}
-const WEEK_KEY=weekKey(); const WEEK=weekDates(); setText('weekLabel', `Week ${WEEK.pretty}`);
+const parts=(d,opts)=>Object.fromEntries(new Intl.DateTimeFormat('en-US',opts).formatToParts(d).map(p=>[p.type,p.value]));
+const nowCT=()=>new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
+const addCT=(d,days)=>new Date(new Date(d.getTime()+days*86400000).toLocaleString('en-US',{timeZone:TZ}));
+function weekKey(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const hour=+parts(n,{hour:'2-digit',hour12:false}).hour; const anchor=(hour>=8||days>0)?mon:addCT(mon,-7); const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`; }
+function weekDates(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i); const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}`}); const pM=parts(mon,{month:'2-digit',day:'2-digit'}); const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'}); return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`}; }
+const WEEK_KEY=weekKey(); const WEEK=weekDates();
+const $=id=>document.getElementById(id);
+$('wkPretty').textContent=WEEK.pretty;
 
-/* ---------- ESPN endpoints ---------- */
-const API={
-  scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
-  summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`
-};
-function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.logos[0].href).replace(/^http:/,'https:'); if(t.abbreviation) return `https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`; return null; }
+/* ------- ESPN & CDN helpers ------- */
+const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
+const cdnNHL=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'): (t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:null);
 
-/* ---------- DB helpers ---------- */
-async function pushSummaryToSQL(gameId, summaryJson){
-  const { error } = await supa.rpc('upsert_nhl_game_from_summary', { p_week_key: WEEK_KEY, p_game_id: String(gameId), p_summary: summaryJson });
-  if(error){ console.error('upsert_nhl_game_from_summary failed:', error.message); }
-}
-async function getGameScoreFromDB(gid){
-  const { data, error } = await supa.from('game_scores')
-    .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,is_final')
-    .eq('league','NHL').eq('week_key',WEEK_KEY).eq('game_id', String(gid)).maybeSingle();
-  if(error || !data) return null;
-  return data;
+/* ------- DB helpers (read computed totals) ------- */
+async function getGameScore(gid){
+  const { data } = await supa
+    .from('game_scores')
+    .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus')
+    .eq('league','NHL').eq('week_key',WEEK_KEY).eq('game_id',String(gid)).maybeSingle();
+  return data||null;
 }
 
-/* ---------- Viewer state ---------- */
-const V = {
-  state:{ events:[], selected:null, poll:null, rows:[] },
-  el:{ note:$('note'), grid:$('grid'), gridCard:$('gridCard'), sp:$('spotlight'), plays:$('playsList'), lb:$('gameLB'), title:$('sp-title'), teamSide:$('sp-teamSide'), rink:$('rink'), puck:$('puck'), zone:$('zoneLbl'), sim:$('simToggle') },
-  api:API
-};
+/* ------- State ------- */
+const ST={ events:[], rows:[], idx:0, paused:false, spotId:null };
+const stamp=()=>{ $('lastUpd').textContent='Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
 
-/* ---------- Rink: puck placement + (optional) simulator ---------- */
-function setPuckPercent(xPct, yPct){
-  // clamp 0..100
-  const x = Math.max(0, Math.min(100, xPct));
-  const y = Math.max(0, Math.min(100, yPct));
-  if(V.el.puck){
-    V.el.puck.style.left = x + '%';
-    V.el.puck.style.top  = y + '%';
-  }
-  // Zone label (offensive/neutral/defensive by thirds)
-  let zone='Neutral Zone';
-  if(x < 33.33) zone='Defensive Zone';
-  else if(x > 66.66) zone='Offensive Zone';
-  if(V.el.zone) V.el.zone.textContent = zone;
+/* ------- Rink (puck) ------- */
+function setPuckPercent(xPct,yPct){
+  const x=Math.max(0,Math.min(100,xPct)), y=Math.max(0,Math.min(100,yPct));
+  const puck=$('puck'), zone=$('zoneLbl');
+  if(puck){ puck.style.left=x+'%'; puck.style.top=y+'%'; }
+  let z='Neutral Zone'; if(x<33.33) z='Defensive Zone'; else if(x>66.66) z='Offensive Zone';
+  if(zone) zone.textContent=z;
 }
-// Public hook for real data feeds:
+// public hook for real tracking feed:
 window.setPuck = ({x,y}) => setPuckPercent(x,y);
 
 let simTimer=null;
-function startSim(){
-  stopSim();
-  let t=0, cx=50, cy=50;
-  simTimer = setInterval(()=>{
-    // lazy random walk with gentle bias left→right to mimic rushes
-    t+=0.05;
-    cx += (Math.random()-0.45) * 5;
-    cy += (Math.random()-0.5) * 3;
-    // bounce at edges
-    if(cx<1||cx>99) cx = Math.max(1, Math.min(99, cx))*0.98 + (cx<1?2:-2);
-    if(cy<2||cy>98) cy = Math.max(2, Math.min(98, cy))*0.98 + (cy<2?2:-2);
-    setPuckPercent(cx, cy);
-  }, 500);
+function startSim(){ stopSim(); let cx=50, cy=50;
+  simTimer=setInterval(()=>{ cx+=(Math.random()-0.45)*5; cy+=(Math.random()-0.5)*3;
+    if(cx<1||cx>99) cx = Math.max(1,Math.min(99,cx))*0.98 + (cx<1?2:-2);
+    if(cy<2||cy>98) cy = Math.max(2,Math.min(98,cy))*0.98 + (cy<2?2:-2);
+    setPuckPercent(cx,cy);
+  },500);
 }
 function stopSim(){ if(simTimer){ clearInterval(simTimer); simTimer=null; } }
-V.el.sim?.addEventListener('change', (e)=>{ e.target.checked ? startSim() : stopSim(); });
+$('simToggle').addEventListener('change',e=> e.target.checked?startSim():stopSim());
 
-/* ---------- Spotlight ---------- */
-function renderSpotlight(g){
-  V.el.sp.style.display='block';
-  V.el.sp.setAttribute('data-show','true');
-  V.el.title.textContent = `${g.away.name} @ ${g.home.name}`;
-  V.el.teamSide.innerHTML =
-    `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
-       <div style="display:flex;gap:10px;align-items:center">
-         ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
-         <div style="font-weight:700">${g.away.name}</div>
-       </div>
-       <div id="sp-awayScore" style="font-weight:800">—</div>
-     </div>
-     <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
-       <div style="display:flex;gap:10px;align-items:center">
-         ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
-         <div style="font-weight:700">${g.home.name}</div>
-       </div>
-       <div id="sp-homeScore" style="font-weight:800">—</div>
-     </div>`;
-}
-
-/* Poll the spotlight (scores + fantasy + latest plays) */
-async function updateSpotlightOnce(){
-  const g = V.state.selected; if(!g) return;
-  const s = await safeJson(V.api.summary(g.id)).catch(()=>null); if(!s) return;
-
-  await pushSummaryToSQL(g.id, s);
-  const row = await getGameScoreFromDB(g.id);
-
-  const comp = s?.header?.competitions?.[0] || {};
-  let homeC=null, awayC=null;
-  (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-
-  setText('sp-awayScore', String(row?.away_pts ?? awayC?.score ?? 0));
-  setText('sp-homeScore', String(row?.home_pts ?? homeC?.score ?? 0));
-  setText('sp-fantasy',   row?.total!=null ? Number(row.total).toFixed(2) : '—');
-  setText('sp-status',    comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—');
-
-  const cb = Number(row?.close_bonus||0), ob=Number(row?.ot_bonus||0), sb=Number(row?.so_bonus||0);
-  $('sp-bonuses').textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'}`;
-
-  const plays = (s?.scoringPlays || []).slice(-10).reverse();
-  if(V.el.plays){
-    V.el.plays.innerHTML = plays.map(p=>{
-      const t = p?.clock?.displayValue || '';
-      const q = p?.period?.number ? `P${p.period.number}` : '';
-      const d = p?.text || p?.description || '';
-      return `<div class="play-row">[${q} ${t}] ${d}</div>`;
-    }).join('') || '<div class="small" style="opacity:.7">— No scoring plays yet —</div>';
-  }
-
-  renderTopGamesLB();
-}
-
-/* ---------- Build the week grid ---------- */
-function renderGrid(){
-  V.el.grid.innerHTML='';
-  (V.state.events||[]).forEach(g=>{
-    const startStr = new Date(g.start).toLocaleString([], { weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
-    const card = document.createElement('div');
-    card.className = 'gameCard';
-    card.innerHTML = `
-      <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
-      <div class="gameBody">
-        <div class="teamsRow">
-          <div class="team">
-            ${g.away.logo ? `<img src="${g.away.logo}" alt="">` : ``}
-            <div class="name">${g.away.name}</div>
-            <span class="scoreTag" id="G-a-${g.id}">0</span>
-          </div>
-          <div class="small" style="opacity:.8">@</div>
-          <div class="team" style="justify-content:flex-end">
-            ${g.home.logo ? `<img src="${g.home.logo}" alt="">` : ``}
-            <div class="name">${g.home.name}</div>
-            <span class="scoreTag" id="G-h-${g.id}">0</span>
-          </div>
+/* ------- UI builders ------- */
+function tCard(r,g){
+  return `
+    <div class="tCard" data-gid="${r.id}" title="Open ${g.away.name} @ ${g.home.name}">
+      <div class="teams">
+        <div class="name" style="display:flex;align-items:center;gap:8px;min-width:0">
+          ${g.away.logo?`<img src="${g.away.logo}" style="width:18px;height:18px;border-radius:4px;border:1px solid #1e2732;background:#0f1318">`:''}
+          ${g.away.name} @ ${g.home.name}
+          ${g.home.logo?`<img src="${g.home.logo}" style="width:18px;height:18px;border-radius:4px;border:1px solid #1e2732;background:#0f1318">`:''}
         </div>
-        <div class="small rowMeta">
-          Score: <span id="G-scr-${g.id}">—</span> · <span id="G-st-${g.id}">pre</span> · ${startStr}
-        </div>
-        <div class="small" style="margin-top:8px">
-          <span class="fantPill"><span style="opacity:.9">Fantasy</span><span id="G-f-${g.id}" style="font-variant-numeric:tabular-nums">—</span></span>
-        </div>
-        <div class="lockRow"><button class="btn inline openBtn">Open</button></div>
-      </div>`;
-    card.querySelector('.openBtn').addEventListener('click', ()=>openGame(g));
-    V.el.grid.appendChild(card);
-  });
-}
-
-/* Top Games LB */
-function renderTopGamesLB(){
-  const tgt = V.el.lb; if(!tgt) return;
-  const rows = (V.state.rows||[]).slice().sort((a,b)=>b.score-a.score).slice(0,8);
-  tgt.innerHTML = rows.map(r => `
-    <div class="lbRow" data-gid="${r.id}" style="cursor:pointer">
-      <div class="lbTeam">
-        ${r.awayLogo?`<img src="${r.awayLogo}" alt="">`:''}
-        <span class="lbName" style="max-width:280px">${r.awayName} @ ${r.homeName}</span>
-        ${r.homeLogo?`<img src="${r.homeLogo}" alt="" style="margin-left:6px">`:''}
+        <div class="scoreTag">${Number(r.score||0).toFixed(2)}</div>
       </div>
-      <div class="lbPts">${Number(r.score||0).toFixed(2)}</div>
       <div class="small">${r.status||''}</div>
-    </div>
-  `).join('') || '<div class="small">—</div>';
-  if(!tgt._wired){
-    tgt.addEventListener('click', e=>{
-      const row=e.target.closest('.lbRow[data-gid]'); if(!row) return;
-      const id=row.getAttribute('data-gid');
-      const g=V.state.events.find(x=>String(x.id)===String(id));
-      if(g) openGame(g);
-    }); tgt._wired=true;
-  }
+      <div><span class="fantPill"><span>Fantasy</span><span>${Number(r.score||0).toFixed(2)}</span></span></div>
+    </div>`;
 }
 
-/* Refresh grid scores */
-async function refreshGridScores(){
-  const evs = V.state.events || []; if(!evs.length) return;
-  const rows = await pLimitAll(evs, 6, async (g)=>{
-    try{
-      const s = await safeJson(V.api.summary(g.id));
-      await pushSummaryToSQL(g.id, s);
-      const row = await getGameScoreFromDB(g.id);
-      const comp = s?.header?.competitions?.[0] || {};
-      let homeC=null, awayC=null;
-      (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-      return {
-        id:g.id,
-        awayPts: row?.away_pts ?? Number(awayC?.score ?? 0),
-        homePts: row?.home_pts ?? Number(homeC?.score ?? 0),
-        score: row?.total ?? 0,
-        status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
-      };
-    }catch{ return null; }
+function renderTopStrip(){
+  const strip=$('topStrip');
+  const top=ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,12);
+  strip.innerHTML = top.map(r=>{
+    const g=ST.events.find(e=>String(e.id)===String(r.id));
+    return tCard(r,g);
+  }).join('') || '<div class="small" style="padding:8px">—</div>';
+
+  strip.querySelectorAll('[data-gid]').forEach(el=>{
+    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); openSpotlight(); };
   });
-  const valid = rows.filter(Boolean);
-  for(const r of valid){
-    const scEl=$(`G-scr-${r.id}`), stEl=$(`G-st-${r.id}`), aEl=$(`G-a-${r.id}`), hEl=$(`G-h-${r.id}`), fEl=$(`G-f-${r.id}`);
-    if(scEl) scEl.textContent = `${r.awayPts}–${r.homePts}`;
-    if(stEl)  stEl.textContent = r.status || '—';
-    if(aEl)   aEl.textContent  = r.awayPts;
-    if(hEl)   hEl.textContent  = r.homePts;
-    if(fEl)   fEl.textContent  = Number(r.score || 0).toFixed(2);
-  }
-  V.state.rows = evs.map(g=>{
-    const r=valid.find(x=>x&&String(x.id)===String(g.id)); if(!r) return null;
-    return { id:g.id, awayName:g.away.name, homeName:g.home.name, awayLogo:g.away.logo, homeLogo:g.home.logo, score:r.score, status:r.status };
-  }).filter(Boolean);
-  renderTopGamesLB();
 }
 
-/* Open spotlight */
-function openGame(g){
-  V.state.selected = g;
-  renderSpotlight(g);
-  window.scrollTo({ top: 0, behavior: 'smooth' });   // <= scroll to top
-  if (V.state.poll) clearInterval(V.state.poll);
-  updateSpotlightOnce();
-  V.state.poll = setInterval(updateSpotlightOnce, 20000);
-  // reset puck center (unless sim is on)
-  if(!V.el.sim?.checked) setPuckPercent(50,50);
+function setPauseBtn(){
+  $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false');
+  $('btnPause').textContent = ST.paused?'▶️ Resume Rotate':'⏸️ Pause Rotate';
 }
 
-/* Load week */
+/* ------- Spotlight ------- */
+async function openSpotlight(){
+  const id = ST.spotId || (ST.rows[0]?.id);
+  if(!id) return;
+  const g = ST.events.find(e=>String(e.id)===String(id));
+  if(!g) return;
+
+  // scroll back to top when opening
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  $('spotTitle').textContent = `${g.away.name} @ ${g.home.name}`;
+
+  const s = await fetch(api.summary(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+  const comp=s?.header?.competitions?.[0]||{};
+  let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+
+  const row = await getGameScore(id);
+
+  // Teams block
+  $('spotTeams').innerHTML = `
+    <div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
+      <div style="display:flex;gap:10px;align-items:center">
+        ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
+        <div style="font-weight:800">${g.away.name}</div>
+      </div>
+      <div style="font-weight:900">${row?.away_pts ?? (awayC?.score ?? 0)}</div>
+    </div>
+    <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
+      <div style="display:flex;gap:10px;align-items:center">
+        ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
+        <div style="font-weight:800">${g.home.name}</div>
+      </div>
+      <div style="font-weight:900">${row?.home_pts ?? (homeC?.score ?? 0)}</div>
+    </div>`;
+
+  $('spotFantasy').textContent = (row?.total!=null?Number(row.total).toFixed(2):'—');
+  const cb=Number(row?.close_bonus||0), ob=Number(row?.ot_bonus||0), sb=Number(row?.so_bonus||0);
+  $('spotBonuses').textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'}`;
+
+  $('spotClock').textContent = comp?.status?.displayClock || '—';
+  $('spotPer').textContent   = comp?.status?.period ?? '—';
+  $('spotState').textContent = comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—';
+
+  // Latest scoring plays (yes: pulled from ESPN summary)
+  const log=$('spotLog'); log.innerHTML='';
+  (s?.scoringPlays||[]).slice(-14).reverse().forEach(sp=>{
+    const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');
+    const div=document.createElement('div'); div.className='play'; div.textContent=`[${q} ${t}] ${d}`; log.appendChild(div);
+  });
+}
+
+/* ------- Data load ------- */
 async function loadWeek(){
-  $('note').textContent = `Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;
   const all=[];
   for(const d of WEEK.list){
-    const sb = await safeJson(API.scoreboard(d)).catch(()=>null);
-    const evs = sb?.events||[];
+    const sb = await fetch(api.scoreboard(d),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+    const evs=sb?.events||[];
     for(const ev of evs){
-      const c = ev.competitions?.[0]||{};
+      const c=ev.competitions?.[0]||{};
       let home=null,away=null; (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
       all.push({
-        id:ev.id, start:ev.date,
+        id:ev.id,
+        start:ev.date,
         home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },
         away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }
       });
     }
   }
   all.sort((a,b)=>new Date(a.start)-new Date(b.start));
-  V.state.events=all;
-  $('note').textContent=`${all.length} games`;
-  renderGrid();
-  refreshGridScores();
-  setInterval(refreshGridScores, 30000);
+  ST.events=all;
 }
 
-/* Boot */
-(async ()=>{ await loadWeek(); })();
+/* ------- Refresh fantasy/score rows ------- */
+async function refreshRows(){
+  if(!ST.events.length) return;
+  const batch = await Promise.all(ST.events.map(async g=>{
+    const s = await fetch(api.summary(g.id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+    const row = await getGameScore(g.id);
+    const comp=s?.header?.competitions?.[0]||{};
+    let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+    return {
+      id:g.id,
+      awayPts: row?.away_pts ?? Number(awayC?.score || 0),
+      homePts: row?.home_pts ?? Number(homeC?.score || 0),
+      score: row?.total ?? 0,
+      status: (comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—')
+    };
+  }));
+  ST.rows = batch.filter(Boolean);
+  stamp();
+}
+
+/* ------- Rotation ------- */
+function tickRotate(){
+  if(ST.paused || ST.rows.length===0) return;
+  const top = ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,12);
+  if(!top.length) return;
+  ST.idx = (ST.idx+1) % top.length;
+  ST.spotId = top[ST.idx].id;
+  openSpotlight();
+}
+
+/* ------- Controls ------- */
+$('btnPause').onclick=()=>{ ST.paused=!ST.paused; setPauseBtn(); };
+$('btnFS').onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+document.addEventListener('keydown',e=>{
+  if(e.key===' '){ e.preventDefault(); ST.paused=!ST.paused; setPauseBtn(); }
+  if(e.key.toLowerCase()==='f'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+});
+
+/* ------- Boot ------- */
+(async ()=>{
+  await loadWeek();
+  await refreshRows();
+  renderTopStrip();
+  ST.spotId = (ST.rows[0]?.id) || null;
+  await openSpotlight();
+
+  // periodic refresh
+  setInterval(async()=>{ await refreshRows(); renderTopStrip(); if(!ST.paused) await openSpotlight(); }, 30000);
+  setInterval(tickRotate, 8000);
+})();
 </script>
 </body>
 </html>
