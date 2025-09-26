@@ -24,29 +24,29 @@
   *::-webkit-scrollbar-track{background:transparent}
   *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
 
-  .wrap{max-width:1160px;margin:0 auto;padding:16px}
+  .wrap{max-width:1160px;margin:0 auto;padding:14px}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .sp{flex:1}
   .card{background:var(--card);border:1px solid var(--br);border-radius:14px}
   .panel{background:var(--panel);border:1px solid #1c2430;border-radius:14px}
-  .section{padding:14px}
+  .section{padding:12px}
   .small{font-size:12.5px;color:var(--muted)}
-  .sep{height:1px;background:var(--br);margin:12px 0}
+  .sep{height:1px;background:var(--br);margin:10px 0}
 
   /* Header */
   header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#0f1318 75%,transparent);border-bottom:1px solid var(--br)}
   .title{font-size:clamp(16px,2vw,20px);font-weight:800;margin:0}
   .btn{
     background:#14202b;border:1px solid #243241;color:var(--text);
-    padding:10px 12px;border-radius:10px;cursor:pointer;min-height:40px
+    padding:8px 11px;border-radius:10px;cursor:pointer;min-height:38px
   }
   .btn.toggle[aria-pressed="true"]{background:#182633;border-color:#31506a}
   .chip{border:1px dashed #364353;border-radius:999px;padding:6px 10px;font-size:12px}
 
   /* Top strip */
-  .stripWrap{padding:10px}
+  .stripWrap{padding:8px 10px}
   .topStrip{
-    display:flex; gap:10px; overflow:auto; scroll-snap-type:x mandatory; padding-bottom:8px
+    display:flex; gap:10px; overflow:auto; scroll-snap-type:x mandatory; padding-bottom:6px
   }
   .topCard{
     flex:0 0 260px; scroll-snap-align:start; background:#0f1318; border:1px solid #1c2430;
@@ -59,45 +59,53 @@
     border:1px solid var(--ok-br); border-radius:999px; padding:6px 10px; font-weight:900}
 
   /* Spotlight */
-  .spot{display:grid; grid-template-columns:1fr 380px; gap:14px}
+  .spot{display:grid; grid-template-columns:1fr 400px; gap:12px}
   @media (max-width:1000px){ .spot{grid-template-columns:1fr} }
-  .board{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px}
+  .board{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
   @media (max-width:640px){ .board{grid-template-columns:1fr 1fr} }
   .side{display:flex; gap:10px; align-items:center; background:#0f1318;border:1px solid #1c2430;border-radius:12px; padding:10px}
   .logo{width:42px;height:42px;border-radius:10px;border:1px solid #1e2732;background:#0d1218; flex:0 0 auto}
   .teamName{font-weight:800}
-  .scoreRow{display:flex; align-items:center; justify-content:center; gap:12px; grid-column:2}
-  .scoreBig{font-size:40px; font-weight:900; min-width:52px; text-align:center; border:1px solid #26313c; border-radius:10px; padding:6px 10px}
+  .scoreRow{display:flex; align-items:center; justify-content:center; gap:10px; grid-column:2}
+  .scoreBig{font-size:38px; font-weight:900; min-width:48px; text-align:center; border:1px solid #26313c; border-radius:10px; padding:6px 10px}
   .centerCell{display:grid; gap:8px; align-content:start}
   .badge{border:1px solid var(--chip); background:#0e1620; border-radius:999px; padding:6px 8px}
 
   /* Plays (accordion) */
-  .acc .head{display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer}
+  .acc .head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; cursor:pointer}
   .acc .body{max-height:0; overflow:hidden; transition:max-height .25s ease}
   .acc[aria-expanded="true"] .body{max-height:60vh}
-  .list{max-height:60vh; overflow:auto; padding:10px 12px}
-  .play{display:grid; grid-template-columns:auto 1fr; gap:10px; padding:10px; border:1px solid #1c2430; border-radius:10px; background:#0f1318; margin-bottom:10px}
+  .list{max-height:60vh; overflow:auto; padding:8px 10px}
+  .play{display:grid; grid-template-columns:auto 1fr; gap:10px; padding:9px; border:1px solid #1c2430; border-radius:10px; background:#0f1318; margin-bottom:8px}
   .dot{width:10px;height:10px;border-radius:50%}
   .dot.goal{background:#20d07a}
   .dot.other{background:#6aa0ff}
   .when{color:var(--muted); font-size:12px}
 
-  /* Game grid (optional mini list when wide) */
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px}
-  .gCard{background:#11171e;border:1px solid #1f2a36;border-radius:12px;padding:10px}
-  .band{height:6px;border-radius:6px;margin:-10px -10px 8px}
+  /* ===== All Games grid (mini) ===== */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px}
+  .gCard{background:#11171e;border:1px solid #1f2a36;border-radius:12px;padding:10px;display:grid;gap:8px;cursor:pointer}
+  .band{height:5px;border-radius:6px;margin:-10px -10px 6px}
+  .gTeams{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+  .gLogo{width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0d1218}
+  .gNames{min-width:0}
+  .gTitle{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gFantasy{border:1px solid #25313d;border-radius:999px;padding:3px 8px;font-weight:800}
+  .gRow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .gScore{font-weight:900;letter-spacing:.5px}
+  .pill{border:1px solid var(--chip);background:#0e1620;border-radius:999px;padding:4px 8px}
+  .status{color:var(--muted);font-size:12px}
 
   /* Phone polish */
   @media (max-width:420px){
     .wrap{padding:12px}
-    .section{padding:12px}
-    .topCard{flex:0 0 220px; height:90px}
+    .section{padding:10px}
+    .topCard{flex:0 0 220px; height:92px}
     .logo{width:34px;height:34px}
     .teamName{font-size:14px}
-    .scoreBig{font-size:32px;min-width:46px}
+    .scoreBig{font-size:32px;min-width:44px}
     .fantPill{padding:5px 9px;font-size:12.5px}
-    .acc .body{max-height:52vh}
-    .list{max-height:52vh}
+    .grid{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -117,7 +125,7 @@
   </div>
 </header>
 
-<main class="wrap" style="padding-top:10px">
+<main class="wrap" style="padding-top:8px">
   <!-- Top Games -->
   <section class="card section stripWrap">
     <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -142,7 +150,7 @@
         </div>
 
         <div class="centerCell">
-          <div class="row" style="justify-content:center;align-items:center">
+          <div class="row scoreRow">
             <div class="scoreBig" id="aScore">0</div>
             <div class="small" style="opacity:.8">—</div>
             <div class="scoreBig" id="hScore">0</div>
@@ -165,7 +173,7 @@
       <div class="sep"></div>
 
       <!-- Accordions -->
-      <div class="panel acc" id="accScoring" aria-expanded="true" style="margin-bottom:10px">
+      <div class="panel acc" id="accScoring" aria-expanded="true" style="margin-bottom:8px">
         <div class="head">
           <h3 style="margin:0;font-size:15px">Scoring Plays</h3>
           <button class="btn" data-toggle="#accScoring">Toggle</button>
@@ -186,7 +194,7 @@
       </div>
     </section>
 
-    <!-- Optional mini grid (only shows on wide screens for context) -->
+    <!-- All Games (mini grid with logos + scores) -->
     <section class="card section" id="miniGridWrap">
       <h3 style="margin:0 0 6px 0">All Games</h3>
       <div class="grid" id="miniGrid"></div>
@@ -234,18 +242,29 @@ async function getGameScore(gid){
 /* ===== Render helpers ===== */
 function miniCard(g, row){
   const a=row?.away_pts ?? 0, h=row?.home_pts ?? 0, f=row?.total ?? 0;
-  const s = `<div class="gCard" data-gid="${g.id}">
+  const status = row?.statusText || '';
+  const when = new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return `
+  <div class="gCard" data-gid="${g.id}">
     <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#203040'} 0%, ${g.home.color?('#'+g.home.color):'#2d3a49'} 100%)"></div>
-    <div class="row" style="justify-content:space-between">
-      <div class="name" style="max-width:72%">${g.away.name} @ ${g.home.name}</div>
-      <div class="scoreChip">${Number(f).toFixed(2)}</div>
+
+    <div class="gTeams">
+      ${g.away.logo?`<img class="gLogo" src="${g.away.logo}" alt="">`:''}
+      <div class="gNames">
+        <div class="gTitle">${g.away.name} @ ${g.home.name}</div>
+        <div class="status">${when}</div>
+      </div>
+      <div class="gFantasy">Fantasy ${Number(f||0).toFixed(2)}</div>
     </div>
-    <div class="small" style="margin-top:6px">${new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</div>
-    <div class="row" style="margin-top:6px;justify-content:space-between">
-      <span class="badge">A ${a}</span><span class="badge">H ${h}</span>
+
+    <div class="gRow">
+      <div class="pill">A ${a}</div>
+      <div class="gScore">${a} – ${h}</div>
+      <div class="pill">H ${h}</div>
     </div>
+
+    <div class="status" id="st-${g.id}">${status}</div>
   </div>`;
-  return s;
 }
 
 function renderTopStrip(){
@@ -308,19 +327,13 @@ async function updateSpotlight(){
     return `<div class="play"><span class="dot goal"></span><div><div>${d}</div><div class="when">${t}</div></div></div>`;
   }).join('') : '<div class="small">No data yet.</div>';
 
-  // Plays — Recent (all) from pbp if present
-  const drives = (s?.plays || s?.drives || []); // ESPN varies; fallback to scoring only
+  // Plays — Recent (best-effort; ESPN payloads vary)
   const recent = (s?.allPlays || s?.plays || []).slice(-30).reverse();
-  const recentList = $('recentList');
-  if(recent.length){
-    recentList.innerHTML = recent.map(p=>{
-      const t = `[P${p.period?.number||'?'} ${p.clock?.displayValue||''}]`;
-      const text = (p.text || p.description || p.shortText || '').replace(/\s+/g,' ');
-      return `<div class="play"><span class="dot other"></span><div><div>${text}</div><div class="when">${t}</div></div></div>`;
-    }).join('');
-  }else{
-    recentList.innerHTML = '<div class="small">No data yet.</div>';
-  }
+  $('recentList').innerHTML = recent.length ? recent.map(p=>{
+    const t = `[P${p.period?.number||'?'} ${p.clock?.displayValue||''}]`;
+    const text = (p.text || p.description || p.shortText || '').replace(/\s+/g,' ');
+    return `<div class="play"><span class="dot other"></span><div><div>${text}</div><div class="when">${t}</div></div></div>`;
+  }).join('') : '<div class="small">No data yet.</div>';
 }
 
 /* ===== Data load ===== */
@@ -350,13 +363,10 @@ async function refreshRows(){
     const s = await fetch(api.summary(g.id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
     const row = await getGameScore(g.id);
     const comp=s?.header?.competitions?.[0]||{};
-    return {
-      id:g.id,
-      awayPts: row?.away_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score || 0),
-      homePts: row?.home_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score || 0),
-      score: row?.total ?? 0,
-      status: (comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—')
-    };
+    const awayPts = row?.away_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score || 0);
+    const homePts = row?.home_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score || 0);
+    const status = (comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—');
+    return { id:g.id, awayPts, homePts, score: row?.total ?? 0, status };
   }));
   ST.rows = batch.filter(Boolean);
   stamp();
@@ -367,7 +377,7 @@ function renderMini(){
   const grid=$('miniGrid'); if(!grid) return;
   grid.innerHTML = ST.events.map(g=>{
     const r=ST.rows.find(x=>String(x.id)===String(g.id));
-    return miniCard(g,{away_pts:r?.awayPts,home_pts:r?.homePts,total:r?.score});
+    return miniCard(g,{away_pts:r?.awayPts,home_pts:r?.homePts,total:r?.score, statusText:r?.status});
   }).join('');
   grid.querySelectorAll('[data-gid]').forEach(el=>{
     el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'}); };
@@ -401,7 +411,7 @@ document.addEventListener('click',e=>{
 
 /* ===== Boot ===== */
 (async ()=>{
-  // Prevent CLS by fixing logo size right away
+  // Prevent CLS by fixing logo size up front
   document.querySelectorAll('img.logo').forEach(img=>{ img.width=42; img.height=42; });
 
   await loadWeek();
