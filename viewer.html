@@ -6,16 +6,11 @@
 <title>NHL Puck’Em — Live Viewer</title>
 <link rel="preconnect" href="https://site.api.espn.com">
 <style>
-  :root{
-    --bg:#0b0d10; --card:#12161b; --panel:#0f1318;
-    --text:#e8eef4; --muted:#95a7bb; --br:#1b232d;
-    --ok:#9be7b0; --ok-br:#2e5e3f; --chip:#243241;
-  }
-  html,body{margin:0;background:var(--bg);color:var(--text);
-    font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  :root{--bg:#0b0d10;--card:#12161b;--panel:#0f1318;--text:#e8eef4;--muted:#95a7bb;--br:#1b232d;--ok:#9be7b0;--ok-br:#2e5e3f;--chip:#243241}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   *,*:before,*:after{box-sizing:border-box}
-  :focus-visible{outline:2px solid #3c82f6; outline-offset:2px; border-radius:10px}
-  *{scrollbar-width:thin; scrollbar-color:#334658 transparent}
+  :focus-visible{outline:2px solid #3c82f6;outline-offset:2px;border-radius:10px}
+  *{scrollbar-width:thin;scrollbar-color:#334658 transparent}
   *::-webkit-scrollbar{height:10px;width:10px}
   *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
 
@@ -38,30 +33,23 @@
   .topStrip{display:flex;gap:10px;overflow:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
   .tCard{flex:0 0 280px;scroll-snap-align:start;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;display:grid;gap:6px;cursor:pointer}
   .tRow{display:flex;justify-content:space-between;align-items:center;gap:8px}
-  .tTeams{display:flex;align-items:center;gap:8px;min-width:0}
+  .tTeams{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap}
   .tLogo{width:16px;height:16px;border-radius:4px;border:1px solid #1e2732;background:#0d1218;flex:0 0 auto}
-  .tName{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tScore{font-weight:900;border:1px solid #25313d;border-radius:8px;padding:2px 8px;min-width:48px;text-align:center}
+  .tTeam{font-weight:800;max-width:13ch;overflow:hidden;text-overflow:ellipsis}
+  .tDash{opacity:.75;margin:0 .25rem}
+  .tScoreInline{font-weight:900;letter-spacing:.2px;margin:0 .25rem}
   .scoreChip{border:1px solid #25313d;border-radius:8px;padding:2px 8px;font-weight:800;min-width:28px;text-align:center}
   .fantPill{display:inline-flex;align-items:center;gap:6px;background:#0e1a14;color:var(--ok);border:1px solid var(--ok-br);border-radius:999px;padding:5px 8px;font-weight:900}
 
   /* Spotlight */
   .spot{display:grid;grid-template-columns:1fr 400px;gap:12px}
   @media (max-width:1000px){.spot{grid-template-columns:1fr}}
-  .board{
-    display:grid;
-    grid-template-columns:1fr minmax(240px,auto) 1fr;
-    gap:12px;
-    align-items:center;
-  }
-  .side{
-    display:flex;gap:10px;align-items:center;justify-content:center;
-    background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:0
-  }
+  .board{display:grid;grid-template-columns:1fr minmax(240px,auto) 1fr;gap:12px;align-items:center}
+  .side{display:flex;gap:10px;align-items:center;justify-content:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:0}
   .logo{width:42px;height:42px;border-radius:10px;border:1px solid #1e2732;background:#0d1218}
   .teamName{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22ch}
   .centerCol{display:grid;place-items:center;gap:8px;text-align:center}
-  .scoreRow{display:flex;align-items:center;justify-content:center;gap:10px;white-space:nowrap}
+  .scoreRow{display:flex;align-items:center;justify-content:center;gap:10px}
   .scoreBig{font-size:38px;font-weight:900;min-width:48px;text-align:center;border:1px solid #26313c;border-radius:10px;padding:6px 10px}
   .badges{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:2px}
   .badge{border:1px solid var(--chip);background:#0e1620;border-radius:999px;padding:6px 8px}
@@ -74,8 +62,7 @@
   .list{max-height:60vh;overflow:auto;padding:8px 10px}
   .play{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:9px;border:1px solid #1c2430;border-radius:10px;background:#0f1318;margin-bottom:8px}
   .dot{width:10px;height:10px;border-radius:50%}
-  .dot.goal{background:#20d07a}
-  .dot.other{background:#6aa0ff}
+  .dot.goal{background:#20d07a}.dot.other{background:#6aa0ff}
   .when{color:var(--muted);font-size:12px}
 
   /* Mini grid */
@@ -92,12 +79,9 @@
   .gFant{border:1px solid #25313d;border-radius:999px;padding:3px 8px;font-weight:800}
 
   @media (max-width:420px){
-    .wrap{padding:12px}
-    .section{padding:10px}
-    .tCard{flex:0 0 240px}
-    .logo{width:34px;height:34px}
-    .scoreBig{font-size:32px;min-width:44px}
-    .grid{grid-template-columns:1fr}
+    .wrap{padding:12px}.section{padding:10px}.tCard{flex:0 0 240px}
+    .logo{width:34px;height:34px}.scoreBig{font-size:32px;min-width:44px}.grid{grid-template-columns:1fr}
+    .tTeam{max-width:10ch}
   }
 </style>
 </head>
@@ -133,13 +117,11 @@
       <h2 id="spotTitle" style="margin:0 0 6px 0;font-size:18px">Game Spotlight</h2>
 
       <div class="board">
-        <!-- Away -->
         <div class="side">
           <img class="logo" id="awayLogo" alt="">
           <div class="teamName" id="awayName">Away</div>
         </div>
 
-        <!-- Center score (centered & balanced) -->
         <div class="centerCol">
           <div class="scoreRow">
             <div class="scoreBig" id="aScore">0</div>
@@ -153,7 +135,6 @@
           </div>
         </div>
 
-        <!-- Home -->
         <div class="side" style="justify-content:center">
           <div class="teamName" id="homeName" style="text-align:right;max-width:22ch">Home</div>
           <img class="logo" id="homeLogo" alt="">
@@ -161,23 +142,16 @@
       </div>
 
       <div class="panel acc" id="accScoring" aria-expanded="true" style="margin-top:10px;margin-bottom:8px">
-        <div class="head">
-          <h3 style="margin:0;font-size:15px">Scoring Plays</h3>
-          <button class="btn" data-toggle="#accScoring">Toggle</button>
-        </div>
+        <div class="head"><h3 style="margin:0;font-size:15px">Scoring Plays</h3><button class="btn" data-toggle="#accScoring">Toggle</button></div>
         <div class="body"><div id="scoreList" class="list"><div class="small">No data yet.</div></div></div>
       </div>
 
       <div class="panel acc" id="accRecent" aria-expanded="false">
-        <div class="head">
-          <h3 style="margin:0;font-size:15px">Recent Plays</h3>
-          <button class="btn" data-toggle="#accRecent">Toggle</button>
-        </div>
+        <div class="head"><h3 style="margin:0;font-size:15px">Recent Plays</h3><button class="btn" data-toggle="#accRecent">Toggle</button></div>
         <div class="body"><div id="recentList" class="list"><div class="small">No data yet.</div></div></div>
       </div>
     </section>
 
-    <!-- All Games -->
     <section class="card section" id="miniGridWrap">
       <h3 style="margin:0 0 6px 0">All Games</h3>
       <div class="grid" id="miniGrid"></div>
@@ -188,48 +162,41 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ===== Config ===== */
-const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
-const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
-const supa = supabase.createClient(SUPA_URL, SUPA_ANON, { auth:{ persistSession:false } });
-
-/* ===== Week helpers ===== */
+const SUPA_URL='https://acmqdokxwnkkjmfgfyhh.supabase.co';
+const SUPA_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
+const supa=supabase.createClient(SUPA_URL,SUPA_ANON,{auth:{persistSession:false}});
 const TZ='America/Chicago';
-const parts=(d,opts)=>Object.fromEntries(new Intl.DateTimeFormat('en-US',opts).formatToParts(d).map(p=>[p.type,p.value]));
+const parts=(d,o)=>Object.fromEntries(new Intl.DateTimeFormat('en-US',o).formatToParts(d).map(p=>[p.type,p.value]));
 const nowCT=()=>new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
 const addCT=(d,days)=>new Date(new Date(d.getTime()+days*86400000).toLocaleString('en-US',{timeZone:TZ}));
-function weekKey(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const hr=+parts(n,{hour:'2-digit',hour12:false}).hour; const anchor=(hr>=8||days>0)?mon:addCT(mon,-7); const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`; }
-function weekDates(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i); const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}`}); const pM=parts(mon,{month:'2-digit',day:'2-digit'}); const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'}); return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`}; }
-const WEEK_KEY=weekKey(); const WEEK=weekDates();
+function weekKey(){const n=nowCT();const wd=n.getDay();const days=(wd-1+7)%7;const mon=addCT(n,-days);const hr=+parts(n,{hour:'2-digit',hour12:false}).hour;const anchor=(hr>=8||days>0)?mon:addCT(mon,-7);const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'});return `${p.year}-${p.month}-${p.day}-Mon08CT`;}
+function weekDates(){const n=nowCT();const wd=n.getDay();const days=(wd-1+7)%7;const mon=addCT(n,-days);const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i);const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'});return `${p.year}-${p.month}-${p.day}`});const pM=parts(mon,{month:'2-digit',day:'2-digit'});const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'});return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`};}
+const WEEK_KEY=weekKey();const WEEK=weekDates();
 document.getElementById('wkPretty').textContent=WEEK.pretty;
 
-/* ===== APIs ===== */
-const api={ scoreboard:d=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
-const cdn=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'): (t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:'');
+const api={scoreboard:d=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,summary:id=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`};
+const cdn=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'):(t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:'');
 
-/* ===== State ===== */
-const ST={ events:[], rows:[], spotId:null, paused:false, idx:0 };
+const ST={events:[],rows:[],spotId:null,paused:false,idx:0};
 const $=id=>document.getElementById(id);
-const stamp=()=>{ $('lastUpd').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
+const stamp=()=>{$('lastUpd').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});};
 
-/* DB fantasy row */
 async function getGameScore(gid){
-  const { data } = await supa
-    .from('game_scores')
-    .select('total,home_pts,away_pts')
-    .eq('league','NHL').eq('week_key',WEEK_KEY).eq('game_id',String(gid)).maybeSingle();
+  const {data}=await supa.from('game_scores').select('total,home_pts,away_pts').eq('league','NHL').eq('week_key',WEEK_KEY).eq('game_id',String(gid)).maybeSingle();
   return data||null;
 }
 
-/* ===== Render ===== */
-function topCard(g, r){
+/* ===== Renders ===== */
+function topCard(g,r){
   return `<div class="tCard" data-gid="${g.id}">
     <div class="tRow">
       <div class="tTeams">
         ${g.away.logo?`<img class="tLogo" src="${g.away.logo}" alt="">`:''}
-        <div class="tName">${g.away.name} @ ${g.home.name}</div>
+        <span class="tTeam">${g.away.name}</span>
+        <span class="tScoreInline">${(r?.awayPts??0)}<span class="tDash">–</span>${(r?.homePts??0)}</span>
+        <span class="tTeam" style="text-align:right">${g.home.name}</span>
         ${g.home.logo?`<img class="tLogo" src="${g.home.logo}" alt="">`:''}
       </div>
-      <div class="tScore">${(r?.awayPts ?? 0)} – ${(r?.homePts ?? 0)}</div>
     </div>
     <div class="tRow">
       <div class="small">${r.status||''}</div>
@@ -239,175 +206,139 @@ function topCard(g, r){
   </div>`;
 }
 
-function miniCard(g, row, status){
-  const a=row?.away_pts ?? 0, h=row?.home_pts ?? 0;
-  const when = new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-  return `
-  <div class="gCard" data-gid="${g.id}">
+function miniCard(g,row,status){
+  const a=row?.away_pts??0,h=row?.home_pts??0;
+  const when=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return `<div class="gCard" data-gid="${g.id}">
     <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#203040'} 0%, ${g.home.color?('#'+g.home.color):'#2d3a49'} 100%)"></div>
     <div class="line">
-      <div class="sideSm">
-        ${g.away.logo?`<img class="gLogo" src="${g.away.logo}" alt="">`:''}
-        <div class="gName">${g.away.name}</div>
-      </div>
+      <div class="sideSm">${g.away.logo?`<img class="gLogo" src="${g.away.logo}" alt="">`:''}<div class="gName">${g.away.name}</div></div>
       <div class="gScore">${a} – ${h}</div>
-      <div class="sideSm" style="justify-content:flex-end">
-        <div class="gName" style="text-align:right">${g.home.name}</div>
-        ${g.home.logo?`<img class="gLogo" src="${g.home.logo}" alt="">`:''}
-      </div>
+      <div class="sideSm" style="justify-content:flex-end"><div class="gName" style="text-align:right">${g.home.name}</div>${g.home.logo?`<img class="gLogo" src="${g.home.logo}" alt="">`:''}</div>
     </div>
-    <div class="subline">
-      <div class="status">${status || when}</div>
-      <div class="gFant">Fantasy ${(row?.total!=null?Number(row.total):0).toFixed(2)}</div>
-    </div>
+    <div class="subline"><div class="status">${status||when}</div><div class="gFant">Fantasy ${(row?.total!=null?Number(row.total):0).toFixed(2)}</div></div>
   </div>`;
 }
 
 function renderTopStrip(){
   const strip=$('topStrip');
   const top=ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,12);
-  strip.innerHTML = top.map(r=>{
-    const g=ST.events.find(e=>String(e.id)===String(r.id));
-    return topCard(g,r);
-  }).join('');
+  strip.innerHTML=top.map(r=>{const g=ST.events.find(e=>String(e.id)===String(r.id));return topCard(g,r);}).join('');
   strip.querySelectorAll('[data-gid]').forEach(el=>{
-    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'}); };
+    el.onclick=()=>{ST.spotId=el.getAttribute('data-gid');ST.paused=true;setPauseBtn();updateSpotlight();window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'});};
   });
 }
 
-function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false'); $('btnPause').textContent = ST.paused?'Resume':'Pause'; }
+function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed',ST.paused?'true':'false'); $('btnPause').textContent=ST.paused?'Resume':'Pause'; }
 
 async function updateSpotlight(){
-  const id = ST.spotId || (ST.rows[0]?.id);
-  if(!id) return;
-  const g = ST.events.find(e=>String(e.id)===String(id));
-  if(!g) return;
+  const id=ST.spotId||(ST.rows[0]?.id); if(!id) return;
+  const g=ST.events.find(e=>String(e.id)===String(id)); if(!g) return;
 
-  $('spotTitle').textContent = `${g.away.name} @ ${g.home.name}`;
-  $('awayName').textContent  = g.away.name;
-  $('homeName').textContent  = g.home.name;
-  $('awayLogo').src = g.away.logo;  $('awayLogo').width=42; $('awayLogo').height=42;
-  $('homeLogo').src = g.home.logo;  $('homeLogo').width=42; $('homeLogo').height=42;
+  $('spotTitle').textContent=`${g.away.name} @ ${g.home.name}`;
+  $('awayName').textContent=g.away.name; $('homeName').textContent=g.home.name;
+  $('awayLogo').src=g.away.logo; $('awayLogo').width=42; $('awayLogo').height=42;
+  $('homeLogo').src=g.home.logo; $('homeLogo').width=42; $('homeLogo').height=42;
 
-  // ESPN summary (status & plays)
-  const s = await fetch(api.summary(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+  const s=await fetch(api.summary(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
   const comp=s?.header?.competitions?.[0]||{};
-  let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+  let homeC=null,awayC=null;(comp.competitors||[]).forEach(c=>{if(c.homeAway==='home')homeC=c;if(c.homeAway==='away')awayC=c;});
 
-  // DB fantasy row
-  const row = await getGameScore(id);
-  const a = row?.away_pts ?? Number(awayC?.score||0);
-  const h = row?.home_pts ?? Number(homeC?.score||0);
-  $('aScore').textContent = a; $('hScore').textContent = h;
-  $('fantVal').textContent  = (row?.total!=null?Number(row.total).toFixed(2):'0.00');
+  const row=await getGameScore(id);
+  const a=row?.away_pts??Number(awayC?.score||0);
+  const h=row?.home_pts??Number(homeC?.score||0);
+  $('aScore').textContent=a; $('hScore').textContent=h;
+  $('fantVal').textContent=(row?.total!=null?Number(row.total).toFixed(2):'0.00');
 
-  const status = (comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—');
-  $('clockBox').textContent = 'Clock ' + (comp?.status?.displayClock || '—');
-  $('stateBox').textContent = status;
+  const status=(comp?.status?.type?.shortDetail||comp?.status?.type?.description||'—');
+  $('clockBox').textContent='Clock '+(comp?.status?.displayClock||'—');
+  $('stateBox').textContent=status;
 
-  // Scoring plays
-  const scoring = (s?.scoringPlays||[]).slice(-20).reverse();
-  $('scoreList').innerHTML = scoring.length? scoring.map(sp=>{
-    const t = `[P${sp.period?.number||'?'} ${sp.clock?.displayValue||''}]`;
-    const d = (sp.text || sp.description || '').replace(/\s+/g,' ');
+  const scoring=(s?.scoringPlays||[]).slice(-20).reverse();
+  $('scoreList').innerHTML=scoring.length?scoring.map(sp=>{
+    const t=`[P${sp.period?.number||'?'} ${sp.clock?.displayValue||''}]`;
+    const d=(sp.text||sp.description||'').replace(/\s+/g,' ');
     return `<div class="play"><span class="dot goal"></span><div><div>${d}</div><div class="when">${t}</div></div></div>`;
-  }).join('') : '<div class="small">No data yet.</div>';
+  }).join(''):'<div class="small">No data yet.</div>';
 
-  // Recent plays (best-effort)
-  const recent = (s?.allPlays || s?.plays || []).slice(-30).reverse();
-  $('recentList').innerHTML = recent.length ? recent.map(p=>{
-    const t = `[P${p.period?.number||'?'} ${p.clock?.displayValue||''}]`;
-    const text = (p.text || p.description || p.shortText || '').replace(/\s+/g,' ');
+  const recent=(s?.allPlays||s?.plays||[]).slice(-30).reverse();
+  $('recentList').innerHTML=recent.length?recent.map(p=>{
+    const t=`[P${p.period?.number||'?'} ${p.clock?.displayValue||''}]`;
+    const text=(p.text||p.description||p.shortText||'').replace(/\s+/g,' ');
     return `<div class="play"><span class="dot other"></span><div><div>${text}</div><div class="when">${t}</div></div></div>`;
-  }).join('') : '<div class="small">No data yet.</div>';
+  }).join(''):'<div class="small">No data yet.</div>';
 }
 
-/* Load all week games */
+/* Load / refresh */
 async function loadWeek(){
   const all=[];
   for(const d of WEEK.list){
-    const sb = await fetch(api.scoreboard(d),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+    const sb=await fetch(api.scoreboard(d),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
     for(const ev of (sb?.events||[])){
-      const c=ev.competitions?.[0]||{};
-      let home=null,away=null; (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
-      all.push({
-        id:ev.id,
-        start:ev.date,
-        home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdn(home?.team||null) },
-        away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdn(away?.team||null) }
-      });
+      const c=ev.competitions?.[0]||{}; let home=null,away=null;
+      (c.competitors||[]).forEach(x=>{if(x.homeAway==='home')home=x;if(x.homeAway==='away')away=x;});
+      all.push({id:ev.id,start:ev.date,
+        home:{name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home',color:home?.team?.color||null,logo:cdn(home?.team||null)},
+        away:{name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away',color:away?.team?.color||null,logo:cdn(away?.team||null)}});
     }
   }
   all.sort((a,b)=>new Date(a.start)-new Date(b.start));
   ST.events=all;
 }
 
-/* Refresh fantasy/score rows */
 async function refreshRows(){
   if(!ST.events.length) return;
-  const batch = await Promise.all(ST.events.map(async g=>{
-    const s = await fetch(api.summary(g.id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
-    const row = await getGameScore(g.id);
+  const batch=await Promise.all(ST.events.map(async g=>{
+    const s=await fetch(api.summary(g.id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+    const row=await getGameScore(g.id);
     const comp=s?.header?.competitions?.[0]||{};
-    const awayPts = row?.away_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score || 0);
-    const homePts = row?.home_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score || 0);
-    const status = (comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—');
-    return { id:g.id, awayPts, homePts, score: row?.total ?? 0, status };
+    const awayPts=row?.away_pts??Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score||0);
+    const homePts=row?.home_pts??Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score||0);
+    const status=(comp?.status?.type?.shortDetail||comp?.status?.type?.description||'—');
+    return {id:g.id,awayPts,homePts,score:row?.total??0,status};
   }));
-  ST.rows = batch.filter(Boolean);
+  ST.rows=batch.filter(Boolean);
   stamp();
 }
 
-/* Render mini grid */
 function renderMini(){
   const grid=$('miniGrid');
-  grid.innerHTML = ST.events.map(g=>{
+  grid.innerHTML=ST.events.map(g=>{
     const r=ST.rows.find(x=>String(x.id)===String(g.id));
-    return miniCard(g,{away_pts:r?.awayPts,home_pts:r?.homePts,total:r?.score}, r?.status);
+    return miniCard(g,{away_pts:r?.awayPts,home_pts:r?.homePts,total:r?.score},r?.status);
   }).join('');
   grid.querySelectorAll('[data-gid]').forEach(el=>{
-    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'}); };
+    el.onclick=()=>{ST.spotId=el.getAttribute('data-gid');ST.paused=true;setPauseBtn();updateSpotlight();window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'});};
   });
 }
 
-/* Rotation */
 function tickRotate(){
-  if(ST.paused || ST.rows.length===0) return;
-  const top = ST.rows.slice().sort((a,b)=>b.score-a.score);
-  ST.idx = (ST.idx+1) % Math.min(top.length, 10);
-  ST.spotId = top[ST.idx].id;
+  if(ST.paused||ST.rows.length===0) return;
+  const top=ST.rows.slice().sort((a,b)=>b.score-a.score);
+  ST.idx=(ST.idx+1)%Math.min(top.length,10);
+  ST.spotId=top[ST.idx].id;
   updateSpotlight();
 }
 
-/* Controls */
-$('btnPause').onclick=()=>{ ST.paused=!ST.paused; setPauseBtn(); };
-$('btnFS').onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+$('btnPause').onclick=()=>{ST.paused=!ST.paused;setPauseBtn();};
+$('btnFS').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();};
 document.addEventListener('keydown',e=>{
-  if(e.key===' '){ e.preventDefault(); ST.paused=!ST.paused; setPauseBtn(); }
-  if(e.key.toLowerCase()==='f'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+  if(e.key===' '){e.preventDefault();ST.paused=!ST.paused;setPauseBtn();}
+  if(e.key.toLowerCase()==='f'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
 });
-
-/* Accordions */
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-toggle]'); if(!t) return;
-  const sel=t.getAttribute('data-toggle'); const acc=document.querySelector(sel);
-  const open = acc.getAttribute('aria-expanded')==='true';
-  acc.setAttribute('aria-expanded', open?'false':'true');
+  const acc=document.querySelector(t.getAttribute('data-toggle'));
+  const open=acc.getAttribute('aria-expanded')==='true';
+  acc.setAttribute('aria-expanded',open?'false':'true');
 });
 
-/* Boot */
 (async ()=>{
-  document.querySelectorAll('img.logo').forEach(img=>{ img.width=42; img.height=42; });
-
-  await loadWeek();
-  await refreshRows();
-  renderTopStrip();
-  renderMini();
-  await updateSpotlight();
-  setPauseBtn();
-
-  setInterval(async()=>{ await refreshRows(); renderTopStrip(); renderMini(); if(!ST.paused) await updateSpotlight(); }, 30000);
-  setInterval(tickRotate, 8000);
+  document.querySelectorAll('img.logo').forEach(img=>{img.width=42;img.height=42;});
+  await loadWeek(); await refreshRows();
+  renderTopStrip(); renderMini(); await updateSpotlight(); setPauseBtn();
+  setInterval(async()=>{await refreshRows();renderTopStrip();renderMini();if(!ST.paused)await updateSpotlight();},30000);
+  setInterval(tickRotate,8000);
 })();
 </script>
 </body>
