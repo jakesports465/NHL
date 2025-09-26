@@ -6,11 +6,7 @@
 <title>Puck’Em — Viewer</title>
 <link rel="preconnect" href="https://site.api.espn.com">
 <style>
-  :root{
-    --bg:#0b0d10; --card:#12161b; --panel:#0f1318; --muted:#8ea0b3; --text:#e8eef4;
-    --br:#1b232d; --ok:#9be7b0; --okBr:#2e5e3f; --accent2:#31506a;
-  }
-
+  :root{ --bg:#0b0d10; --card:#12161b; --panel:#0f1318; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d; --ok:#9be7b0; --okBr:#2e5e3f }
   html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   *,*::before,*::after{box-sizing:border-box}
   :focus-visible{outline:2px solid #3c82f6; outline-offset:2px; border-radius:8px}
@@ -25,10 +21,10 @@
   .wrap{max-width:1300px;margin:0 auto;padding:16px}
   header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#0f1318,transparent);border-bottom:1px solid var(--br)}
   header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px}
-  .sub{color:var(--muted)}
   .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;min-height:42px}
-  .btn[aria-pressed="true"]{background:#182633;border-color:var(--accent2)}
+  .btn[aria-pressed="true"]{background:#182633;border-color:#31506a}
   .iconBtn{padding:8px 10px;min-height:auto}
+  .sub{color:var(--muted)}
   .kbd{font:12px/1.2 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#cfe2f5;background:#0e1620;border:1px solid #243241;border-radius:8px;padding:6px 8px}
 
   .card{background:var(--card);border:1px solid var(--br);border-radius:14px}
@@ -38,7 +34,7 @@
   .small{font-size:13px;color:var(--muted)}
   .sep{height:1px;background:var(--br);margin:12px 0}
 
-  /* Top strip — horizontally scrollable cards of best games */
+  /* Top Games strip */
   .topStrip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(280px,1fr);gap:12px;overflow:auto;padding:12px}
   .tCard{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:280px;display:grid;gap:6px;cursor:pointer}
   .teams{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -58,40 +54,28 @@
   .scoreBox{text-align:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
   .scoreNum{font-size:42px;font-weight:900}
 
-  /* Plays panel */
   .plays{max-height:34vh;overflow:auto;border:1px solid #1c2430;border-radius:10px;padding:8px;background:#0f1318}
   .play{padding:4px 0;border-bottom:1px dashed #1e2732}
   .play:last-child{border-bottom:0}
 
-  /* Rink block */
   .rinkWrap{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px}
   .rinkTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-  .rink{position:relative;width:100%;aspect-ratio:200/85;background:#e8eef4;border-radius:24px;overflow:hidden;box-shadow:inset 0 0 0 6px #cfd8e3}
-  .rink::before{
-    content:"";position:absolute;inset:0;opacity:.9;
-    background:
-      radial-gradient(closest-side, transparent 0 96%, #cfd8e3 97% 100%) left/50% 100% no-repeat,
-      radial-gradient(closest-side, transparent 0 96%, #cfd8e3 97% 100%) right/50% 100% no-repeat,
-      linear-gradient(#c0392b,#c0392b) 50%/2px 100% no-repeat,
-      linear-gradient(#2362c2,#2362c2) 25%/2px 100% no-repeat,
-      linear-gradient(#2362c2,#2362c2) 75%/2px 100% no-repeat;
-  }
-  .puck{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#111;box-shadow:0 2px 4px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.15)}
-  .zoneLabel{position:absolute;left:50%;transform:translateX(-50%);top:6px;font-weight:700;color:#2a3a4d;font-size:12px;opacity:.7}
 
-  @media (prefers-reduced-motion:no-preference){
-    .animate-enter{transition:opacity .2s ease, transform .2s ease}
-    .animate-enter[data-show="true"]{opacity:1; transform:none}
-    .animate-enter[data-show="false"]{opacity:.98; transform:translateY(2px)}
-  }
+  /* Keep the SVG rink nicely sized */
+  .rinkBox{width:100%;aspect-ratio:200/85}
+  svg{width:100%;height:100%;display:block}
 </style>
 </head>
 <body>
 <header>
   <div class="bar wrap">
-    <div>
-      <div style="font-size:18px;font-weight:800">NHL Puck’Em — Viewer</div>
-      <div class="sub">Week: <b id="wkPretty">—</b> · <span id="lastUpd" class="small">—</span></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <!-- Home button -->
+      <a class="btn iconBtn" href="index.html" title="Home">🏠 Home</a>
+      <div>
+        <div style="font-size:18px;font-weight:800">NHL Puck’Em — Viewer</div>
+        <div class="sub">Week: <b id="wkPretty">—</b> · <span id="lastUpd" class="small">—</span></div>
+      </div>
     </div>
     <div style="display:flex;gap:10px;align-items:center">
       <button id="btnPause" class="btn" aria-pressed="false">⏸️ Pause Rotate</button>
@@ -101,7 +85,6 @@
 </header>
 
 <main class="wrap" style="padding-top:12px">
-  <!-- Top Games strip (scrolling) -->
   <section class="card section">
     <h2>Top Games (Fantasy)</h2>
     <div id="topStrip" class="topStrip" aria-live="polite"></div>
@@ -109,10 +92,8 @@
 
   <div class="sep"></div>
 
-  <!-- Spotlight column + side info (no bottom grid) -->
   <section class="spot">
-    <!-- Spotlight -->
-    <div class="card section animate-enter" id="spotlight" data-show="false" style="display:block">
+    <div class="card section" id="spotlight">
       <h2 style="display:flex;justify-content:space-between;align-items:center">
         <span id="spotTitle">Game Spotlight</span>
         <span class="small" id="spotState">—</span>
@@ -138,8 +119,8 @@
 
       <div class="sep"></div>
 
-      <!-- Rink + Latest Plays stacked on narrow, side-by-side on wide -->
       <div class="spot" style="grid-template-columns:1.2fr 1fr">
+        <!-- SVG Rink + puck -->
         <section class="rinkWrap">
           <div class="rinkTop">
             <div class="small" style="font-weight:700">Rink (Live / Sim)</div>
@@ -147,12 +128,59 @@
               <input id="simToggle" type="checkbox"> Simulate
             </label>
           </div>
-          <div class="rink" id="rink">
-            <div class="zoneLabel" id="zoneLbl">—</div>
-            <div id="puck" class="puck" style="left:50%;top:50%"></div>
+          <div class="rinkBox">
+            <!-- 200x85 NHL-scaled viewBox -->
+            <svg id="rink" viewBox="0 0 200 85" aria-label="Hockey rink">
+              <!-- Ice + outer rounded rectangle -->
+              <defs>
+                <clipPath id="rinkClip">
+                  <rect x="2" y="2" width="196" height="81" rx="22" ry="22"></rect>
+                </clipPath>
+              </defs>
+              <rect x="2" y="2" width="196" height="81" rx="22" ry="22" fill="#f3f7fb" stroke="#cfd8e3" stroke-width="4"/>
+
+              <!-- Center red line -->
+              <line x1="100" y1="2" x2="100" y2="83" stroke="#d33" stroke-width="1.8"/>
+
+              <!-- Blue lines -->
+              <line x1="35" y1="2" x2="35" y2="83" stroke="#2b7bd1" stroke-width="1.8"/>
+              <line x1="165" y1="2" x2="165" y2="83" stroke="#2b7bd1" stroke-width="1.8"/>
+
+              <!-- Center circle + dot -->
+              <circle cx="100" cy="42.5" r="15" fill="none" stroke="#2b7bd1" stroke-width="1.6"/>
+              <circle cx="100" cy="42.5" r="1.7" fill="#2b7bd1"/>
+
+              <!-- Faceoff circles (offensive/defensive zones) -->
+              <!-- Left zone -->
+              <circle cx="25" cy="21" r="11" fill="none" stroke="#d33" stroke-width="1.6"/>
+              <circle cx="25" cy="64" r="11" fill="none" stroke="#d33" stroke-width="1.6"/>
+              <circle cx="25" cy="21" r="1.5" fill="#d33"/>
+              <circle cx="25" cy="64" r="1.5" fill="#d33"/>
+              <!-- Right zone -->
+              <circle cx="175" cy="21" r="11" fill="none" stroke="#d33" stroke-width="1.6"/>
+              <circle cx="175" cy="64" r="11" fill="none" stroke="#d33" stroke-width="1.6"/>
+              <circle cx="175" cy="21" r="1.5" fill="#d33"/>
+              <circle cx="175" cy="64" r="1.5" fill="#d33"/>
+
+              <!-- Goal lines -->
+              <line x1="6"  y1="2" x2="6"  y2="83" stroke="#d33" stroke-width="1.8"/>
+              <line x1="194" y1="2" x2="194" y2="83" stroke="#d33" stroke-width="1.8"/>
+
+              <!-- Creases (semi-circles) -->
+              <path d="M8,42.5 a8,8 0 0 0 16,0" fill="#3aa3ff" fill-opacity="0.9" stroke="#2b7bd1" stroke-width="1.2"/>
+              <path d="M192,42.5 a-8,8 0 0 0 -16,0" fill="#3aa3ff" fill-opacity="0.9" stroke="#2b7bd1" stroke-width="1.2"/>
+
+              <!-- Goals (little rectangles touching goal line) -->
+              <rect x="3.5" y="38.5" width="2.5" height="8" fill="#2b7bd1" rx="0.6"/>
+              <rect x="194" y="38.5" width="2.5" height="8" fill="#2b7bd1" rx="0.6"/>
+
+              <!-- Puck -->
+              <circle id="puck" cx="100" cy="42.5" r="2.6" fill="#111" stroke="#000" stroke-width="0.4" />
+            </svg>
           </div>
         </section>
 
+        <!-- Latest Plays -->
         <section class="panel" style="padding:10px">
           <div class="small" style="margin:0 0 6px 0;font-weight:700">Latest Plays</div>
           <div id="spotLog" class="plays"></div>
@@ -160,7 +188,7 @@
       </div>
     </div>
 
-    <!-- Right column: quick help / controls -->
+    <!-- Right column: quick help -->
     <div class="card section">
       <h2>Controls</h2>
       <div class="sep"></div>
@@ -171,33 +199,29 @@
   </section>
 
   <div class="sep"></div>
-  <div class="small">Tip: the Top Games strip auto-updates; the spotlight rotates through the top-scoring fantasy games unless paused.</div>
+  <div class="small">You can feed live tracking with <code>window.setPuck({x:%, y:%})</code> (0–100 in rink %).</div>
 </main>
 
-<!-- Supabase (read-only) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ------- Config (reuse your keys) ------- */
+/* ------- Supabase + week helpers (same as before) ------- */
 const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
 const supa = supabase.createClient(SUPA_URL, SUPA_ANON, { auth: { persistSession:false } });
 
-/* ------- Week helpers (Mon 08:00 CT) ------- */
 const TZ='America/Chicago';
 const parts=(d,opts)=>Object.fromEntries(new Intl.DateTimeFormat('en-US',opts).formatToParts(d).map(p=>[p.type,p.value]));
 const nowCT=()=>new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
 const addCT=(d,days)=>new Date(new Date(d.getTime()+days*86400000).toLocaleString('en-US',{timeZone:TZ}));
 function weekKey(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const hour=+parts(n,{hour:'2-digit',hour12:false}).hour; const anchor=(hour>=8||days>0)?mon:addCT(mon,-7); const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`; }
 function weekDates(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i); const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}`}); const pM=parts(mon,{month:'2-digit',day:'2-digit'}); const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'}); return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`}; }
-const WEEK_KEY=weekKey(); const WEEK=weekDates();
-const $=id=>document.getElementById(id);
+const WEEK_KEY=weekKey(); const WEEK=weekDates(); const $=id=>document.getElementById(id);
 $('wkPretty').textContent=WEEK.pretty;
 
-/* ------- ESPN & CDN helpers ------- */
+/* ------- ESPN + DB helpers ------- */
 const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
 const cdnNHL=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'): (t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:null);
 
-/* ------- DB helpers (read computed totals) ------- */
 async function getGameScore(gid){
   const { data } = await supa
     .from('game_scores')
@@ -210,29 +234,28 @@ async function getGameScore(gid){
 const ST={ events:[], rows:[], idx:0, paused:false, spotId:null };
 const stamp=()=>{ $('lastUpd').textContent='Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
 
-/* ------- Rink (puck) ------- */
+/* ------- Rink puck control ------- */
 function setPuckPercent(xPct,yPct){
-  const x=Math.max(0,Math.min(100,xPct)), y=Math.max(0,Math.min(100,yPct));
-  const puck=$('puck'), zone=$('zoneLbl');
-  if(puck){ puck.style.left=x+'%'; puck.style.top=y+'%'; }
-  let z='Neutral Zone'; if(x<33.33) z='Defensive Zone'; else if(x>66.66) z='Offensive Zone';
-  if(zone) zone.textContent=z;
+  // map % (0–100) to SVG coords (viewBox 200x85)
+  const cx = Math.max(0, Math.min(100, xPct)) * 2.0; // 0–200
+  const cy = Math.max(0, Math.min(100, yPct)) * 0.85; // 0–85
+  const puck = document.querySelector('#puck');
+  if(puck){ puck.setAttribute('cx', cx.toFixed(2)); puck.setAttribute('cy', cy.toFixed(2)); }
 }
-// public hook for real tracking feed:
+// public hook for real feed:
 window.setPuck = ({x,y}) => setPuckPercent(x,y);
 
 let simTimer=null;
 function startSim(){ stopSim(); let cx=50, cy=50;
   simTimer=setInterval(()=>{ cx+=(Math.random()-0.45)*5; cy+=(Math.random()-0.5)*3;
-    if(cx<1||cx>99) cx = Math.max(1,Math.min(99,cx))*0.98 + (cx<1?2:-2);
-    if(cy<2||cy>98) cy = Math.max(2,Math.min(98,cy))*0.98 + (cy<2?2:-2);
+    cx=Math.max(1,Math.min(99,cx)); cy=Math.max(2,Math.min(98,cy));
     setPuckPercent(cx,cy);
   },500);
 }
 function stopSim(){ if(simTimer){ clearInterval(simTimer); simTimer=null; } }
 $('simToggle').addEventListener('change',e=> e.target.checked?startSim():stopSim());
 
-/* ------- UI builders ------- */
+/* ------- Top strip + Spotlight ------- */
 function tCard(r,g){
   return `
     <div class="tCard" data-gid="${r.id}" title="Open ${g.away.name} @ ${g.home.name}">
@@ -258,24 +281,16 @@ function renderTopStrip(){
   }).join('') || '<div class="small" style="padding:8px">—</div>';
 
   strip.querySelectorAll('[data-gid]').forEach(el=>{
-    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); openSpotlight(); };
+    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); openSpotlight(); window.scrollTo({top:0,behavior:'smooth'}); };
   });
 }
+function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false'); $('btnPause').textContent = ST.paused?'▶️ Resume Rotate':'⏸️ Pause Rotate'; }
 
-function setPauseBtn(){
-  $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false');
-  $('btnPause').textContent = ST.paused?'▶️ Resume Rotate':'⏸️ Pause Rotate';
-}
-
-/* ------- Spotlight ------- */
 async function openSpotlight(){
   const id = ST.spotId || (ST.rows[0]?.id);
   if(!id) return;
   const g = ST.events.find(e=>String(e.id)===String(id));
   if(!g) return;
-
-  // scroll back to top when opening
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 
   $('spotTitle').textContent = `${g.away.name} @ ${g.home.name}`;
 
@@ -285,7 +300,6 @@ async function openSpotlight(){
 
   const row = await getGameScore(id);
 
-  // Teams block
   $('spotTeams').innerHTML = `
     <div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
       <div style="display:flex;gap:10px;align-items:center">
@@ -310,7 +324,7 @@ async function openSpotlight(){
   $('spotPer').textContent   = comp?.status?.period ?? '—';
   $('spotState').textContent = comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—';
 
-  // Latest scoring plays (yes: pulled from ESPN summary)
+  // latest plays
   const log=$('spotLog'); log.innerHTML='';
   (s?.scoringPlays||[]).slice(-14).reverse().forEach(sp=>{
     const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');
@@ -318,7 +332,6 @@ async function openSpotlight(){
   });
 }
 
-/* ------- Data load ------- */
 async function loadWeek(){
   const all=[];
   for(const d of WEEK.list){
@@ -339,7 +352,6 @@ async function loadWeek(){
   ST.events=all;
 }
 
-/* ------- Refresh fantasy/score rows ------- */
 async function refreshRows(){
   if(!ST.events.length) return;
   const batch = await Promise.all(ST.events.map(async g=>{
@@ -359,7 +371,6 @@ async function refreshRows(){
   stamp();
 }
 
-/* ------- Rotation ------- */
 function tickRotate(){
   if(ST.paused || ST.rows.length===0) return;
   const top = ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,12);
@@ -369,7 +380,7 @@ function tickRotate(){
   openSpotlight();
 }
 
-/* ------- Controls ------- */
+/* Controls */
 $('btnPause').onclick=()=>{ ST.paused=!ST.paused; setPauseBtn(); };
 $('btnFS').onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
 document.addEventListener('keydown',e=>{
@@ -377,7 +388,7 @@ document.addEventListener('keydown',e=>{
   if(e.key.toLowerCase()==='f'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 });
 
-/* ------- Boot ------- */
+/* Boot */
 (async ()=>{
   await loadWeek();
   await refreshRows();
@@ -385,7 +396,6 @@ document.addEventListener('keydown',e=>{
   ST.spotId = (ST.rows[0]?.id) || null;
   await openSpotlight();
 
-  // periodic refresh
   setInterval(async()=>{ await refreshRows(); renderTopStrip(); if(!ST.paused) await openSpotlight(); }, 30000);
   setInterval(tickRotate, 8000);
 })();
