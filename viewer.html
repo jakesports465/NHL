@@ -6,22 +6,17 @@
 <title>NHL Puck’Em — Live Viewer</title>
 <link rel="preconnect" href="https://site.api.espn.com">
 <style>
-  /* ===== Theme ===== */
   :root{
     --bg:#0b0d10; --card:#12161b; --panel:#0f1318;
     --text:#e8eef4; --muted:#95a7bb; --br:#1b232d;
     --ok:#9be7b0; --ok-br:#2e5e3f; --chip:#243241;
-    --accent:#2b4d6a;
   }
   html,body{margin:0;background:var(--bg);color:var(--text);
     font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   *,*:before,*:after{box-sizing:border-box}
   :focus-visible{outline:2px solid #3c82f6; outline-offset:2px; border-radius:10px}
-
-  /* Scrollbar (desktop) */
   *{scrollbar-width:thin; scrollbar-color:#334658 transparent}
   *::-webkit-scrollbar{height:10px;width:10px}
-  *::-webkit-scrollbar-track{background:transparent}
   *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
 
   .wrap{max-width:1160px;margin:0 auto;padding:14px}
@@ -31,80 +26,67 @@
   .panel{background:var(--panel);border:1px solid #1c2430;border-radius:14px}
   .section{padding:12px}
   .small{font-size:12.5px;color:var(--muted)}
-  .sep{height:1px;background:var(--br);margin:10px 0}
+  .chip{border:1px dashed #364353;border-radius:999px;padding:6px 10px;font-size:12px}
+  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:8px 11px;border-radius:10px;cursor:pointer;min-height:38px}
+  .btn.toggle[aria-pressed="true"]{background:#182633;border-color:#31506a}
 
-  /* Header */
   header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#0f1318 75%,transparent);border-bottom:1px solid var(--br)}
   .title{font-size:clamp(16px,2vw,20px);font-weight:800;margin:0}
-  .btn{
-    background:#14202b;border:1px solid #243241;color:var(--text);
-    padding:8px 11px;border-radius:10px;cursor:pointer;min-height:38px
-  }
-  .btn.toggle[aria-pressed="true"]{background:#182633;border-color:#31506a}
-  .chip{border:1px dashed #364353;border-radius:999px;padding:6px 10px;font-size:12px}
 
   /* Top strip */
   .stripWrap{padding:8px 10px}
-  .topStrip{
-    display:flex; gap:10px; overflow:auto; scroll-snap-type:x mandatory; padding-bottom:6px
-  }
-  .topCard{
-    flex:0 0 260px; scroll-snap-align:start; background:#0f1318; border:1px solid #1c2430;
-    border-radius:12px; padding:10px; display:grid; gap:6px; cursor:pointer
-  }
-  .teamsRow{display:flex; align-items:center; justify-content:space-between; gap:8px}
-  .name{font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .scoreChip{border:1px solid #25313d; border-radius:8px; padding:2px 8px; font-weight:800; min-width:28px; text-align:center}
-  .fantPill{display:inline-flex; align-items:center; gap:8px; background:#0e1a14; color:var(--ok);
-    border:1px solid var(--ok-br); border-radius:999px; padding:6px 10px; font-weight:900}
+  .topStrip{display:flex;gap:10px;overflow:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
+  .tCard{flex:0 0 280px;scroll-snap-align:start;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;display:grid;gap:6px;cursor:pointer}
+  .tTeams{display:flex;align-items:center;gap:8px;min-width:0}
+  .tLogo{width:16px;height:16px;border-radius:4px;border:1px solid #1e2732;background:#0d1218;flex:0 0 auto}
+  .tName{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tRow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .scoreChip{border:1px solid #25313d;border-radius:8px;padding:2px 8px;font-weight:800;min-width:28px;text-align:center}
+  .fantPill{display:inline-flex;align-items:center;gap:6px;background:#0e1a14;color:var(--ok);border:1px solid var(--ok-br);border-radius:999px;padding:5px 8px;font-weight:900}
 
   /* Spotlight */
-  .spot{display:grid; grid-template-columns:1fr 400px; gap:12px}
-  @media (max-width:1000px){ .spot{grid-template-columns:1fr} }
-  .board{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
-  @media (max-width:640px){ .board{grid-template-columns:1fr 1fr} }
-  .side{display:flex; gap:10px; align-items:center; background:#0f1318;border:1px solid #1c2430;border-radius:12px; padding:10px}
-  .logo{width:42px;height:42px;border-radius:10px;border:1px solid #1e2732;background:#0d1218; flex:0 0 auto}
-  .teamName{font-weight:800}
-  .scoreRow{display:flex; align-items:center; justify-content:center; gap:10px; grid-column:2}
-  .scoreBig{font-size:38px; font-weight:900; min-width:48px; text-align:center; border:1px solid #26313c; border-radius:10px; padding:6px 10px}
-  .centerCell{display:grid; gap:8px; align-content:start}
-  .badge{border:1px solid var(--chip); background:#0e1620; border-radius:999px; padding:6px 8px}
+  .spot{display:grid;grid-template-columns:1fr 400px;gap:12px}
+  @media (max-width:1000px){.spot{grid-template-columns:1fr}}
+  .board{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+  .side{display:flex;gap:10px;align-items:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:0}
+  .logo{width:42px;height:42px;border-radius:10px;border:1px solid #1e2732;background:#0d1218}
+  .teamName{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .scoreRow{display:flex;align-items:center;gap:10px;white-space:nowrap}
+  .scoreBig{font-size:38px;font-weight:900;min-width:48px;text-align:center;border:1px solid #26313c;border-radius:10px;padding:6px 10px}
+  .badges{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .badge{border:1px solid var(--chip);background:#0e1620;border-radius:999px;padding:6px 8px}
+  .fant{background:#0e1a14;border:1px solid var(--ok-br);color:var(--ok)}
 
-  /* Plays (accordion) */
-  .acc .head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; cursor:pointer}
-  .acc .body{max-height:0; overflow:hidden; transition:max-height .25s ease}
+  /* Plays */
+  .acc .head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer}
+  .acc .body{max-height:0;overflow:hidden;transition:max-height .25s ease}
   .acc[aria-expanded="true"] .body{max-height:60vh}
-  .list{max-height:60vh; overflow:auto; padding:8px 10px}
-  .play{display:grid; grid-template-columns:auto 1fr; gap:10px; padding:9px; border:1px solid #1c2430; border-radius:10px; background:#0f1318; margin-bottom:8px}
+  .list{max-height:60vh;overflow:auto;padding:8px 10px}
+  .play{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:9px;border:1px solid #1c2430;border-radius:10px;background:#0f1318;margin-bottom:8px}
   .dot{width:10px;height:10px;border-radius:50%}
   .dot.goal{background:#20d07a}
   .dot.other{background:#6aa0ff}
-  .when{color:var(--muted); font-size:12px}
+  .when{color:var(--muted);font-size:12px}
 
-  /* ===== All Games grid (mini) ===== */
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px}
+  /* Mini grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
   .gCard{background:#11171e;border:1px solid #1f2a36;border-radius:12px;padding:10px;display:grid;gap:8px;cursor:pointer}
   .band{height:5px;border-radius:6px;margin:-10px -10px 6px}
-  .gTeams{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
-  .gLogo{width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0d1218}
-  .gNames{min-width:0}
-  .gTitle{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .gFantasy{border:1px solid #25313d;border-radius:999px;padding:3px 8px;font-weight:800}
-  .gRow{display:flex;justify-content:space-between;align-items:center;gap:8px}
-  .gScore{font-weight:900;letter-spacing:.5px}
-  .pill{border:1px solid var(--chip);background:#0e1620;border-radius:999px;padding:4px 8px}
+  .line{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+  .sideSm{display:flex;align-items:center;gap:8px;min-width:0}
+  .gLogo{width:20px;height:20px;border-radius:6px;border:1px solid #1e2732;background:#0d1218;flex:0 0 auto}
+  .gName{font-weight:800;max-width:42ch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gScore{font-weight:900;letter-spacing:.4px;flex:0 0 auto}
+  .subline{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .status{color:var(--muted);font-size:12px}
+  .gFant{border:1px solid #25313d;border-radius:999px;padding:3px 8px;font-weight:800}
 
-  /* Phone polish */
   @media (max-width:420px){
     .wrap{padding:12px}
     .section{padding:10px}
-    .topCard{flex:0 0 220px; height:92px}
+    .tCard{flex:0 0 240px}
     .logo{width:34px;height:34px}
-    .teamName{font-size:14px}
     .scoreBig{font-size:32px;min-width:44px}
-    .fantPill{padding:5px 9px;font-size:12.5px}
     .grid{grid-template-columns:1fr}
   }
 </style>
@@ -137,50 +119,43 @@
 
   <!-- Spotlight + Plays -->
   <section class="spot">
-    <!-- Spotlight -->
     <section class="card section">
       <h2 id="spotTitle" style="margin:0 0 6px 0;font-size:18px">Game Spotlight</h2>
+
       <div class="board">
-        <div class="side" id="awaySide">
+        <!-- Away -->
+        <div class="side">
           <img class="logo" id="awayLogo" alt="">
-          <div>
-            <div class="teamName" id="awayName">Away</div>
-            <div class="small">Score <b id="awayPts">0</b></div>
-          </div>
+          <div class="teamName" id="awayName">Away</div>
         </div>
 
-        <div class="centerCell">
-          <div class="row scoreRow">
+        <!-- Center score (horizontal, single place to see score) -->
+        <div>
+          <div class="scoreRow">
             <div class="scoreBig" id="aScore">0</div>
-            <div class="small" style="opacity:.8">—</div>
+            <div class="small" style="opacity:.7">–</div>
             <div class="scoreBig" id="hScore">0</div>
           </div>
-          <div class="row" style="justify-content:center;gap:8px">
+          <div class="badges">
             <span class="badge small" id="clockBox">Clock —</span>
             <span class="badge small" id="stateBox">State —</span>
-            <span class="fantPill" id="fantBadge">Fantasy <b id="fantVal" style="margin-left:6px">0.00</b></span>
+            <span class="badge small fant">Fantasy <b id="fantVal" style="margin-left:6px">0.00</b></span>
           </div>
         </div>
 
-        <div class="side" id="homeSide" style="justify-content:end">
-          <div style="text-align:right;margin-right:6px">
-            <div class="teamName" id="homeName">Home</div>
-            <div class="small">Score <b id="homePts">0</b></div>
-          </div>
+        <!-- Home -->
+        <div class="side" style="justify-content:flex-end">
+          <div class="teamName" id="homeName" style="text-align:right">Home</div>
           <img class="logo" id="homeLogo" alt="">
         </div>
       </div>
-      <div class="sep"></div>
 
-      <!-- Accordions -->
-      <div class="panel acc" id="accScoring" aria-expanded="true" style="margin-bottom:8px">
+      <div class="panel acc" id="accScoring" aria-expanded="true" style="margin-top:10px;margin-bottom:8px">
         <div class="head">
           <h3 style="margin:0;font-size:15px">Scoring Plays</h3>
           <button class="btn" data-toggle="#accScoring">Toggle</button>
         </div>
-        <div class="body">
-          <div id="scoreList" class="list"><div class="small">No data yet.</div></div>
-        </div>
+        <div class="body"><div id="scoreList" class="list"><div class="small">No data yet.</div></div></div>
       </div>
 
       <div class="panel acc" id="accRecent" aria-expanded="false">
@@ -188,22 +163,18 @@
           <h3 style="margin:0;font-size:15px">Recent Plays</h3>
           <button class="btn" data-toggle="#accRecent">Toggle</button>
         </div>
-        <div class="body">
-          <div id="recentList" class="list"><div class="small">No data yet.</div></div>
-        </div>
+        <div class="body"><div id="recentList" class="list"><div class="small">No data yet.</div></div></div>
       </div>
     </section>
 
-    <!-- All Games (mini grid with logos + scores) -->
+    <!-- All Games -->
     <section class="card section" id="miniGridWrap">
       <h3 style="margin:0 0 6px 0">All Games</h3>
       <div class="grid" id="miniGrid"></div>
     </section>
   </section>
-
 </main>
 
-<!-- Supabase (read-only) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ===== Config ===== */
@@ -230,40 +201,52 @@ const ST={ events:[], rows:[], spotId:null, paused:false, idx:0 };
 const $=id=>document.getElementById(id);
 const stamp=()=>{ $('lastUpd').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
 
-/* ===== DB helpers (fantasy row) ===== */
+/* DB fantasy row */
 async function getGameScore(gid){
   const { data } = await supa
     .from('game_scores')
-    .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus')
+    .select('total,home_pts,away_pts')
     .eq('league','NHL').eq('week_key',WEEK_KEY).eq('game_id',String(gid)).maybeSingle();
   return data||null;
 }
 
-/* ===== Render helpers ===== */
-function miniCard(g, row){
-  const a=row?.away_pts ?? 0, h=row?.home_pts ?? 0, f=row?.total ?? 0;
-  const status = row?.statusText || '';
+/* ===== Render ===== */
+function topCard(g, r){
+  return `<div class="tCard" data-gid="${g.id}">
+    <div class="tTeams">
+      ${g.away.logo?`<img class="tLogo" src="${g.away.logo}" alt="">`:''}
+      <div class="tName">${g.away.name} @ ${g.home.name}</div>
+      ${g.home.logo?`<img class="tLogo" src="${g.home.logo}" alt="">`:''}
+    </div>
+    <div class="tRow">
+      <div class="small">${r.status||''}</div>
+      <div class="scoreChip">${Number(r.score||0).toFixed(2)}</div>
+    </div>
+    <div><span class="fantPill">Fantasy <b>${Number(r.score||0).toFixed(2)}</b></span></div>
+  </div>`;
+}
+
+function miniCard(g, row, status){
+  const a=row?.away_pts ?? 0, h=row?.home_pts ?? 0;
   const when = new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
   return `
   <div class="gCard" data-gid="${g.id}">
     <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#203040'} 0%, ${g.home.color?('#'+g.home.color):'#2d3a49'} 100%)"></div>
-
-    <div class="gTeams">
-      ${g.away.logo?`<img class="gLogo" src="${g.away.logo}" alt="">`:''}
-      <div class="gNames">
-        <div class="gTitle">${g.away.name} @ ${g.home.name}</div>
-        <div class="status">${when}</div>
+    <div class="line">
+      <div class="sideSm">
+        ${g.away.logo?`<img class="gLogo" src="${g.away.logo}" alt="">`:''}
+        <div class="gName">${g.away.name}</div>
       </div>
-      <div class="gFantasy">Fantasy ${Number(f||0).toFixed(2)}</div>
-    </div>
-
-    <div class="gRow">
-      <div class="pill">A ${a}</div>
       <div class="gScore">${a} – ${h}</div>
-      <div class="pill">H ${h}</div>
+      <div class="sideSm" style="justify-content:flex-end">
+        <div class="gName" style="text-align:right">${g.home.name}</div>
+        ${g.home.logo?`<img class="gLogo" src="${g.home.logo}" alt="">`:''}
+      </div>
     </div>
-
-    <div class="status" id="st-${g.id}">${status}</div>
+    <div class="subline">
+      <div class="status">${status || when}</div>
+      <div class="gFant">Fantasy ${(row?.total!=null?Number(row.total):0).toFixed(2)}</div>
+    </div>
   </div>`;
 }
 
@@ -272,14 +255,7 @@ function renderTopStrip(){
   const top=ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,12);
   strip.innerHTML = top.map(r=>{
     const g=ST.events.find(e=>String(e.id)===String(r.id));
-    return `<div class="topCard" data-gid="${r.id}">
-      <div class="teamsRow">
-        <div class="name">${g.away.name} @ ${g.home.name}</div>
-        <div class="scoreChip">${Number(r.score||0).toFixed(2)}</div>
-      </div>
-      <div class="small">${r.status||''}</div>
-      <div><span class="fantPill">Fantasy <b>${Number(r.score||0).toFixed(2)}</b></span></div>
-    </div>`;
+    return topCard(g,r);
   }).join('');
   strip.querySelectorAll('[data-gid]').forEach(el=>{
     el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'}); };
@@ -300,34 +276,31 @@ async function updateSpotlight(){
   $('awayLogo').src = g.away.logo;  $('awayLogo').width=42; $('awayLogo').height=42;
   $('homeLogo').src = g.home.logo;  $('homeLogo').width=42; $('homeLogo').height=42;
 
-  // ESPN summary (for status & plays)
+  // ESPN summary (status & plays)
   const s = await fetch(api.summary(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
   const comp=s?.header?.competitions?.[0]||{};
   let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
 
   // DB fantasy row
   const row = await getGameScore(id);
-
   const a = row?.away_pts ?? Number(awayC?.score||0);
   const h = row?.home_pts ?? Number(homeC?.score||0);
   $('aScore').textContent = a; $('hScore').textContent = h;
-  $('awayPts').textContent = a; $('homePts').textContent = h;
   $('fantVal').textContent  = (row?.total!=null?Number(row.total).toFixed(2):'0.00');
 
   const status = (comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—');
   $('clockBox').textContent = 'Clock ' + (comp?.status?.displayClock || '—');
   $('stateBox').textContent = status;
 
-  // Plays — Scoring
+  // Scoring plays
   const scoring = (s?.scoringPlays||[]).slice(-20).reverse();
-  const scoreList = $('scoreList');
-  scoreList.innerHTML = scoring.length? scoring.map(sp=>{
+  $('scoreList').innerHTML = scoring.length? scoring.map(sp=>{
     const t = `[P${sp.period?.number||'?'} ${sp.clock?.displayValue||''}]`;
     const d = (sp.text || sp.description || '').replace(/\s+/g,' ');
     return `<div class="play"><span class="dot goal"></span><div><div>${d}</div><div class="when">${t}</div></div></div>`;
   }).join('') : '<div class="small">No data yet.</div>';
 
-  // Plays — Recent (best-effort; ESPN payloads vary)
+  // Recent plays (best-effort)
   const recent = (s?.allPlays || s?.plays || []).slice(-30).reverse();
   $('recentList').innerHTML = recent.length ? recent.map(p=>{
     const t = `[P${p.period?.number||'?'} ${p.clock?.displayValue||''}]`;
@@ -336,7 +309,7 @@ async function updateSpotlight(){
   }).join('') : '<div class="small">No data yet.</div>';
 }
 
-/* ===== Data load ===== */
+/* Load all week games */
 async function loadWeek(){
   const all=[];
   for(const d of WEEK.list){
@@ -356,7 +329,7 @@ async function loadWeek(){
   ST.events=all;
 }
 
-/* ===== Refresh fantasy/score rows ===== */
+/* Refresh fantasy/score rows */
 async function refreshRows(){
   if(!ST.events.length) return;
   const batch = await Promise.all(ST.events.map(async g=>{
@@ -372,19 +345,19 @@ async function refreshRows(){
   stamp();
 }
 
-/* ===== Mini grid render ===== */
+/* Render mini grid */
 function renderMini(){
-  const grid=$('miniGrid'); if(!grid) return;
+  const grid=$('miniGrid');
   grid.innerHTML = ST.events.map(g=>{
     const r=ST.rows.find(x=>String(x.id)===String(g.id));
-    return miniCard(g,{away_pts:r?.awayPts,home_pts:r?.homePts,total:r?.score, statusText:r?.status});
+    return miniCard(g,{away_pts:r?.awayPts,home_pts:r?.homePts,total:r?.score}, r?.status);
   }).join('');
   grid.querySelectorAll('[data-gid]').forEach(el=>{
     el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); window.scrollTo({top:document.querySelector('.spot').offsetTop-8,behavior:'smooth'}); };
   });
 }
 
-/* ===== Rotation ===== */
+/* Rotation */
 function tickRotate(){
   if(ST.paused || ST.rows.length===0) return;
   const top = ST.rows.slice().sort((a,b)=>b.score-a.score);
@@ -393,7 +366,7 @@ function tickRotate(){
   updateSpotlight();
 }
 
-/* ===== Controls ===== */
+/* Controls */
 $('btnPause').onclick=()=>{ ST.paused=!ST.paused; setPauseBtn(); };
 $('btnFS').onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
 document.addEventListener('keydown',e=>{
@@ -401,17 +374,16 @@ document.addEventListener('keydown',e=>{
   if(e.key.toLowerCase()==='f'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 });
 
-/* ===== Accordions ===== */
+/* Accordions */
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-toggle]'); if(!t) return;
   const sel=t.getAttribute('data-toggle'); const acc=document.querySelector(sel);
-  const on = acc.getAttribute('aria-expanded')==='true';
-  acc.setAttribute('aria-expanded', on?'false':'true');
+  const open = acc.getAttribute('aria-expanded')==='true';
+  acc.setAttribute('aria-expanded', open?'false':'true');
 });
 
-/* ===== Boot ===== */
+/* Boot */
 (async ()=>{
-  // Prevent CLS by fixing logo size up front
   document.querySelectorAll('img.logo').forEach(img=>{ img.width=42; img.height=42; });
 
   await loadWeek();
@@ -421,7 +393,6 @@ document.addEventListener('click',e=>{
   await updateSpotlight();
   setPauseBtn();
 
-  // periodic updates
   setInterval(async()=>{ await refreshRows(); renderTopStrip(); renderMini(); if(!ST.paused) await updateSpotlight(); }, 30000);
   setInterval(tickRotate, 8000);
 })();
