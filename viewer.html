@@ -11,7 +11,7 @@
   *,*::before,*::after{box-sizing:border-box}
   :focus-visible{outline:2px solid #3c82f6; outline-offset:2px; border-radius:8px}
 
-  /* Sleek themed scrollbars */
+  /* Themed scrollbars */
   *{ scrollbar-width:thin; scrollbar-color:#334152 #0f1318 }
   *::-webkit-scrollbar{ width:10px; height:10px }
   *::-webkit-scrollbar-track{ background:#0f1318; border-left:1px solid #17202a }
@@ -23,7 +23,6 @@
   header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px}
   .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;min-height:42px}
   .btn[aria-pressed="true"]{background:#182633;border-color:#31506a}
-  .iconBtn{padding:8px 10px;min-height:auto}
   .sub{color:var(--muted)}
   .kbd{font:12px/1.2 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#cfe2f5;background:#0e1620;border:1px solid #243241;border-radius:8px;padding:6px 8px}
 
@@ -34,7 +33,7 @@
   .small{font-size:13px;color:var(--muted)}
   .sep{height:1px;background:var(--br);margin:12px 0}
 
-  /* Top Games strip */
+  /* Top strip */
   .topStrip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(280px,1fr);gap:12px;overflow:auto;padding:12px}
   .tCard{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:280px;display:grid;gap:6px;cursor:pointer}
   .teams{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -58,11 +57,10 @@
   .play{padding:4px 0;border-bottom:1px dashed #1e2732}
   .play:last-child{border-bottom:0}
 
+  /* Rink */
   .rinkWrap{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px}
   .rinkTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-
-  /* Keep the SVG rink nicely sized */
-  .rinkBox{width:100%;aspect-ratio:200/85}
+  .rinkBox{width:100%;aspect-ratio:200/85} /* always visible on load */
   svg{width:100%;height:100%;display:block}
 </style>
 </head>
@@ -70,8 +68,7 @@
 <header>
   <div class="bar wrap">
     <div style="display:flex;gap:10px;align-items:center">
-      <!-- Home button -->
-      <a class="btn iconBtn" href="index.html" title="Home">🏠 Home</a>
+      <a class="btn" href="index.html" title="Home">Home</a>
       <div>
         <div style="font-size:18px;font-weight:800">NHL Puck’Em — Viewer</div>
         <div class="sub">Week: <b id="wkPretty">—</b> · <span id="lastUpd" class="small">—</span></div>
@@ -79,7 +76,7 @@
     </div>
     <div style="display:flex;gap:10px;align-items:center">
       <button id="btnPause" class="btn" aria-pressed="false">⏸️ Pause Rotate</button>
-      <button id="btnFS" class="btn iconBtn" title="Fullscreen">⛶</button>
+      <button id="btnFS" class="btn" title="Fullscreen">Fullscreen</button>
     </div>
   </div>
 </header>
@@ -93,6 +90,7 @@
   <div class="sep"></div>
 
   <section class="spot">
+    <!-- LEFT: Spotlight with RINK FIRST so it’s visible immediately -->
     <div class="card section" id="spotlight">
       <h2 style="display:flex;justify-content:space-between;align-items:center">
         <span id="spotTitle">Game Spotlight</span>
@@ -100,8 +98,66 @@
       </h2>
 
       <div class="sep"></div>
-      <div id="spotTeams"></div>
 
+      <!-- RINK -->
+      <section class="rinkWrap">
+        <div class="rinkTop">
+          <div class="small" style="font-weight:700">Rink (Live / Sim)</div>
+          <label class="small" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input id="simToggle" type="checkbox"> Simulate
+          </label>
+        </div>
+        <div class="rinkBox">
+          <!-- Accurate 200×85 rink -->
+          <svg id="rink" viewBox="0 0 200 85" aria-label="Hockey rink">
+            <defs>
+              <clipPath id="rinkClip"><rect x="2" y="2" width="196" height="81" rx="22" ry="22"/></clipPath>
+            </defs>
+            <!-- Ice + boards -->
+            <rect x="2" y="2" width="196" height="81" rx="22" ry="22" fill="#eef3f8" stroke="#cfd8e3" stroke-width="4"/>
+            <!-- Center red line -->
+            <line x1="100" y1="2" x2="100" y2="83" stroke="#d33" stroke-width="2"/>
+            <!-- Blue lines: 25 ft (≈25/100*200=50) from center => at 75 & 125 -->
+            <line x1="75" y1="2" x2="75" y2="83" stroke="#2b7bd1" stroke-width="2"/>
+            <line x1="125" y1="2" x2="125" y2="83" stroke="#2b7bd1" stroke-width="2"/>
+            <!-- Goal lines: 11 ft from end => at 11 & 189 -->
+            <line x1="11" y1="2" x2="11" y2="83" stroke="#d33" stroke-width="2"/>
+            <line x1="189" y1="2" x2="189" y2="83" stroke="#d33" stroke-width="2"/>
+
+            <!-- Center circle + dot -->
+            <circle cx="100" cy="42.5" r="15" fill="none" stroke="#2b7bd1" stroke-width="1.6"/>
+            <circle cx="100" cy="42.5" r="1.7" fill="#2b7bd1"/>
+
+            <!-- Offensive/defensive zone faceoff circles (x≈69 & 131, y≈21 and 64) -->
+            <!-- Left zone -->
+            <circle cx="69" cy="21" r="10.5" fill="none" stroke="#d33" stroke-width="1.6"/>
+            <circle cx="69" cy="64" r="10.5" fill="none" stroke="#d33" stroke-width="1.6"/>
+            <circle cx="69" cy="21" r="1.6" fill="#d33"/>
+            <circle cx="69" cy="64" r="1.6" fill="#d33"/>
+            <!-- Right zone -->
+            <circle cx="131" cy="21" r="10.5" fill="none" stroke="#d33" stroke-width="1.6"/>
+            <circle cx="131" cy="64" r="10.5" fill="none" stroke="#d33" stroke-width="1.6"/>
+            <circle cx="131" cy="21" r="1.6" fill="#d33"/>
+            <circle cx="131" cy="64" r="1.6" fill="#d33"/>
+
+            <!-- Creases: 6 ft radius (≈6/100*200=12), depth clipped -->
+            <path d="M13,42.5 a12,12 0 0 0 24,0" fill="#3aa3ff" fill-opacity="0.9" stroke="#2b7bd1" stroke-width="1.2"/>
+            <path d="M187,42.5 a-12,12 0 0 0 -24,0" fill="#3aa3ff" fill-opacity="0.9" stroke="#2b7bd1" stroke-width="1.2"/>
+
+            <!-- Goals touching goal line -->
+            <rect x="9.2" y="39" width="1.8" height="7" fill="#2b7bd1" rx="0.5"/>
+            <rect x="189" y="39" width="1.8" height="7" fill="#2b7bd1" rx="0.5"/>
+
+            <!-- Puck -->
+            <circle id="puck" cx="100" cy="42.5" r="2.6" fill="#111" stroke="#000" stroke-width="0.4" />
+          </svg>
+        </div>
+      </section>
+
+      <div class="sep"></div>
+
+      <!-- Teams + score/clock below rink -->
+      <div id="spotTeams"></div>
       <div class="sep"></div>
 
       <div class="scoreRow">
@@ -119,92 +175,30 @@
 
       <div class="sep"></div>
 
-      <div class="spot" style="grid-template-columns:1.2fr 1fr">
-        <!-- SVG Rink + puck -->
-        <section class="rinkWrap">
-          <div class="rinkTop">
-            <div class="small" style="font-weight:700">Rink (Live / Sim)</div>
-            <label class="small" style="display:flex;align-items:center;gap:8px;cursor:pointer">
-              <input id="simToggle" type="checkbox"> Simulate
-            </label>
-          </div>
-          <div class="rinkBox">
-            <!-- 200x85 NHL-scaled viewBox -->
-            <svg id="rink" viewBox="0 0 200 85" aria-label="Hockey rink">
-              <!-- Ice + outer rounded rectangle -->
-              <defs>
-                <clipPath id="rinkClip">
-                  <rect x="2" y="2" width="196" height="81" rx="22" ry="22"></rect>
-                </clipPath>
-              </defs>
-              <rect x="2" y="2" width="196" height="81" rx="22" ry="22" fill="#f3f7fb" stroke="#cfd8e3" stroke-width="4"/>
-
-              <!-- Center red line -->
-              <line x1="100" y1="2" x2="100" y2="83" stroke="#d33" stroke-width="1.8"/>
-
-              <!-- Blue lines -->
-              <line x1="35" y1="2" x2="35" y2="83" stroke="#2b7bd1" stroke-width="1.8"/>
-              <line x1="165" y1="2" x2="165" y2="83" stroke="#2b7bd1" stroke-width="1.8"/>
-
-              <!-- Center circle + dot -->
-              <circle cx="100" cy="42.5" r="15" fill="none" stroke="#2b7bd1" stroke-width="1.6"/>
-              <circle cx="100" cy="42.5" r="1.7" fill="#2b7bd1"/>
-
-              <!-- Faceoff circles (offensive/defensive zones) -->
-              <!-- Left zone -->
-              <circle cx="25" cy="21" r="11" fill="none" stroke="#d33" stroke-width="1.6"/>
-              <circle cx="25" cy="64" r="11" fill="none" stroke="#d33" stroke-width="1.6"/>
-              <circle cx="25" cy="21" r="1.5" fill="#d33"/>
-              <circle cx="25" cy="64" r="1.5" fill="#d33"/>
-              <!-- Right zone -->
-              <circle cx="175" cy="21" r="11" fill="none" stroke="#d33" stroke-width="1.6"/>
-              <circle cx="175" cy="64" r="11" fill="none" stroke="#d33" stroke-width="1.6"/>
-              <circle cx="175" cy="21" r="1.5" fill="#d33"/>
-              <circle cx="175" cy="64" r="1.5" fill="#d33"/>
-
-              <!-- Goal lines -->
-              <line x1="6"  y1="2" x2="6"  y2="83" stroke="#d33" stroke-width="1.8"/>
-              <line x1="194" y1="2" x2="194" y2="83" stroke="#d33" stroke-width="1.8"/>
-
-              <!-- Creases (semi-circles) -->
-              <path d="M8,42.5 a8,8 0 0 0 16,0" fill="#3aa3ff" fill-opacity="0.9" stroke="#2b7bd1" stroke-width="1.2"/>
-              <path d="M192,42.5 a-8,8 0 0 0 -16,0" fill="#3aa3ff" fill-opacity="0.9" stroke="#2b7bd1" stroke-width="1.2"/>
-
-              <!-- Goals (little rectangles touching goal line) -->
-              <rect x="3.5" y="38.5" width="2.5" height="8" fill="#2b7bd1" rx="0.6"/>
-              <rect x="194" y="38.5" width="2.5" height="8" fill="#2b7bd1" rx="0.6"/>
-
-              <!-- Puck -->
-              <circle id="puck" cx="100" cy="42.5" r="2.6" fill="#111" stroke="#000" stroke-width="0.4" />
-            </svg>
-          </div>
-        </section>
-
-        <!-- Latest Plays -->
-        <section class="panel" style="padding:10px">
-          <div class="small" style="margin:0 0 6px 0;font-weight:700">Latest Plays</div>
-          <div id="spotLog" class="plays"></div>
-        </section>
-      </div>
+      <!-- Latest plays -->
+      <section class="panel" style="padding:10px">
+        <div class="small" style="margin:0 0 6px 0;font-weight:700">Latest Plays</div>
+        <div id="spotLog" class="plays"></div>
+      </section>
     </div>
 
-    <!-- Right column: quick help -->
+    <!-- RIGHT column: tips/controls -->
     <div class="card section">
       <h2>Controls</h2>
       <div class="sep"></div>
-      <div class="small">Click a card in “Top Games” to jump the spotlight.</div>
+      <div class="small">Click any “Top Games” card to jump spotlight.</div>
       <div class="small" style="margin-top:8px">Press <span class="kbd">Space</span> to pause/resume rotation.</div>
       <div class="small" style="margin-top:8px">Press <span class="kbd">F</span> for fullscreen.</div>
     </div>
   </section>
 
   <div class="sep"></div>
-  <div class="small">You can feed live tracking with <code>window.setPuck({x:%, y:%})</code> (0–100 in rink %).</div>
+  <div class="small">Feed live tracking with <code>window.setPuck({x:%, y:%})</code> (0–100 in rink %).</div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ------- Supabase + week helpers (same as before) ------- */
+/* ------- Supabase + week helpers ------- */
 const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
 const supa = supabase.createClient(SUPA_URL, SUPA_ANON, { auth: { persistSession:false } });
@@ -214,7 +208,7 @@ const parts=(d,opts)=>Object.fromEntries(new Intl.DateTimeFormat('en-US',opts).f
 const nowCT=()=>new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
 const addCT=(d,days)=>new Date(new Date(d.getTime()+days*86400000).toLocaleString('en-US',{timeZone:TZ}));
 function weekKey(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const hour=+parts(n,{hour:'2-digit',hour12:false}).hour; const anchor=(hour>=8||days>0)?mon:addCT(mon,-7); const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`; }
-function weekDates(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i); const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}`}); const pM=parts(mon,{month:'2-digit',day:'2-digit'}); const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'}); return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`}; }
+function weekDates(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i); const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}`}); const pM=parts(mon,{month:'2-digit',day:'2-digit'}); const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'}); return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS/day}`}; }
 const WEEK_KEY=weekKey(); const WEEK=weekDates(); const $=id=>document.getElementById(id);
 $('wkPretty').textContent=WEEK.pretty;
 
@@ -242,8 +236,7 @@ function setPuckPercent(xPct,yPct){
   const puck = document.querySelector('#puck');
   if(puck){ puck.setAttribute('cx', cx.toFixed(2)); puck.setAttribute('cy', cy.toFixed(2)); }
 }
-// public hook for real feed:
-window.setPuck = ({x,y}) => setPuckPercent(x,y);
+window.setPuck = ({x,y}) => setPuckPercent(x,y); // live hook
 
 let simTimer=null;
 function startSim(){ stopSim(); let cx=50, cy=50;
@@ -281,7 +274,7 @@ function renderTopStrip(){
   }).join('') || '<div class="small" style="padding:8px">—</div>';
 
   strip.querySelectorAll('[data-gid]').forEach(el=>{
-    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); openSpotlight(); window.scrollTo({top:0,behavior:'smooth'}); };
+    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); openSpotlight(); document.getElementById('rink').scrollIntoView({behavior:'smooth',block:'center'}); };
   });
 }
 function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false'); $('btnPause').textContent = ST.paused?'▶️ Resume Rotate':'⏸️ Pause Rotate'; }
@@ -323,6 +316,7 @@ async function openSpotlight(){
   $('spotClock').textContent = comp?.status?.displayClock || '—';
   $('spotPer').textContent   = comp?.status?.period ?? '—';
   $('spotState').textContent = comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—';
+  document.getElementById('spotState').textContent = $('spotState').textContent;
 
   // latest plays
   const log=$('spotLog'); log.innerHTML='';
@@ -395,9 +389,8 @@ document.addEventListener('keydown',e=>{
   renderTopStrip();
   ST.spotId = (ST.rows[0]?.id) || null;
   await openSpotlight();
-
-  setInterval(async()=>{ await refreshRows(); renderTopStrip(); if(!ST.paused) await openSpotlight(); }, 30000);
-  setInterval(tickRotate, 8000);
+  // ensure rink is visible when the page first loads
+  document.getElementById('rink').scrollIntoView({behavior:'instant',block:'center'});
 })();
 </script>
 </body>
