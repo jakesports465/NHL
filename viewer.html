@@ -37,23 +37,33 @@
   .stripWrap{padding:8px 10px}
   .topStrip{display:flex;gap:10px;overflow:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
   .tCard{flex:0 0 280px;scroll-snap-align:start;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;display:grid;gap:6px;cursor:pointer}
+  .tRow{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .tTeams{display:flex;align-items:center;gap:8px;min-width:0}
   .tLogo{width:16px;height:16px;border-radius:4px;border:1px solid #1e2732;background:#0d1218;flex:0 0 auto}
   .tName{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tRow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .tScore{font-weight:900;border:1px solid #25313d;border-radius:8px;padding:2px 8px;min-width:48px;text-align:center}
   .scoreChip{border:1px solid #25313d;border-radius:8px;padding:2px 8px;font-weight:800;min-width:28px;text-align:center}
   .fantPill{display:inline-flex;align-items:center;gap:6px;background:#0e1a14;color:var(--ok);border:1px solid var(--ok-br);border-radius:999px;padding:5px 8px;font-weight:900}
 
   /* Spotlight */
   .spot{display:grid;grid-template-columns:1fr 400px;gap:12px}
   @media (max-width:1000px){.spot{grid-template-columns:1fr}}
-  .board{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
-  .side{display:flex;gap:10px;align-items:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:0}
+  .board{
+    display:grid;
+    grid-template-columns:1fr minmax(240px,auto) 1fr;
+    gap:12px;
+    align-items:center;
+  }
+  .side{
+    display:flex;gap:10px;align-items:center;justify-content:center;
+    background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:0
+  }
   .logo{width:42px;height:42px;border-radius:10px;border:1px solid #1e2732;background:#0d1218}
-  .teamName{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .scoreRow{display:flex;align-items:center;gap:10px;white-space:nowrap}
+  .teamName{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22ch}
+  .centerCol{display:grid;place-items:center;gap:8px;text-align:center}
+  .scoreRow{display:flex;align-items:center;justify-content:center;gap:10px;white-space:nowrap}
   .scoreBig{font-size:38px;font-weight:900;min-width:48px;text-align:center;border:1px solid #26313c;border-radius:10px;padding:6px 10px}
-  .badges{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .badges{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:2px}
   .badge{border:1px solid var(--chip);background:#0e1620;border-radius:999px;padding:6px 8px}
   .fant{background:#0e1a14;border:1px solid var(--ok-br);color:var(--ok)}
 
@@ -129,8 +139,8 @@
           <div class="teamName" id="awayName">Away</div>
         </div>
 
-        <!-- Center score (horizontal, single place to see score) -->
-        <div>
+        <!-- Center score (centered & balanced) -->
+        <div class="centerCol">
           <div class="scoreRow">
             <div class="scoreBig" id="aScore">0</div>
             <div class="small" style="opacity:.7">–</div>
@@ -144,8 +154,8 @@
         </div>
 
         <!-- Home -->
-        <div class="side" style="justify-content:flex-end">
-          <div class="teamName" id="homeName" style="text-align:right">Home</div>
+        <div class="side" style="justify-content:center">
+          <div class="teamName" id="homeName" style="text-align:right;max-width:22ch">Home</div>
           <img class="logo" id="homeLogo" alt="">
         </div>
       </div>
@@ -213,10 +223,13 @@ async function getGameScore(gid){
 /* ===== Render ===== */
 function topCard(g, r){
   return `<div class="tCard" data-gid="${g.id}">
-    <div class="tTeams">
-      ${g.away.logo?`<img class="tLogo" src="${g.away.logo}" alt="">`:''}
-      <div class="tName">${g.away.name} @ ${g.home.name}</div>
-      ${g.home.logo?`<img class="tLogo" src="${g.home.logo}" alt="">`:''}
+    <div class="tRow">
+      <div class="tTeams">
+        ${g.away.logo?`<img class="tLogo" src="${g.away.logo}" alt="">`:''}
+        <div class="tName">${g.away.name} @ ${g.home.name}</div>
+        ${g.home.logo?`<img class="tLogo" src="${g.home.logo}" alt="">`:''}
+      </div>
+      <div class="tScore">${(r?.awayPts ?? 0)} – ${(r?.homePts ?? 0)}</div>
     </div>
     <div class="tRow">
       <div class="small">${r.status||''}</div>
