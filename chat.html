@@ -143,8 +143,13 @@
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ================== Supabase client ================== */
-const supa = supabase.createClient("YOUR_SUPABASE_URL","YOUR_SUPABASE_ANON_KEY");
+/* ================== Supabase client (MATCHES MAIN APP) ================== */
+const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
+
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
+  auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+});
 
 /* ================== Utilities ================== */
 const $ = id => document.getElementById(id);
@@ -152,7 +157,7 @@ function el(tag, attrs={}, ...kids){
   const n=document.createElement(tag);
   for(const [k,v] of Object.entries(attrs)){
     if(k==='class') n.className=v;
-    else if(k==='style') Object.assign(n.style,v);
+    else if(k==='style' && typeof v==='object') Object.assign(n.style,v);
     else n.setAttribute(k,v);
   }
   kids.forEach(k=>n.append(k));
@@ -255,7 +260,11 @@ async function loadMessages(room_id, listEl, limit=80){
     .eq('room_id', room_id)
     .order('created_at', { ascending:false })
     .limit(limit);
-  if(error){ listEl.innerHTML = `<div class="small">Error loading messages.</div>`; return; }
+  if(error){
+    console.error('loadMessages error:', error);
+    listEl.innerHTML = `<div class="small">Error loading messages: ${error.message}</div>`;
+    return;
+  }
   const msgs=(data||[]).slice().reverse();
   listEl.innerHTML='';
   msgs.forEach(m=>appendMsg(listEl,m));
@@ -269,7 +278,10 @@ function ensureChannel(room_id, listEl){
       { event:'INSERT', schema:'public', table:'chat_messages', filter:`room_id=eq.${room_id}` },
       payload => { appendMsg(listEl, payload.new); listEl.scrollTop=listEl.scrollHeight; }
     )
-    .subscribe();
+    .subscribe((status) => {
+      // optional status logging
+      // console.log('channel', room_id, status);
+    });
   ST.chans.set(room_id, ch);
 }
 
@@ -283,7 +295,7 @@ function renderSeason(room){
   if(hint){
     hint.innerHTML = ST.myId
       ? `<span class="chip">You’re signed in as ${ST.myEmail||ST.myId.slice(0,6)}.</span>`
-      : `<span class="authNudge">You’re not signed in. <a href="/login.html">Sign in</a> to post.</span>`;
+      : `<span class="authNudge">You’re not signed in. <a href="/signup.html">Sign up</a> or <a href="/index.html">log in</a> to post.</span>`;
   }
 
   loadMessages(room.id, list);
@@ -372,6 +384,7 @@ function renderCustom(rooms){
       loadMessages(r.id, list);
       ensureChannel(r.id, list);
     };
+    row.onkeypress = (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); row.click(); } };
     box.append(row);
   });
 }
@@ -390,7 +403,13 @@ async function ensureJoined(room_id){
 /* ================== Rooms loader ================== */
 async function loadRooms(){
   const { data, error } = await supa.rpc('list_chat_rooms');
-  if(error){ console.error(error); return; }
+  if (error) {
+    console.error('list_chat_rooms error:', error);
+    $('weeklyMount').innerHTML = `<div class="small">Couldn’t load weeks: ${error.message}</div>`;
+    $('gamesMount').innerHTML  = `<div class="small">Couldn’t load games: ${error.message}</div>`;
+    $('customRooms').innerHTML = `<div class="small">Couldn’t load custom rooms: ${error.message}</div>`;
+    return;
+  }
 
   ST.rooms.clear();
   (data||[]).forEach(r=>ST.rooms.set(r.id, r));
@@ -412,6 +431,7 @@ $('createBtn').onclick = async ()=>{
   const pw = ($('roomPass').value||'').trim();
   $('createHint').textContent='';
   if(!nm){ $('createHint').textContent='Name required.'; return; }
+  if(!ST.myId){ $('createHint').textContent='Sign in to create rooms.'; return; }
   const { error } = await supa.rpc('create_custom_room', {
     p_name: nm, p_description: null, p_password: pw.length?pw:null
   });
