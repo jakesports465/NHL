@@ -3,317 +3,292 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Puck’Em — Viewer</title>
+<title>Puck’Em — Live Viewer</title>
 <link rel="preconnect" href="https://site.api.espn.com">
 <style>
-  :root{ --bg:#0b0d10; --card:#12161b; --panel:#0f1318; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d; --ok:#9be7b0; --okBr:#2e5e3f }
+  :root{
+    --bg:#0b0d10; --panel:#0f1318; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d;
+    --ok:#9be7b0; --okBr:#2e5e3f
+  }
   html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   *,*:before,*:after{box-sizing:border-box}
-
-  /* Subtle scrollbars */
-  *{scrollbar-width:thin; scrollbar-color:#2a3646 transparent}
-  *::-webkit-scrollbar{height:8px;width:8px}
-  *::-webkit-scrollbar-thumb{background:#2a3646;border-radius:10px}
-  *::-webkit-scrollbar-track{background:transparent}
-
-  .wrap{max-width:1300px;margin:0 auto;padding:16px}
-  header{position:sticky;top:0;z-index:15;background:linear-gradient(180deg,#0f1318,rgba(15,19,24,0.6));border-bottom:1px solid var(--br)}
-  header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px}
+  a{color:#cfe2f5;text-decoration:none}
+  .wrap{max-width:1200px;margin:0 auto;padding:14px}
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,#0f1318,rgba(15,19,24,.6) 70%,transparent);border-bottom:1px solid var(--br)}
+  header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 14px}
   .sub{color:var(--muted)}
-  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;min-height:42px;text-decoration:none;display:inline-flex;align-items:center}
-  .btn.secondary{background:#101722}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer;min-height:38px}
   .btn[aria-pressed="true"]{background:#182633;border-color:#31506a}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .iconBtn{padding:8px;min-height:auto}
   .card{background:var(--card);border:1px solid var(--br);border-radius:14px}
   .panel{background:var(--panel);border:1px solid #1c2430;border-radius:14px}
-  .section{padding:14px}
-  h2{margin:0 0 10px 0}
+  .section{padding:12px}
   .small{font-size:13px;color:var(--muted)}
   .sep{height:1px;background:var(--br);margin:12px 0}
+  .pill{border:1px dashed #364353;border-radius:999px;padding:6px 10px;font-size:13px}
 
-  /* Top strip */
-  .topStrip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,1fr);gap:12px;overflow:auto;padding:12px}
-  .tCard{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:260px;display:grid;gap:6px;cursor:pointer}
+  /* Game picker strip */
+  .topStrip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,1fr);gap:10px;overflow:auto;padding:10px 2px}
+  .topCard{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:8px;min-width:240px;cursor:pointer}
   .teams{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .scoreTag{border:1px solid #26313c;border-radius:6px;padding:2px 6px;min-width:28px;text-align:center;font-weight:800}
+  .scoreTag{border:1px solid #26313c;border-radius:6px;padding:2px 6px;min-width:26px;text-align:center;font-weight:800}
   .fantPill{display:inline-flex;align-items:center;gap:8px;background:#0e1a14;border:1px solid var(--okBr);color:var(--ok);padding:6px 10px;border-radius:999px;font-weight:900}
 
-  /* Spotlight layout */
-  .spot{display:grid;grid-template-columns:1fr 360px;gap:14px}
-  @media (max-width:1050px){ .spot{grid-template-columns:1fr} }
-  .scoreBox{text-align:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
-  .scoreNum{font-size:44px;font-weight:900}
-  #spotLog{max-height:28vh;overflow:auto}
-  .kbd{font:12px/1.2 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#cfe2f5;background:#0e1620;border:1px solid #243241;border-radius:8px;padding:6px 8px}
+  /* Spotlight header */
+  .spotHead{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+  .scoreBox{display:flex;gap:10px;align-items:center}
+  .scoreNum{font-size:32px;font-weight:900}
 
-  /* Rink (image + overlay puck) */
-  .rinkPanel h3{margin:0 0 8px 0}
-  .rinkBox{ width:75%; margin:0 auto; }
-  .rinkWrap{ position:relative; width:100%; }
-  .rinkWrap img{ width:100%; height:auto; display:block; border-radius:12px; }
-  .overlay{ position:absolute; inset:0; pointer-events:none; }
-  .puck{ position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px;
-         background:#111; border:2px solid #000; border-radius:50%; box-shadow:0 0 0 1px rgba(255,255,255,.15) inset;
-         transform:translate(0,0); transition:transform .15s ease; }
+  /* Two-column stack */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:900px){ .two{grid-template-columns:1fr} }
+
+  /* Accordion */
+  .acc{border:1px solid #1c2430;border-radius:12px;overflow:hidden;background:#0f1318}
+  .acc .head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;cursor:pointer}
+  .acc .head:hover{background:#101a24}
+  .acc .head h3{margin:0;font-size:16px}
+  .acc .chev{transition:transform .2s ease}
+  .acc[open] .chev{transform:rotate(90deg)}
+  .acc .body{max-height:0;overflow:hidden;transition:max-height .22s ease}
+  .acc[open] .body{max-height:42vh}
+  .list{padding:10px 12px;overflow:auto;max-height:42vh}
+  .play{padding:8px;border:1px solid #1c2430;border-radius:10px;background:#0e1620;margin-bottom:8px}
+  .when{font-size:12px;color:#97a7b9;margin-bottom:4px}
+  .play strong{font-weight:800}
+
+  /* Scrollbar polish */
+  .list::-webkit-scrollbar{height:10px;width:10px}
+  .list::-webkit-scrollbar-thumb{background:#283546;border-radius:10px;border:2px solid #0f1318}
+  .list{scrollbar-width:thin; scrollbar-color:#283546 transparent}
 </style>
 </head>
 <body>
 <header>
   <div class="bar wrap">
     <div>
-      <div style="font-size:18px;font-weight:800">NHL Puck’Em — Viewer</div>
+      <div style="font-size:18px;font-weight:800">NHL Puck’Em — Live Viewer</div>
       <div class="sub">Week: <b id="wkPretty">—</b> · <span id="lastUpd" class="small">—</span></div>
     </div>
     <div class="row">
-      <a class="btn secondary" href="index.html">Home</a>
+      <a href="./index.html" class="btn">Home</a>
       <button id="btnPause" class="btn" aria-pressed="false">⏸️ Pause Rotate</button>
-      <button id="btnFS" class="btn">⛶ Fullscreen</button>
+      <button id="btnFS" class="btn iconBtn" title="Fullscreen">⛶</button>
     </div>
   </div>
 </header>
 
-<main class="wrap" style="padding-top:12px">
-  <!-- Top Games strip -->
+<main class="wrap" style="padding-top:10px">
+  <!-- Game picker -->
   <section class="card section">
-    <h2>Top Games (Fantasy)</h2>
-    <div id="topStrip" class="topStrip" aria-live="polite">
-      <div class="small" style="padding:8px">Loading…</div>
-    </div>
+    <h2 style="margin:0 0 8px 0">Games</h2>
+    <div id="topStrip" class="topStrip" aria-live="polite"></div>
   </section>
 
   <div class="sep"></div>
 
-  <!-- Spotlight + Sidebar -->
-  <section class="spot">
-    <div class="card section" id="spotlight">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2 id="spotTitle" style="margin:0">Game Spotlight</h2>
-        <div class="small" id="spotStatus">—</div>
+  <!-- Spotlight -->
+  <section class="card section">
+    <div class="spotHead">
+      <h2 id="spotTitle" style="margin:0">Game Spotlight</h2>
+      <div class="scoreBox small">
+        <span id="spotState">—</span>
+        <span class="pill" id="spotClock" style="margin-left:6px">—</span>
+        <span class="fantPill" style="margin-left:6px"><span>Fantasy</span><span id="spotFantasy">—</span></span>
       </div>
-
-      <div class="sep"></div>
-
-      <div class="row">
-        <div class="scoreBox" style="flex:1">
-          <div class="small">Fantasy Score</div>
-          <div id="spotFantasy" class="scoreNum">—</div>
-          <div id="spotBonuses" class="small">—</div>
-        </div>
-        <div class="scoreBox" style="flex:1">
-          <div class="small">Game Clock</div>
-          <div class="scoreNum" id="spotClock" style="font-size:36px">—</div>
-          <div class="small">P<span id="spotPer">—</span> · <span id="spotState">—</span></div>
-        </div>
-      </div>
-
-      <div class="sep"></div>
-
-      <!-- Rink (image-based) -->
-      <section class="panel rinkPanel" style="padding:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <h3>Rink (Live / Sim)</h3>
-          <label class="small" style="display:flex;align-items:center;gap:8px">
-            <input id="simToggle" type="checkbox"> Simulate
-          </label>
-        </div>
-
-        <div class="rinkBox">
-          <div class="rinkWrap">
-            <!-- Update src path if your file lives elsewhere -->
-            <img id="rinkImg" src="rink.jpg" alt="Hockey rink">
-            <div class="overlay">
-              <div id="puck" class="puck" style="transform:translate(50%,50%)"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="small" style="margin-top:8px">
-          Live feed hook: <span class="kbd">window.setPuck({ x: 0–100, y: 0–100 })</span>
-        </div>
-      </section>
-
-      <div class="sep"></div>
-
-      <!-- Teams (scores) -->
-      <div id="spotTeams" class="panel" style="padding:10px"></div>
     </div>
+    <div class="sep"></div>
 
-    <!-- Sidebar: Latest Plays -->
-    <div class="card section">
-      <h2>Latest Plays</h2>
-      <div class="sep"></div>
-      <div id="spotLog"></div>
+    <div class="two">
+      <!-- Scoring Plays -->
+      <details id="accScoring" class="acc" open>
+        <summary class="head">
+          <h3>Scoring Plays</h3>
+          <span class="chev">›</span>
+        </summary>
+        <div class="body">
+          <div id="listScoring" class="list" aria-live="polite"></div>
+        </div>
+      </details>
+
+      <!-- Recent Plays -->
+      <details id="accRecent" class="acc" open>
+        <summary class="head">
+          <h3>Recent Plays</h3>
+          <span class="chev">›</span>
+        </summary>
+        <div class="body">
+          <div id="listRecent" class="list" aria-live="polite"></div>
+        </div>
+      </details>
     </div>
   </section>
 
   <div class="sep"></div>
-  <div class="small">Tip: press <span class="kbd">F</span> for fullscreen, <span class="kbd">Space</span> to pause rotation.</div>
+  <div class="small">Tip: press <b>Space</b> to pause rotation, <b>F</b> for fullscreen.</div>
 </main>
 
-<!-- Supabase (read-only) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ------- Config (reuse your keys) ------- */
+/* ===== Config (reuse your keys) ===== */
 const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
-const supa = supabase.createClient(SUPA_URL, SUPA_ANON, { auth: { persistSession:false } });
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON, { auth:{ persistSession:false } });
 
-/* ------- Week helpers ------- */
+/* ===== Date helpers (Mon 08:00 CT week) ===== */
 const TZ='America/Chicago';
 const parts=(d,opts)=>Object.fromEntries(new Intl.DateTimeFormat('en-US',opts).formatToParts(d).map(p=>[p.type,p.value]));
 const nowCT=()=>new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
 const addCT=(d,days)=>new Date(new Date(d.getTime()+days*86400000).toLocaleString('en-US',{timeZone:TZ}));
-function weekKey(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const hour=+parts(n,{hour:'2-digit',hour12:false}).hour; const anchor=(hour>=8||days>0)?mon:addCT(mon,-7); const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`; }
-function weekDates(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i); const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}`}); const pM=parts(mon,{month:'2-digit',day:'2-digit'}); const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'}); return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`}; }
-const WEEK_KEY=weekKey(); const WEEK=weekDates();
-document.getElementById('wkPretty').textContent=WEEK.pretty;
+function weekKey(){const n=nowCT();const wd=n.getDay();const days=(wd-1+7)%7;const mon=addCT(n,-days);const hour=+parts(n,{hour:'2-digit',hour12:false}).hour;const anchor=(hour>=8||days>0)?mon:addCT(mon,-7);const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'});return `${p.year}-${p.month}-${p.day}-Mon08CT`;}
+function weekDates(){const n=nowCT();const wd=n.getDay();const days=(wd-1+7)%7;const mon=addCT(n,-days);const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i);const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'});return `${p.year}-${p.month}-${p.day}`});const pM=parts(mon,{month:'2-digit',day:'2-digit'});const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'});return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`};}
+const WEEK_KEY=weekKey(); const WEEK=weekDates(); document.getElementById('wkPretty').textContent=WEEK.pretty;
 
-/* ------- ESPN + DB helpers ------- */
-const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
+/* ===== APIs ===== */
+const api={
+  scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
+  summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`,
+  pbp:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${id}` // may not exist in some regions; we handle fallback
+};
 const cdnNHL=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'): (t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:null);
 
+/* ===== State ===== */
+const ST={events:[], rows:[], id:null, paused:false, idx:0};
+const $=id=>document.getElementById(id);
+const stamp=()=>{ $('lastUpd').textContent='Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
+
+/* ===== Supabase: read fantasy totals (already computed by your RPC/cron) ===== */
 async function getGameScore(gid){
-  const { data } = await supa
-    .from('game_scores')
-    .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus')
+  const { data } = await supa.from('game_scores')
+    .select('total,home_pts,away_pts')
     .eq('league','NHL').eq('week_key',WEEK_KEY).eq('game_id',String(gid)).maybeSingle();
   return data||null;
 }
 
-/* ------- State ------- */
-const ST={ events:[], rows:[], idx:0, paused:false, spotId:null, simTimer:null };
-const $=id=>document.getElementById(id);
-const stamp=()=>{ $('lastUpd').textContent='Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
-
-/* ------- Puck overlay (percent-based) ------- */
-const puck = $('puck');
-const rinkWrap = document.querySelector('.rinkWrap');
-function percentToPixels(xPct,yPct){
-  const r = rinkWrap.getBoundingClientRect();
-  const x = r.width  * (xPct/100);
-  const y = r.height * (yPct/100);
-  return {x,y};
-}
-function setPuckPct({x,y}){
-  const {x:xp,y:yp} = percentToPixels(x,y);
-  // translate relative to overlay's origin (0,0). Use CSS transform for crisp motion.
-  puck.style.transform = `translate(${xp}px, ${yp}px)`;
-}
-// expose for live feeds
-window.setPuck = setPuckPct;
-
-/* ------- UI builders ------- */
-function renderTopStrip(){
-  const strip=$('topStrip');
-  const top=ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,12);
-  if (!top.length) { strip.innerHTML = '<div class="small" style="padding:8px">No games yet.</div>'; return; }
-  strip.innerHTML = top.map(r=>{
-    const g=ST.events.find(e=>String(e.id)===String(r.id));
-    if(!g) return '';
-    const a=r.awayPts??0, h=r.homePts??0, f=r.score??0;
-    return `
-      <div class="tCard" data-gid="${r.id}">
-        <div class="teams">
-          <div class="name" style="display:flex;align-items:center;gap:8px;min-width:0">
-            ${g.away.logo?`<img src="${g.away.logo}" style="width:18px;height:18px;border-radius:4px;border:1px solid #1e2732;background:#0f1318">`:''}
-            ${g.away.name} @ ${g.home.name}
-            ${g.home.logo?`<img src="${g.home.logo}" style="width:18px;height:18px;border-radius:4px;border:1px solid #1e2732;background:#0f1318">`:''}
-          </div>
-          <div class="scoreTag">${a}–${h}</div>
+/* ===== Build UI pieces ===== */
+function topCard(g, row){
+  const a=row?.away_pts??0, h=row?.home_pts??0, f=row?.total??0;
+  const puck=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return `
+    <div class="topCard" data-gid="${g.id}" title="${g.away.name} @ ${g.home.name}">
+      <div class="teams">
+        <div class="name" style="display:flex;align-items:center;gap:8px;min-width:0">
+          ${g.away.logo?`<img src="${g.away.logo}" style="width:18px;height:18px;border-radius:4px;border:1px solid #1e2732;background:#0f1318">`:''}
+          ${g.away.name} @ ${g.home.name}
+          ${g.home.logo?`<img src="${g.home.logo}" style="width:18px;height:18px;border-radius:4px;border:1px solid #1e2732;background:#0f1318">`:''}
         </div>
-        <div class="small">${r.status||''}</div>
-        <div><span class="fantPill"><span>Fantasy</span><span>${Number(f||0).toFixed(2)}</span></span></div>
-      </div>`;
-  }).join('');
-
-  strip.querySelectorAll('[data-gid]').forEach(el=>{
-    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); document.getElementById('rinkImg').scrollIntoView({behavior:'smooth',block:'center'}); };
-  });
-}
-function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false'); $('btnPause').textContent = ST.paused?'▶️ Resume Rotate':'⏸️ Pause Rotate'; }
-
-async function updateSpotlight(){
-  const id = ST.spotId || (ST.rows[0]?.id);
-  if(!id) return;
-  const g = ST.events.find(e=>String(e.id)===String(id));
-  if(!g) return;
-
-  $('spotTitle').textContent = `${g.away.name} @ ${g.home.name}`;
-
-  const s = await fetch(api.summary(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
-  const comp=s?.header?.competitions?.[0]||{};
-  let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-
-  const row = await getGameScore(id);
-
-  $('spotTeams').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="scoreBox"><div class="small">${g.away.name}</div><div style="font-weight:900">${row?.away_pts ?? (awayC?.score ?? 0)}</div></div>
-      <div class="scoreBox"><div class="small">${g.home.name}</div><div style="font-weight:900">${row?.home_pts ?? (homeC?.score ?? 0)}</div></div>
+        <div><span class="scoreTag">${a}</span>–<span class="scoreTag">${h}</span></div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:6px">
+        <span class="small">${puck}</span>
+        <span class="fantPill"><span>Fantasy</span><span>${Number(f||0).toFixed(2)}</span></span>
+      </div>
     </div>`;
-
-  $('spotFantasy').textContent = (row?.total!=null?Number(row.total).toFixed(2):'—');
-  const cb=Number(row?.close_bonus||0), ob=Number(row?.ot_bonus||0), sb=Number(row?.so_bonus||0);
-  $('spotBonuses').textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'}`;
-  $('spotClock').textContent = comp?.status?.displayClock || '—';
-  $('spotPer').textContent   = comp?.status?.period ?? '—';
-  $('spotState').textContent = comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—';
-  $('spotStatus').textContent = $('spotState').textContent;
-
-  const log=$('spotLog'); log.innerHTML='';
-  (s?.scoringPlays||[]).slice(-14).reverse().forEach(sp=>{
-    const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');
-    const div=document.createElement('div'); div.textContent=`[${q} ${t}] ${d}`; log.appendChild(div);
-  });
 }
 
-/* ------- Data load ------- */
+/* ===== Load week & initial rows ===== */
 async function loadWeek(){
   const all=[];
   for(const d of WEEK.list){
     const sb = await fetch(api.scoreboard(d),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
-    const evs=sb?.events||[];
-    for(const ev of evs){
+    (sb?.events||[]).forEach(ev=>{
       const c=ev.competitions?.[0]||{};
       let home=null,away=null; (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
       all.push({
-        id:ev.id,
-        start:ev.date,
-        home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },
-        away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }
+        id:ev.id, start:ev.date,
+        home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', logo:cdnNHL(home?.team||null) },
+        away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', logo:cdnNHL(away?.team||null) }
       });
-    }
+    });
   }
   all.sort((a,b)=>new Date(a.start)-new Date(b.start));
   ST.events=all;
 }
+
 async function refreshRows(){
   if(!ST.events.length) return;
-  const batch = await Promise.all(ST.events.map(async g=>{
+  const out = await Promise.all(ST.events.map(async g=>{
     const s = await fetch(api.summary(g.id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
     const row = await getGameScore(g.id);
-    const comp=s?.header?.competitions?.[0]||{};
+    const comp = s?.header?.competitions?.[0] || {};
+    const type = comp?.status?.type || {};
     return {
-      id:g.id,
-      awayPts: row?.away_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score || 0),
-      homePts: row?.home_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score || 0),
+      id:g.id, game:g,
+      awayPts: row?.away_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score||0),
+      homePts: row?.home_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score||0),
       score: row?.total ?? 0,
-      status: (comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—')
+      state: (type.shortDetail || type.description || '—'),
+      clock: (comp?.status?.displayClock || '—'),
+      scoring: s?.scoringPlays || []
     };
   }));
-  ST.rows = batch.filter(Boolean);
+  ST.rows=out;
   stamp();
 }
 
-/* ------- Rotation & controls ------- */
-function tickRotate(){
-  if(ST.paused || ST.rows.length===0) return;
-  const top = ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,12);
-  ST.idx = (ST.idx+1) % top.length;
-  ST.spotId = top[ST.idx].id;
-  updateSpotlight();
+function renderTopStrip(){
+  const strip=$('topStrip');
+  strip.innerHTML = ST.rows.map(r=>topCard(r.game,r)).join('');
+  strip.querySelectorAll('[data-gid]').forEach(el=>{
+    el.onclick=()=>{ ST.id=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); };
+  });
 }
+
+/* ===== Play helpers ===== */
+function fmtPlay(p){
+  const t = (p.clock?.displayValue||''); const q = (p.period?.number?'P'+p.period.number:'');
+  const txt = (p.text || p.description || p?.details?.description || '');
+  return { when:`${q?`[${q} ${t}] `:''}`, text:txt };
+}
+function renderList(elId, plays){
+  const box=$(elId); box.innerHTML='';
+  if(!plays || !plays.length){ box.innerHTML='<div class="small" style="opacity:.8">No data yet.</div>'; return; }
+  plays.forEach(p=>{
+    const {when,text}=fmtPlay(p);
+    const div=document.createElement('div'); div.className='play';
+    div.innerHTML=`<div class="when">${when}</div><div>${text}</div>`;
+    box.appendChild(div);
+  });
+}
+
+/* Try ESPN play-by-play; fallback to scoringPlays if blocked/unavailable */
+async function loadRecentPlays(gameId, scoringFallback){
+  try{
+    const s = await fetch(api.pbp(gameId),{cache:'no-store'}).then(r=>r.json());
+    // Prefer last ~30 events; ESPN shape differs, normalize fields best-effort
+    let arr = s?.allPlays || s?.plays || [];
+    if(!Array.isArray(arr) || arr.length===0) throw new Error('no plays');
+    return arr.slice(-30).reverse();
+  }catch{
+    return (scoringFallback||[]).slice(-15).reverse();
+  }
+}
+
+/* ===== Spotlight ===== */
+async function updateSpotlight(){
+  const id = ST.id || (ST.rows[0]?.id);
+  if(!id) return;
+  const row = ST.rows.find(x=>String(x.id)===String(id));
+  if(!row) return;
+
+  $('spotTitle').textContent = `${row.game.away.name} @ ${row.game.home.name}`;
+  $('spotState').textContent = row.state || '—';
+  $('spotClock').textContent = row.clock || '—';
+  $('spotFantasy').textContent = Number(row.score||0).toFixed(2);
+
+  // Scoring plays (always from summary)
+  const scoring = row.scoring.slice(-20).reverse();
+  renderList('listScoring', scoring.map(p=>({ ...p, text: (p.text||p.description||'') })));
+
+  // Recent plays (pbp endpoint with graceful fallback)
+  const recent = await loadRecentPlays(id, row.scoring);
+  renderList('listRecent', recent);
+}
+
+/* ===== Rotation & controls ===== */
+function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false'); $('btnPause').textContent = ST.paused?'▶️ Resume Rotate':'⏸️ Pause Rotate'; }
 $('btnPause').onclick=()=>{ ST.paused=!ST.paused; setPauseBtn(); };
 $('btnFS').onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
 document.addEventListener('keydown',e=>{
@@ -321,34 +296,24 @@ document.addEventListener('keydown',e=>{
   if(e.key.toLowerCase()==='f'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 });
 
-/* ------- Simulate puck ------- */
-const simToggle = $('simToggle');
-simToggle.addEventListener('change',()=>{
-  clearInterval(ST.simTimer);
-  if(simToggle.checked){
-    ST.simTimer = setInterval(()=>{
-      const x = 8 + Math.random()*84;   // keep away from hard edges
-      const y = 8 + Math.random()*84*(85/100); // aspect-safe
-      setPuckPct({x,y});
-    }, 700);
-  }
-});
+function tickRotate(){
+  if(ST.paused || ST.rows.length===0) return;
+  ST.idx = (ST.idx+1) % Math.min(10, ST.rows.length);
+  ST.id = ST.rows.slice().sort((a,b)=>b.score-a.score)[ST.idx].id;
+  updateSpotlight();
+}
 
-/* ------- Boot ------- */
+/* ===== Boot ===== */
 (async ()=>{
   await loadWeek();
   await refreshRows();
   renderTopStrip();
-  setPauseBtn();
-  ST.spotId = ST.rows[0]?.id || null;
   await updateSpotlight();
+  setPauseBtn();
 
   // periodic updates
   setInterval(async()=>{ await refreshRows(); renderTopStrip(); if(!ST.paused) await updateSpotlight(); }, 30000);
   setInterval(tickRotate, 8000);
-
-  // ensure rink visible initially
-  document.getElementById('rinkImg').scrollIntoView({block:'center'});
 })();
 </script>
 </body>
