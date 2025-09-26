@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Puck’Em — Viewer</title>
+<link rel="preconnect" href="https://site.api.espn.com">
+<style>
+  :root{ --bg:#0b0d10; --card:#12161b; --panel:#0f1318; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d; --ok:#9be7b0; --okBr:#2e5e3f }
+  html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  *,*:before,*:after{box-sizing:border-box}
+  .wrap{max-width:1300px;margin:0 auto;padding:16px}
+  header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#0f1318,transparent);border-bottom:1px solid var(--br)}
+  header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px}
+  .sub{color:var(--muted)}
+  .pill{border:1px dashed #364353;border-radius:999px;padding:6px 12px;font-size:14px}
+  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;min-height:42px}
+  .btn[aria-pressed="true"]{background:#182633;border-color:#31506a}
+  .iconBtn{padding:8px 10px;min-height:auto}
+  .row{display:flex;gap:14px;align-items:stretch;flex-wrap:wrap}
+  .card{background:var(--card);border:1px solid var(--br);border-radius:14px}
+  .panel{background:var(--panel);border:1px solid #1c2430;border-radius:14px}
+  .section{padding:14px}
+  h2{margin:0 0 10px 0}
+  .small{font-size:13px;color:var(--muted)}
+  .sep{height:1px;background:var(--br);margin:12px 0}
+  /* Top strip */
+  .topStrip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,1fr);gap:12px;overflow:auto;padding:12px}
+  .tCard{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:10px;min-width:260px;display:grid;gap:6px}
+  .teams{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .scoreTag{border:1px solid #26313c;border-radius:6px;padding:2px 6px;min-width:28px;text-align:center;font-weight:800}
+  .fantPill{display:inline-flex;align-items:center;gap:8px;background:#0e1a14;border:1px solid var(--okBr);color:var(--ok);padding:6px 10px;border-radius:999px;font-weight:900}
+  /* Spotlight */
+  .spot{display:grid;grid-template-columns:1fr 320px;gap:14px}
+  @media (max-width:980px){ .spot{grid-template-columns:1fr} }
+  .teamline{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:12px;background:#0f1318;border:1px solid #1c2430}
+  .teamline img{width:48px;height:48px;border-radius:10px;border:1px solid #1e2732;background:#0d1218}
+  .scoreBox{text-align:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
+  .scoreNum{font-size:44px;font-weight:900}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+  .gameCard{background:#11171e;border:1px solid #1f2a36;border-radius:14px;overflow:hidden}
+  .band{height:6px}
+  .gameBody{padding:12px}
+  .footerRow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .kbd{font:12px/1.2 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#cfe2f5;background:#0e1620;border:1px solid #243241;border-radius:8px;padding:6px 8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar wrap">
+    <div>
+      <div style="font-size:18px;font-weight:800">NHL Puck’Em — Viewer</div>
+      <div class="sub">Week: <b id="wkPretty">—</b> · <span id="lastUpd" class="small">—</span></div>
+    </div>
+    <div class="row">
+      <button id="btnPause" class="btn" aria-pressed="false">⏸️ Pause Rotate</button>
+      <button id="btnFS" class="btn iconBtn" title="Fullscreen">⛶</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" style="padding-top:12px">
+  <!-- Top Games strip -->
+  <section class="card section">
+    <h2>Top Games (Fantasy)</h2>
+    <div id="topStrip" class="topStrip" aria-live="polite"></div>
+  </section>
+
+  <div class="sep"></div>
+
+  <!-- Spotlight + Status -->
+  <section class="spot">
+    <div class="card section" id="spotlight">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">
+        <span id="spotTitle">Game Spotlight</span>
+        <span class="small" id="spotStatus">—</span>
+      </h2>
+      <div class="sep"></div>
+      <div id="spotTeams"></div>
+      <div class="sep"></div>
+      <div class="row">
+        <div class="scoreBox" style="flex:1">
+          <div class="small">Fantasy Score</div>
+          <div id="spotFantasy" class="scoreNum">—</div>
+          <div id="spotBonuses" class="small">—</div>
+        </div>
+        <div class="scoreBox" style="flex:1">
+          <div class="small">Game Clock</div>
+          <div class="scoreNum" id="spotClock" style="font-size:36px">—</div>
+          <div class="small">P<span id="spotPer">—</span> · <span id="spotState">—</span></div>
+        </div>
+      </div>
+      <div class="sep"></div>
+      <div class="panel" style="padding:10px">
+        <div class="small" style="margin:0 0 6px 0">Latest Plays</div>
+        <div id="spotLog" style="max-height:28vh;overflow:auto"></div>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h2>All Games</h2>
+      <div class="sep"></div>
+      <div id="grid" class="grid"></div>
+    </div>
+  </section>
+
+  <div class="sep"></div>
+  <div class="small">Tip: hit <span class="kbd">F</span> for fullscreen, <span class="kbd">Space</span> to pause rotation.</div>
+</main>
+
+<!-- Supabase (for reading computed totals) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ------- Config (reuse your keys) ------- */
+const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON, { auth: { persistSession:false } });
+
+/* ------- Week helpers (same logic you use) ------- */
+const TZ='America/Chicago';
+const parts=(d,opts)=>Object.fromEntries(new Intl.DateTimeFormat('en-US',opts).formatToParts(d).map(p=>[p.type,p.value]));
+const nowCT=()=>new Date(new Date().toLocaleString('en-US',{timeZone:TZ}));
+const addCT=(d,days)=>new Date(new Date(d.getTime()+days*86400000).toLocaleString('en-US',{timeZone:TZ}));
+function weekKey(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const hour=+parts(n,{hour:'2-digit',hour12:false}).hour; const anchor=(hour>=8||days>0)?mon:addCT(mon,-7); const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`; }
+function weekDates(){ const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addCT(n,-days); const list=[...Array(7)].map((_,i)=>{const d=addCT(mon,i); const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}`}); const pM=parts(mon,{month:'2-digit',day:'2-digit'}); const pS=parts(addCT(mon,6),{month:'2-digit',day:'2-digit'}); return {list,pretty:`${pM.month}/${pM.day} → ${pS.month}/${pS.day}`}; }
+const WEEK_KEY=weekKey(); const WEEK=weekDates();
+document.getElementById('wkPretty').textContent=WEEK.pretty;
+
+/* ------- ESPN helpers ------- */
+const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
+const cdnNHL=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'): (t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:null);
+
+/* ------- DB helpers ------- */
+async function getGameScore(gid){
+  const { data } = await supa
+    .from('game_scores')
+    .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,goals,ppg,shg,shots,saves,hits,blocks,pim')
+    .eq('league','NHL').eq('week_key',WEEK_KEY).eq('game_id',String(gid)).maybeSingle();
+  return data||null;
+}
+
+/* ------- State ------- */
+const ST={ events:[], rows:[], idx:0, paused:false, spotId:null };
+const $=id=>document.getElementById(id);
+const stamp=()=>{ $('lastUpd').textContent='Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
+
+/* ------- UI builders ------- */
+function gameCard(g, row){
+  const started = Date.now() >= new Date(g.start).getTime();
+  const a=row?.away_pts??0, h=row?.home_pts??0, f=row?.total??0;
+  const puck=new Date(g.start).toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return `
+    <div class="gameCard" data-gid="${g.id}">
+      <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
+      <div class="gameBody">
+        <div class="teams" style="gap:10px">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0">
+            ${g.away.logo?`<img src="${g.away.logo}" alt="" style="width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0f1318">`:''}
+            <div class="name">${g.away.name}</div>
+            <span class="scoreTag">${a}</span>
+          </div>
+          <div class="small" style="opacity:.8">@</div>
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;justify-content:flex-end">
+            ${g.home.logo?`<img src="${g.home.logo}" alt="" style="width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0f1318">`:''}
+            <div class="name">${g.home.name}</div>
+            <span class="scoreTag">${h}</span>
+          </div>
+        </div>
+        <div class="small" style="margin-top:6px">Puck drop: ${puck}</div>
+        <div class="footerRow" style="margin-top:8px">
+          <span class="fantPill"><span>Fantasy</span><span style="font-variant-numeric:tabular-nums">${Number(f||0).toFixed(2)}</span></span>
+          ${started?'<span class="small" style="color:#c78">Locked</span>':''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderTopStrip(){
+  const strip=$('topStrip');
+  const top=ST.rows.slice().sort((a,b)=>b.score-a.score).slice(0,10);
+  strip.innerHTML = top.map(r=>{
+    const g=ST.events.find(e=>String(e.id)===String(r.id));
+    return `
+      <div class="tCard" data-gid="${r.id}">
+        <div class="teams">
+          <div class="name" style="display:flex;align-items:center;gap:8px;min-width:0">
+            ${g.away.logo?`<img src="${g.away.logo}" style="width:18px;height:18px;border-radius:4px;border:1px solid #1e2732;background:#0f1318">`:''}
+            ${g.away.name} @ ${g.home.name}
+            ${g.home.logo?`<img src="${g.home.logo}" style="width:18px;height:18px;border-radius:4px;border:1px solid #1e2732;background:#0f1318">`:''}
+          </div>
+          <div class="scoreTag">${Number(r.score||0).toFixed(2)}</div>
+        </div>
+        <div class="small">${r.status||''}</div>
+        <div><span class="fantPill"><span>Fantasy</span><span>${Number(r.score||0).toFixed(2)}</span></span></div>
+      </div>`;
+  }).join('');
+  strip.querySelectorAll('[data-gid]').forEach(el=>{
+    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.idx=top.findIndex(t=>String(t.id)===ST.spotId); updateSpotlight(); ST.paused=true; setPauseBtn(); };
+  });
+}
+
+function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false'); $('btnPause').textContent = ST.paused?'▶️ Resume Rotate':'⏸️ Pause Rotate'; }
+
+function renderGrid(){
+  const grid=$('grid');
+  grid.innerHTML = ST.events.map(g=>{
+    const r=ST.rows.find(x=>String(x.id)===String(g.id));
+    return gameCard(g,{away_pts:r?.awayPts,home_pts:r?.homePts,total:r?.score});
+  }).join('');
+  grid.querySelectorAll('.gameCard').forEach(el=>{
+    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); updateSpotlight(); ST.paused=true; setPauseBtn(); };
+  });
+}
+
+async function updateSpotlight(){
+  const id = ST.spotId || (ST.rows[0]?.id);
+  if(!id) return;
+  const g = ST.events.find(e=>String(e.id)===String(id));
+  if(!g) return;
+
+  $('spotTitle').textContent = `${g.away.name} @ ${g.home.name}`;
+
+  // ESPN summary for status/log
+  const s = await fetch(api.summary(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+  const comp=s?.header?.competitions?.[0]||{};
+  let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+
+  // DB row for fantasy + bonuses
+  const row = await getGameScore(id);
+
+  // teams block
+  $('spotTeams').innerHTML = `
+    <div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
+      <div style="display:flex;gap:10px;align-items:center">
+        ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
+        <div style="font-weight:800">${g.away.name}</div>
+      </div>
+      <div style="font-weight:900">${row?.away_pts ?? (awayC?.score ?? 0)}</div>
+    </div>
+    <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
+      <div style="display:flex;gap:10px;align-items:center">
+        ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
+        <div style="font-weight:800">${g.home.name}</div>
+      </div>
+      <div style="font-weight:900">${row?.home_pts ?? (homeC?.score ?? 0)}</div>
+    </div>`;
+
+  $('spotFantasy').textContent = (row?.total!=null?Number(row.total).toFixed(2):'—');
+  const cb=Number(row?.close_bonus||0), ob=Number(row?.ot_bonus||0), sb=Number(row?.so_bonus||0);
+  $('spotBonuses').textContent = `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'}`;
+  $('spotClock').textContent = comp?.status?.displayClock || '—';
+  $('spotPer').textContent   = comp?.status?.period ?? '—';
+  $('spotState').textContent = comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—';
+  $('spotStatus').textContent = $('spotState').textContent;
+
+  // log
+  const log=$('spotLog'); log.innerHTML='';
+  (s?.scoringPlays||[]).slice(-12).reverse().forEach(sp=>{
+    const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');
+    const div=document.createElement('div'); div.textContent=`[${q} ${t}] ${d}`; log.appendChild(div);
+  });
+}
+
+/* ------- Data load ------- */
+async function loadWeek(){
+  const all=[];
+  for(const d of WEEK.list){
+    const sb = await fetch(api.scoreboard(d),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+    const evs=sb?.events||[];
+    for(const ev of evs){
+      const c=ev.competitions?.[0]||{};
+      let home=null,away=null; (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
+      all.push({
+        id:ev.id,
+        start:ev.date,
+        home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },
+        away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }
+      });
+    }
+  }
+  all.sort((a,b)=>new Date(a.start)-new Date(b.start));
+  ST.events=all;
+}
+
+/* ------- Refresh scoreboard + fantasy totals ------- */
+async function refreshRows(){
+  if(!ST.events.length) return;
+  const batch = await Promise.all(ST.events.map(async g=>{
+    const s = await fetch(api.summary(g.id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+    // read from DB after server computed (your backend job handles upserts)
+    const row = await getGameScore(g.id);
+    const comp=s?.header?.competitions?.[0]||{};
+    return {
+      id:g.id,
+      awayPts: row?.away_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score || 0),
+      homePts: row?.home_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score || 0),
+      score: row?.total ?? 0,
+      status: (comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—')
+    };
+  }));
+  ST.rows = batch.filter(Boolean);
+  stamp();
+}
+
+/* ------- Rotation ------- */
+function tickRotate(){
+  if(ST.paused || ST.rows.length===0) return;
+  ST.idx = (ST.idx+1) % ST.rows.length;
+  ST.spotId = ST.rows.slice().sort((a,b)=>b.score-a.score)[ST.idx % Math.min(ST.rows.length,10)].id;
+  updateSpotlight();
+}
+
+/* ------- Controls ------- */
+$('btnPause').onclick=()=>{ ST.paused=!ST.paused; setPauseBtn(); };
+$('btnFS').onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+document.addEventListener('keydown',e=>{
+  if(e.key===' '){ e.preventDefault(); ST.paused=!ST.paused; setPauseBtn(); }
+  if(e.key.toLowerCase()==='f'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+});
+
+/* ------- Boot ------- */
+(async ()=>{
+  await loadWeek();
+  await refreshRows();
+  renderTopStrip();
+  renderGrid();
+  await updateSpotlight();
+  setPauseBtn();
+
+  // periodic updates
+  setInterval(async()=>{ await refreshRows(); renderTopStrip(); renderGrid(); if(!ST.paused) await updateSpotlight(); }, 30000);
+  setInterval(tickRotate, 8000);
+})();
+</script>
+</body>
+</html>
