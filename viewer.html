@@ -20,7 +20,7 @@
   header{position:sticky;top:0;z-index:15;background:linear-gradient(180deg,#0f1318,rgba(15,19,24,0.6));border-bottom:1px solid var(--br)}
   header .bar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px}
   .sub{color:var(--muted)}
-  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;min-height:42px}
+  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;min-height:42px;text-decoration:none;display:inline-flex;align-items:center}
   .btn.secondary{background:#101722}
   .btn[aria-pressed="true"]{background:#182633;border-color:#31506a}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -39,24 +39,23 @@
   .scoreTag{border:1px solid #26313c;border-radius:6px;padding:2px 6px;min-width:28px;text-align:center;font-weight:800}
   .fantPill{display:inline-flex;align-items:center;gap:8px;background:#0e1a14;border:1px solid var(--okBr);color:var(--ok);padding:6px 10px;border-radius:999px;font-weight:900}
 
-  /* Spotlight */
+  /* Spotlight layout */
   .spot{display:grid;grid-template-columns:1fr 360px;gap:14px}
   @media (max-width:1050px){ .spot{grid-template-columns:1fr} }
-  .teamline{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:12px;background:#0f1318;border:1px solid #1c2430}
-  .teamline img{width:48px;height:48px;border-radius:10px;border:1px solid #1e2732;background:#0d1218}
   .scoreBox{text-align:center;background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
   .scoreNum{font-size:44px;font-weight:900}
-
-  /* Rink container */
-  .rinkPanel h3{margin:0 0 8px 0}
-  .rinkBox{ width:75%; margin:0 auto; aspect-ratio:200/85; }
-  .rinkInner{ position:relative; width:100%; height:100%; }
-  .rinkInner svg{ position:absolute; inset:0; width:100%; height:100%; display:block; }
-  .puck{ transition:transform .15s ease; }
-
-  /* Latest plays */
   #spotLog{max-height:28vh;overflow:auto}
   .kbd{font:12px/1.2 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#cfe2f5;background:#0e1620;border:1px solid #243241;border-radius:8px;padding:6px 8px}
+
+  /* Rink (image + overlay puck) */
+  .rinkPanel h3{margin:0 0 8px 0}
+  .rinkBox{ width:75%; margin:0 auto; }
+  .rinkWrap{ position:relative; width:100%; }
+  .rinkWrap img{ width:100%; height:auto; display:block; border-radius:12px; }
+  .overlay{ position:absolute; inset:0; pointer-events:none; }
+  .puck{ position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px;
+         background:#111; border:2px solid #000; border-radius:50%; box-shadow:0 0 0 1px rgba(255,255,255,.15) inset;
+         transform:translate(0,0); transition:transform .15s ease; }
 </style>
 </head>
 <body>
@@ -67,9 +66,9 @@
       <div class="sub">Week: <b id="wkPretty">—</b> · <span id="lastUpd" class="small">—</span></div>
     </div>
     <div class="row">
-      <a href="index.html" class="btn secondary" title="Back to main site">Home</a>
+      <a class="btn secondary" href="index.html">Home</a>
       <button id="btnPause" class="btn" aria-pressed="false">⏸️ Pause Rotate</button>
-      <button id="btnFS" class="btn" title="Fullscreen">⛶ Fullscreen</button>
+      <button id="btnFS" class="btn">⛶ Fullscreen</button>
     </div>
   </div>
 </header>
@@ -110,7 +109,7 @@
 
       <div class="sep"></div>
 
-      <!-- Rink -->
+      <!-- Rink (image-based) -->
       <section class="panel rinkPanel" style="padding:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
           <h3>Rink (Live / Sim)</h3>
@@ -118,55 +117,17 @@
             <input id="simToggle" type="checkbox"> Simulate
           </label>
         </div>
+
         <div class="rinkBox">
-          <div class="rinkInner">
-            <!-- 200 x 85 rink -->
-            <svg id="rink" viewBox="0 0 200 85" aria-label="Hockey rink">
-              <!-- ice + boards -->
-              <rect x="2" y="2" width="196" height="81" rx="22" ry="22" fill="#eef3f8" stroke="#cfd8e3" stroke-width="4"/>
-
-              <!-- lines -->
-              <line x1="100" y1="2"  x2="100" y2="83" stroke="#d33"   stroke-width="2"/>
-              <line x1="75"  y1="2"  x2="75"  y2="83" stroke="#2b7bd1" stroke-width="2"/>
-              <line x1="125" y1="2"  x2="125" y2="83" stroke="#2b7bd1" stroke-width="2"/>
-              <line x1="11"  y1="2"  x2="11"  y2="83" stroke="#d33"   stroke-width="2"/>
-              <line x1="189" y1="2"  x2="189" y2="83" stroke="#d33"   stroke-width="2"/>
-
-              <!-- center circle + dot -->
-              <circle cx="100" cy="42.5" r="15" fill="none" stroke="#2b7bd1" stroke-width="1.6"/>
-              <circle cx="100" cy="42.5" r="1.7" fill="#2b7bd1"/>
-
-              <!-- end-zone faceoff circles -->
-              <!-- Left end -->
-              <circle cx="31" cy="21" r="10.5" fill="none" stroke="#d33" stroke-width="1.6"/>
-              <circle cx="31" cy="64" r="10.5" fill="none" stroke="#d33" stroke-width="1.6"/>
-              <circle cx="31" cy="21" r="1.6" fill="#d33"/>
-              <circle cx="31" cy="64" r="1.6" fill="#d33"/>
-              <!-- Right end -->
-              <circle cx="169" cy="21" r="10.5" fill="none" stroke="#d33" stroke-width="1.6"/>
-              <circle cx="169" cy="64" r="10.5" fill="none" stroke="#d33" stroke-width="1.6"/>
-              <circle cx="169" cy="21" r="1.6" fill="#d33"/>
-              <circle cx="169" cy="64" r="1.6" fill="#d33"/>
-
-              <!-- neutral-zone dots -->
-              <circle cx="86"  cy="42.5" r="1.6" fill="#d33"/>
-              <circle cx="114" cy="42.5" r="1.6" fill="#d33"/>
-
-              <!-- creases (bulge inward) -->
-              <path d="M 11 30.5 A 12 12 0 0 1 11 54.5 A 12 12 0 0 1 11 30.5 Z"
-                    fill="#3aa3ff" fill-opacity="0.9" stroke="#2b7bd1" stroke-width="1.2"/>
-              <path d="M 189 54.5 A 12 12 0 0 1 189 30.5 A 12 12 0 0 1 189 54.5 Z"
-                    fill="#3aa3ff" fill-opacity="0.9" stroke="#2b7bd1" stroke-width="1.2"/>
-
-              <!-- posts (visual anchors on goal line) -->
-              <rect x="9.2"  y="39" width="1.8" height="7" fill="#2b7bd1" rx="0.5"/>
-              <rect x="189"  y="39" width="1.8" height="7" fill="#2b7bd1" rx="0.5"/>
-
-              <!-- puck -->
-              <circle id="puck" class="puck" cx="100" cy="42.5" r="2.6" fill="#111" stroke="#000" stroke-width="0.4"/>
-            </svg>
+          <div class="rinkWrap">
+            <!-- Update src path if your file lives elsewhere -->
+            <img id="rinkImg" src="rink.jpg" alt="Hockey rink">
+            <div class="overlay">
+              <div id="puck" class="puck" style="transform:translate(50%,50%)"></div>
+            </div>
           </div>
         </div>
+
         <div class="small" style="margin-top:8px">
           Live feed hook: <span class="kbd">window.setPuck({ x: 0–100, y: 0–100 })</span>
         </div>
@@ -174,8 +135,8 @@
 
       <div class="sep"></div>
 
-      <!-- Teams block (scores mirror DB/ESPN) -->
-      <div id="spotTeams"></div>
+      <!-- Teams (scores) -->
+      <div id="spotTeams" class="panel" style="padding:10px"></div>
     </div>
 
     <!-- Sidebar: Latest Plays -->
@@ -225,15 +186,21 @@ const ST={ events:[], rows:[], idx:0, paused:false, spotId:null, simTimer:null }
 const $=id=>document.getElementById(id);
 const stamp=()=>{ $('lastUpd').textContent='Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
 
-/* ------- Rink puck helpers ------- */
-const puckEl = () => document.getElementById('puck');
-function setPuckPct({x,y}){ // x,y in 0..100 (rink coords)
-  const cx = 2 + (196 * (x/100));
-  const cy = 2 + (81  * (y/100));
-  // Use transform so stroke stays crisp as we animate
-  const el = puckEl();
-  if(el){ el.setAttribute('transform', `translate(${cx-100}, ${cy-42.5})`); } // relative to center (100,42.5)
+/* ------- Puck overlay (percent-based) ------- */
+const puck = $('puck');
+const rinkWrap = document.querySelector('.rinkWrap');
+function percentToPixels(xPct,yPct){
+  const r = rinkWrap.getBoundingClientRect();
+  const x = r.width  * (xPct/100);
+  const y = r.height * (yPct/100);
+  return {x,y};
 }
+function setPuckPct({x,y}){
+  const {x:xp,y:yp} = percentToPixels(x,y);
+  // translate relative to overlay's origin (0,0). Use CSS transform for crisp motion.
+  puck.style.transform = `translate(${xp}px, ${yp}px)`;
+}
+// expose for live feeds
 window.setPuck = setPuckPct;
 
 /* ------- UI builders ------- */
@@ -261,10 +228,9 @@ function renderTopStrip(){
   }).join('');
 
   strip.querySelectorAll('[data-gid]').forEach(el=>{
-    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); document.getElementById('rink').scrollIntoView({behavior:'smooth',block:'center'}); };
+    el.onclick=()=>{ ST.spotId=el.getAttribute('data-gid'); ST.paused=true; setPauseBtn(); updateSpotlight(); document.getElementById('rinkImg').scrollIntoView({behavior:'smooth',block:'center'}); };
   });
 }
-
 function setPauseBtn(){ $('btnPause').setAttribute('aria-pressed', ST.paused?'true':'false'); $('btnPause').textContent = ST.paused?'▶️ Resume Rotate':'⏸️ Pause Rotate'; }
 
 async function updateSpotlight(){
@@ -275,29 +241,16 @@ async function updateSpotlight(){
 
   $('spotTitle').textContent = `${g.away.name} @ ${g.home.name}`;
 
-  // ESPN summary for status/log & score fallback
   const s = await fetch(api.summary(id),{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
   const comp=s?.header?.competitions?.[0]||{};
   let homeC=null,awayC=null; (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
 
-  // DB totals
   const row = await getGameScore(id);
 
-  // teams block
   $('spotTeams').innerHTML = `
-    <div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
-      <div style="display:flex;gap:10px;align-items:center">
-        ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
-        <div style="font-weight:800">${g.away.name}</div>
-      </div>
-      <div style="font-weight:900">${row?.away_pts ?? (awayC?.score ?? 0)}</div>
-    </div>
-    <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
-      <div style="display:flex;gap:10px;align-items:center">
-        ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
-        <div style="font-weight:800">${g.home.name}</div>
-      </div>
-      <div style="font-weight:900">${row?.home_pts ?? (homeC?.score ?? 0)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="scoreBox"><div class="small">${g.away.name}</div><div style="font-weight:900">${row?.away_pts ?? (awayC?.score ?? 0)}</div></div>
+      <div class="scoreBox"><div class="small">${g.home.name}</div><div style="font-weight:900">${row?.home_pts ?? (homeC?.score ?? 0)}</div></div>
     </div>`;
 
   $('spotFantasy').textContent = (row?.total!=null?Number(row.total).toFixed(2):'—');
@@ -308,7 +261,6 @@ async function updateSpotlight(){
   $('spotState').textContent = comp?.status?.type?.shortDetail || comp?.status?.type?.description || '—';
   $('spotStatus').textContent = $('spotState').textContent;
 
-  // latest plays list
   const log=$('spotLog'); log.innerHTML='';
   (s?.scoringPlays||[]).slice(-14).reverse().forEach(sp=>{
     const t=(sp.clock?.displayValue||''), q=(sp.period?.number?'P'+sp.period.number:''), d=(sp.text||sp.description||'');
@@ -336,7 +288,6 @@ async function loadWeek(){
   all.sort((a,b)=>new Date(a.start)-new Date(b.start));
   ST.events=all;
 }
-
 async function refreshRows(){
   if(!ST.events.length) return;
   const batch = await Promise.all(ST.events.map(async g=>{
@@ -370,19 +321,16 @@ document.addEventListener('keydown',e=>{
   if(e.key.toLowerCase()==='f'){ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 });
 
-/* ------- Simulate puck (or feed via window.setPuck) ------- */
+/* ------- Simulate puck ------- */
 const simToggle = $('simToggle');
 simToggle.addEventListener('change',()=>{
   clearInterval(ST.simTimer);
   if(simToggle.checked){
     ST.simTimer = setInterval(()=>{
-      // light random skate with bias toward attacking zones
-      const x = 10 + Math.random()*80;  // avoid boards
-      const y = 8  + Math.random()*69;
+      const x = 8 + Math.random()*84;   // keep away from hard edges
+      const y = 8 + Math.random()*84*(85/100); // aspect-safe
       setPuckPct({x,y});
     }, 700);
-  }else{
-    clearInterval(ST.simTimer);
   }
 });
 
@@ -399,8 +347,8 @@ simToggle.addEventListener('change',()=>{
   setInterval(async()=>{ await refreshRows(); renderTopStrip(); if(!ST.paused) await updateSpotlight(); }, 30000);
   setInterval(tickRotate, 8000);
 
-  // ensure rink is visible on first load
-  document.getElementById('rink').scrollIntoView({block:'center'});
+  // ensure rink visible initially
+  document.getElementById('rinkImg').scrollIntoView({block:'center'});
 })();
 </script>
 </body>
