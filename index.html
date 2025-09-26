@@ -7,6 +7,27 @@
 <style>
   :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }
 
+/* === Unified scrollbars (WebKit + Firefox) === */
+*{
+  scrollbar-width: thin;                 /* Firefox */
+  scrollbar-color: #334658 transparent;  /* thumb | track */
+}
+*::-webkit-scrollbar{
+  width:10px; height:10px;               /* Chrome/Edge/Safari */
+}
+*::-webkit-scrollbar-track{
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb{
+  background:#334658;
+  border-radius:999px;
+  border:2px solid transparent;          /* creates the inset gap */
+  background-clip: padding-box;
+}
+
+
+
+  
   /* Base */
   html,body{
     margin:0;background:var(--bg);color:var(--text);
@@ -1135,3 +1156,4 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
