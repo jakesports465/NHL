@@ -36,10 +36,22 @@
   .scoreTag{border:1px solid #26313c;border-radius:6px;padding:2px 6px;min-width:26px;text-align:center;font-weight:800}
   .fantPill{display:inline-flex;align-items:center;gap:8px;background:#0e1a14;border:1px solid var(--okBr);color:var(--ok);padding:6px 10px;border-radius:999px;font-weight:900}
 
-  /* Spotlight header */
-  .spotHead{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-  .scoreBox{display:flex;gap:10px;align-items:center}
-  .scoreNum{font-size:32px;font-weight:900}
+  /* SPOTLIGHT SCOREBOARD */
+  .board{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center}
+  .side{display:flex;gap:10px;align-items:center;justify-content:flex-start;min-width:0}
+  .side.right{justify-content:flex-end}
+  .logo{width:42px;height:42px;border-radius:10px;border:1px solid #1e2732;background:#0d1318;flex:0 0 auto}
+  .teamName{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .scoreBig{font-size:42px;font-weight:900;min-width:64px;text-align:center}
+  .meta{display:flex;gap:8px;align-items:center;justify-content:center}
+  .fantBadge{display:inline-flex;align-items:center;gap:8px;background:#0e1a14;border:1px solid var(--okBr);color:var(--ok);padding:6px 12px;border-radius:999px;font-weight:900}
+
+  @media (max-width:800px){
+    .board{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:8px}
+    .scoreMid{grid-column:1 / -1;display:flex;justify-content:center;gap:10px}
+    .scoreBig{font-size:36px;min-width:56px}
+    .logo{width:36px;height:36px}
+  }
 
   /* Two-column stack */
   .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -91,14 +103,33 @@
 
   <!-- Spotlight -->
   <section class="card section">
-    <div class="spotHead">
-      <h2 id="spotTitle" style="margin:0">Game Spotlight</h2>
-      <div class="scoreBox small">
-        <span id="spotState">—</span>
-        <span class="pill" id="spotClock" style="margin-left:6px">—</span>
-        <span class="fantPill" style="margin-left:6px"><span>Fantasy</span><span id="spotFantasy">—</span></span>
+    <h2 style="margin:0 0 8px 0" id="spotTitle">Game Spotlight</h2>
+
+    <!-- BIG scoreboard always visible -->
+    <div class="board panel" style="padding:12px">
+      <div class="side">
+        <img id="awayLogo" class="logo" alt="" />
+        <div class="teamName" id="awayName">Away</div>
+      </div>
+
+      <div class="scoreMid" style="display:flex;align-items:center;gap:12px;justify-content:center">
+        <div id="awayScore" class="scoreBig">0</div>
+        <div class="scoreBig" style="opacity:.7">–</div>
+        <div id="homeScore" class="scoreBig">0</div>
+      </div>
+
+      <div class="side right">
+        <div class="teamName" id="homeName" style="text-align:right">Home</div>
+        <img id="homeLogo" class="logo" alt="" />
+      </div>
+
+      <div class="meta" style="grid-column:1 / -1; margin-top:6px">
+        <span class="pill" id="spotState">—</span>
+        <span class="pill" id="spotClock">—</span>
+        <span class="fantBadge"><span>Fantasy</span><span id="spotFantasy">—</span></span>
       </div>
     </div>
+
     <div class="sep"></div>
 
     <div class="two">
@@ -150,7 +181,7 @@ const WEEK_KEY=weekKey(); const WEEK=weekDates(); document.getElementById('wkPre
 const api={
   scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
   summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`,
-  pbp:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${id}` // may not exist in some regions; we handle fallback
+  pbp:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${id}` // may be blocked; we fall back
 };
 const cdnNHL=t=>t?.logos?.[0]?.href?String(t.logos[0].href).replace(/^http:/,'https:'): (t?.abbreviation?`https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`:null);
 
@@ -159,7 +190,7 @@ const ST={events:[], rows:[], id:null, paused:false, idx:0};
 const $=id=>document.getElementById(id);
 const stamp=()=>{ $('lastUpd').textContent='Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); };
 
-/* ===== Supabase: read fantasy totals (already computed by your RPC/cron) ===== */
+/* ===== Supabase: read fantasy totals (already computed by your backend) ===== */
 async function getGameScore(gid){
   const { data } = await supa.from('game_scores')
     .select('total,home_pts,away_pts')
@@ -214,10 +245,11 @@ async function refreshRows(){
     const row = await getGameScore(g.id);
     const comp = s?.header?.competitions?.[0] || {};
     const type = comp?.status?.type || {};
+    const awayScore = row?.away_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score||0);
+    const homeScore = row?.home_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score||0);
     return {
       id:g.id, game:g,
-      awayPts: row?.away_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='away')?.score||0),
-      homePts: row?.home_pts ?? Number(comp?.competitors?.find(c=>c.homeAway==='home')?.score||0),
+      awayPts: awayScore, homePts: homeScore,
       score: row?.total ?? 0,
       state: (type.shortDetail || type.description || '—'),
       clock: (comp?.status?.displayClock || '—'),
@@ -257,7 +289,6 @@ function renderList(elId, plays){
 async function loadRecentPlays(gameId, scoringFallback){
   try{
     const s = await fetch(api.pbp(gameId),{cache:'no-store'}).then(r=>r.json());
-    // Prefer last ~30 events; ESPN shape differs, normalize fields best-effort
     let arr = s?.allPlays || s?.plays || [];
     if(!Array.isArray(arr) || arr.length===0) throw new Error('no plays');
     return arr.slice(-30).reverse();
@@ -267,18 +298,29 @@ async function loadRecentPlays(gameId, scoringFallback){
 }
 
 /* ===== Spotlight ===== */
+function fillBoard(row){
+  $('spotTitle').textContent = `${row.game.away.name} @ ${row.game.home.name}`;
+  $('awayName').textContent  = row.game.away.name;
+  $('homeName').textContent  = row.game.home.name;
+  $('awayScore').textContent = row.awayPts ?? 0;
+  $('homeScore').textContent = row.homePts ?? 0;
+  $('spotState').textContent = row.state || '—';
+  $('spotClock').textContent = row.clock || '—';
+  $('spotFantasy').textContent = Number(row.score||0).toFixed(2);
+  const aL=$('awayLogo'); const hL=$('homeLogo');
+  if(aL) aL.src = row.game.away.logo || '';
+  if(hL) hL.src = row.game.home.logo || '';
+}
+
 async function updateSpotlight(){
   const id = ST.id || (ST.rows[0]?.id);
   if(!id) return;
   const row = ST.rows.find(x=>String(x.id)===String(id));
   if(!row) return;
 
-  $('spotTitle').textContent = `${row.game.away.name} @ ${row.game.home.name}`;
-  $('spotState').textContent = row.state || '—';
-  $('spotClock').textContent = row.clock || '—';
-  $('spotFantasy').textContent = Number(row.score||0).toFixed(2);
+  fillBoard(row);
 
-  // Scoring plays (always from summary)
+  // Scoring plays (always from summary we cached in rows)
   const scoring = row.scoring.slice(-20).reverse();
   renderList('listScoring', scoring.map(p=>({ ...p, text: (p.text||p.description||'') })));
 
