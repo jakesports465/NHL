@@ -68,10 +68,12 @@
   .btn.small{padding:10px 12px;font-size:13px;min-height:40px}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
   .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  input[type="text"], input[type="email"]{
-    flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);
-    padding:10px;min-height:40px;font-size:16px; /* mobile-friendly tap target + zoom prevention */
-  }
+  input[type="text"], input[type="email"], input[type="password"]{
+  flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);
+  padding:10px;min-height:40px;font-size:16px;
+}
+::placeholder{color:#8ea0b3;opacity:.9}
+
 
   /* Games grid */
   .gamesGrid{
@@ -174,6 +176,27 @@
   .fTable th,.fTable td{border:1px solid #1c2430; padding:6px 8px; text-align:right}
   .fTable th:first-child,.fTable td:first-child{text-align:left}
   .fTable tfoot td{font-weight:800}
+
+  /* Auth bar styling to match cards/panels */
+#authBox{
+  background:#0f1318;
+  border:1px solid var(--br);
+  border-radius:12px;
+  padding:8px;
+  display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+}
+
+/* Tighten small link + buttons to match theme */
+#authBox .btn.small{min-height:38px;padding:9px 12px}
+#forgotLink{color:var(--muted); text-decoration:none; padding:6px 4px}
+#forgotLink:hover{color:#cfe2f5; text-decoration:underline}
+
+/* Keep inputs compact in the header */
+#authBox input{min-width:180px}
+@media (max-width:700px){
+  #authBox input{min-width:140px}
+}
+
 </style>
 </head>
 <body>
@@ -1181,6 +1204,7 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
 
