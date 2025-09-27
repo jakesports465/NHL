@@ -486,13 +486,13 @@ const WEEK_KEY=weekKey(); const WEEK=weekDates();
 $('weekLabel').textContent=WEEK.pretty; $('lbWeekLabel').textContent=`Week: ${WEEK.pretty}`; $('mineWeekLabel').textContent=WEEK.pretty;
 
 /* ---------- ESPN helpers ---------- */
-function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.logos[0].href).replace(/^http:/,'https:'); if(t.abbreviation) return `https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`; return null; }
+ cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.logos[0].href).replace(/^http:/,'https:'); if(t.abbreviation) return `https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`; return null; }
 
 /* ---------- Supabase helpers (auth + players) ---------- */
 let session=null, currentUser=null, displayName='';
-function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
+ toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
 
-async function loadOrCreatePlayer(){
+async  loadOrCreatePlayer(){
   if(!currentUser) return;
   const uid=currentUser.id;
   const { data, error } = await supa.from('players').select('*').eq('id',uid).maybeSingle();
@@ -533,47 +533,119 @@ $('forgotLink').addEventListener('click', async (e) => {
 });
 
 /* ---------- Picks (Supabase) ---------- */
-function uniqLimit(arr){ const out=[]; const seen=new Set(); (arr||[]).forEach(x=>{ const id=String(x); if(!seen.has(id)){ seen.add(id); out.push(id); } }); return out.slice(0,MAX_PICKS); }
-const CK_MY = uid => `picks:${WEEK_KEY}:${uid}`;
+function uniqLimit(arr){
+  const out=[]; const seen=new Set();
+  (arr||[]).forEach(x=>{
+    const id=String(x);
+    if(!seen.has(id)){ seen.add(id); out.push(id); }
+  });
+  return out.slice(0,MAX_PICKS);
+}
+
+const CK_MY  = uid => `picks:${WEEK_KEY}:${uid}`;
 const CK_ALL = `allpicks:${WEEK_KEY}`;
 const NAME_MEMO = new Map();
 
 async function picksForUser(uid){
-  const ck = CK_MY(uid); const cached = getCache(ck); if(cached) return cached;
-  const { data, error } = await supa.from('picks').select('game_id').eq('user_id', uid).eq('league','NHL').eq('week_key', WEEK_KEY);
+  const ck = CK_MY(uid);
+  const cached = getCache(ck);
+  if (cached) return cached;
+
+  const { data, error } = await supa
+    .from('picks')
+    .select('game_id')
+    .eq('user_id', uid)
+    .eq('league','NHL')
+    .eq('week_key', WEEK_KEY)
+    .limit(MAX_PICKS);
+
   const list = error ? [] : uniqLimit((data||[]).map(r=>String(r.game_id)));
-  setCache(ck, list, 15000); return list;
+  setCache(ck, list, 180000); // 3 min TTL
+  return list;
 }
+
 async function setPick(uid, gameId){
   const { error } = await supa.from('picks').upsert(
     [{ user_id: uid, league:'NHL', week_key: WEEK_KEY, game_id: String(gameId) }],
     { onConflict: 'user_id,league,week_key,game_id' }
   );
-  if(error){ alert(error.message); return false; }
-  delCache(CK_MY(uid)); delCache(CK_ALL);
+  if (error){ alert(error.message); return false; }
+
+  // Invalidate + optimistic update to avoid immediate re-fetch
+  const ck = CK_MY(uid);
+  const cur = getCache(ck) || [];
+  const next = uniqLimit([...cur, String(gameId)]);
+  setCache(ck, next, 180000); // 3 min TTL
+  delCache(CK_ALL);
+
   refreshBadgesUI().catch(()=>{});
   return true;
 }
+
 async function allPicksThisWeek(){
-  const cached = getCache(CK_ALL); if(cached) return cached;
-  const { data, error } = await supa.from('picks').select('user_id, game_id').eq('league','NHL').eq('week_key',WEEK_KEY);
+  const cached = getCache(CK_ALL);
+  if (cached) return cached;
+
+  const { data, error } = await supa
+    .from('picks')
+    .select('user_id, game_id')
+    .eq('league','NHL')
+    .eq('week_key',WEEK_KEY);
+
   const rows = error ? [] : (data||[]);
-  setCache(CK_ALL, rows, 20000); return rows;
-}
-async function getDisplayNames(userIds){
-  const ids = [...new Set(userIds||[])].filter(Boolean); if(ids.length===0) return {};
-  const need = ids.filter(id=>!NAME_MEMO.has(id));
-  if(need.length){
-    const { data, error } = await supa.from('players').select('id,display_name').in('id', need);
-    if(!error && data){ data.forEach(r=>NAME_MEMO.set(r.id, r.display_name || r.id.slice(0,6)));
-      need.forEach(id=>{ if(!NAME_MEMO.has(id)) NAME_MEMO.set(id, id.slice(0,6)); });
-    }else{ need.forEach(id=>NAME_MEMO.set(id, id.slice(0,6))); }
-  }
-  const map={}; ids.forEach(id=>map[id]=NAME_MEMO.get(id)); return map;
+  setCache(CK_ALL, rows, 180000); // 3 min TTL
+  return rows;
 }
 
+async function getDisplayNames(userIds){
+  const ids = [...new Set(userIds||[])].filter(Boolean);
+  if (ids.length===0) return {};
+
+  // hydrate memo from localStorage cache first (24h TTL)
+  const NAME_CK = id => `name:${id}`;
+  ids.forEach(id=>{
+    if (!NAME_MEMO.has(id)) {
+      const cached = getCache(NAME_CK(id));
+      if (cached) NAME_MEMO.set(id, cached);
+    }
+  });
+
+  const need = ids.filter(id=>!NAME_MEMO.has(id));
+  if (need.length){
+    const { data, error } = await supa
+      .from('players')
+      .select('id,display_name')
+      .in('id', need);
+
+    if (!error && data){
+      data.forEach(r=>{
+        const val = r.display_name || r.id.slice(0,6);
+        NAME_MEMO.set(r.id, val);
+        setCache(NAME_CK(r.id), val, 24*60*60*1000); // 24h TTL
+      });
+      need.forEach(id=>{
+        if (!NAME_MEMO.has(id)) {
+          const val = id.slice(0,6);
+          NAME_MEMO.set(id, val);
+          setCache(NAME_CK(id), val, 24*60*60*1000);
+        }
+      });
+    } else {
+      need.forEach(id=>{
+        const val = id.slice(0,6);
+        NAME_MEMO.set(id, val);
+        setCache(NAME_CK(id), val, 24*60*60*1000);
+      });
+    }
+  }
+
+  const map={}; ids.forEach(id=>map[id]=NAME_MEMO.get(id));
+  return map;
+}
+
+
 /* ---------- NEW: push summaries into SQL; read game score/box ---------- */
-async function pushSummaryToSQL(gameId, summaryJson){
+async  pushSummaryToSQL(gameId, summaryJson){
   const { error } = await supa.rpc('upsert_nhl_game_from_summary', {
     p_week_key: WEEK_KEY,
     p_game_id: String(gameId),
@@ -583,7 +655,7 @@ async function pushSummaryToSQL(gameId, summaryJson){
 }
 
 /* include stat fields for breakdown */
-async function getGameScoreFromDB(gid){
+async  getGameScoreFromDB(gid){
   const { data } = await supa
     .from('game_scores')
     .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,is_final,goals,ppg,shg,shots,saves,hits,blocks,pim')
@@ -592,7 +664,7 @@ async function getGameScoreFromDB(gid){
 }
 
 /* ---------- Robust Scoring detector + helpers ---------- */
-function mapPlay(x){
+ mapPlay(x){
   return {
     raw:x,
     per: x?.period?.number ?? x?.periodNumber ?? x?.period ?? '?',
@@ -600,7 +672,7 @@ function mapPlay(x){
     text: (x?.text || x?.description || x?.shortText || '').replace(/\s+/g,' ').trim()
   };
 }
-function isRealGoal(pRaw){
+ isRealGoal(pRaw){
   const typeText = (pRaw?.type?.text || '').toLowerCase();
   const bodyText = (pRaw?.text || pRaw?.description || pRaw?.shortText || '').toLowerCase();
   if (pRaw?.scoringPlay === true) return true;
@@ -1254,6 +1326,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
