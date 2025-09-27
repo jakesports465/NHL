@@ -145,6 +145,15 @@ function weekKey(){
 }
 const CURRENT_WEEK_KEY = weekKey();
 
+/* === ADDED: pretty week label (e.g., "September 22") === */
+function prettyWeekLabel(week_key){
+  try{
+    const iso = (week_key||'').slice(0,10);       // YYYY-MM-DD
+    const d = new Date(iso+'T12:00:00');          // safe parse
+    return new Intl.DateTimeFormat('en-US',{month:'long', day:'numeric'}).format(d);
+  }catch(_e){ return week_key || 'This Week'; }
+}
+
 /* ====== NHL TEAMS ====== */
 const NHL_TEAMS = [
   ['BOS','Boston Bruins','Atlantic'],['BUF','Buffalo Sabres','Atlantic'],['DET','Detroit Red Wings','Atlantic'],['FLA','Florida Panthers','Atlantic'],
@@ -205,9 +214,9 @@ function appendMsg(listEl, m, meId){
   const isMe = meId && m.user_id===meId;
   const div=document.createElement('div');
   div.className = 'msg'+(isMe?' me':'');
-  const who = nameFor(m.user_id, meId);                         /* ADDED */
+  const who = nameFor(m.user_id, meId);
   div.innerHTML = `<div class="who"></div><div class="text"></div>`;
-  div.querySelector('.who').textContent = who;                  /* ADDED */
+  div.querySelector('.who').textContent = who;
   div.querySelector('.text').textContent = m.body || '';
   listEl.appendChild(div);
 }
@@ -219,7 +228,7 @@ async function loadInitial(room_id, listEl){
     .limit(120);
   if(error){ listEl.innerHTML=`<div class="small">Error: ${error.message}</div>`; return; }
   const msgs=(data||[]).slice().reverse();
-  await fetchDisplayNames(msgs.map(x=>x.user_id));              /* ADDED */
+  await fetchDisplayNames(msgs.map(x=>x.user_id));
   listEl.innerHTML = msgs.length? '' : '<div class="small">Be the first to say something…</div>';
   msgs.forEach(m=>appendMsg(listEl,m,ST.me?.id));
   ST.lastId.set(room_id, msgs.length ? msgs[msgs.length-1].id : 0);
@@ -234,7 +243,7 @@ async function pollSince(room_id, listEl){
     .order('id',{ascending:true})
     .limit(100);
   if(error || !data || !data.length) return;
-  await fetchDisplayNames(data.map(x=>x.user_id));              /* ADDED */
+  await fetchDisplayNames(data.map(x=>x.user_id));
   data.forEach(m=>appendMsg(listEl,m,ST.me?.id));
   ST.lastId.set(room_id, data[data.length-1].id);
   listEl.scrollTop=listEl.scrollHeight;
@@ -248,7 +257,7 @@ function ensureChannel(room_id, listEl, dotId){
     .on('postgres_changes',
       {event:'INSERT',schema:'public',table:'chat_messages',filter:`room_id=eq.${room_id}`},
       payload => {
-        fetchDisplayNames([payload.new.user_id]).then(()=>{      /* ADDED */
+        fetchDisplayNames([payload.new.user_id]).then(()=>{
           appendMsg(listEl, payload.new, ST.me?.id);
           ST.lastId.set(room_id, Math.max(ST.lastId.get(room_id)||0, payload.new.id||0));
           listEl.scrollTop=listEl.scrollHeight;
@@ -303,7 +312,8 @@ function renderWeekly(all){
   const mount=$('weeklyMount'); mount.innerHTML='';
   const wk = all.find(r=>r.room_type==='week' && r.week_key===CURRENT_WEEK_KEY);
   if(!wk){ mount.innerHTML=`<div class="small">No room for ${CURRENT_WEEK_KEY} yet.</div>`; return; }
-  mountRoom(mount, wk, 'rt-week');
+  const pretty = prettyWeekLabel(wk.week_key);                 /* ADDED */
+  mountRoom(mount, { ...wk, name: pretty }, 'rt-week');        /* ADDED */
 }
 
 async function createTeamRoom(abbr, name){
