@@ -84,7 +84,7 @@
   <section id="sec-weekly" class="section">
     <div class="card">
       <div class="row">
-        <h2 style="margin:0">Weekly</h2>
+        <h2 id="weeklyTitle" style="margin:0">Weekly</h2>
         <span class="rt small"><span id="rt-week" class="dot wait"></span><span>Live</span></span>
       </div>
       <div id="weeklyMount"><div class="small">Loading…</div></div>
@@ -124,15 +124,22 @@ function weekKey(){
 }
 const CURRENT_WEEK_KEY = weekKey();
 
-/* === pretty week label (e.g., "September 22") — Safari-safe === */
-function prettyWeekLabel(week_key){
+/* === Week label: "Week of September 22–28" (Mon–Sun from week_key) === */
+function weekRangeLabel(week_key){
   try{
-    const iso = (week_key||'').slice(0,10); // YYYY-MM-DD
+    const iso = (week_key||'').slice(0,10);
     const [y,m,d] = iso.split('-').map(n=>parseInt(n,10));
-    if(!y || !m || !d) return week_key || 'This Week';
-    const dt = new Date(y, m-1, d);
-    return new Intl.DateTimeFormat('en-US',{month:'long', day:'numeric'}).format(dt);
-  }catch(_e){ return week_key || 'This Week'; }
+    if(!y||!m||!d) return 'Weekly';
+    const start = new Date(y, m-1, d);
+    const end   = new Date(y, m-1, d+6);
+    const fmtM  = new Intl.DateTimeFormat('en-US',{month:'long'}).format(start);
+    const fmtD1 = new Intl.DateTimeFormat('en-US',{day:'numeric'}).format(start);
+    const sameMonth = start.getMonth()===end.getMonth();
+    const fmtD2 = sameMonth
+      ? new Intl.DateTimeFormat('en-US',{day:'numeric'}).format(end)
+      : new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric'}).format(end);
+    return `Week of ${fmtM} ${fmtD1}–${fmtD2}`;
+  }catch(_e){ return 'Weekly'; }
 }
 
 /* ====== NHL TEAMS ====== */
@@ -162,14 +169,36 @@ async function fetchDisplayNames(ids){
 }
 function nameFor(uid, meId){ if(meId && uid===meId) return 'Me'; return NAME_CACHE.get(uid) || (uid?uid.slice(0,6):'user'); }
 
-/* ====== AUTH ====== */
+/* ====== AUTH (show display_name in header) ====== */
 async function initAuth(){
   const { data:{session} } = await supa.auth.getSession();
   ST.me = session?.user || null;
-  $('whoTag').textContent = ST.me?.email || 'Not signed in';
-  supa.auth.onAuthStateChange((_e,s)=>{
+
+  if(ST.me){
+    let label = ST.me.email;
+    try{
+      const { data:meRow } = await supa.from('players').select('display_name').eq('id', ST.me.id).maybeSingle();
+      label = (meRow && meRow.display_name) ? meRow.display_name : (ST.me.user_metadata?.display_name || ST.me.email);
+      NAME_CACHE.set(ST.me.id, label);
+    }catch(_e){}
+    $('whoTag').textContent = label || 'Signed in';
+  }else{
+    $('whoTag').textContent = 'Not signed in';
+  }
+
+  supa.auth.onAuthStateChange(async (_e,s)=>{
     ST.me = s?.user || null;
-    $('whoTag').textContent = ST.me?.email || 'Not signed in';
+    if(ST.me){
+      let label = ST.me.email;
+      try{
+        const { data:meRow } = await supa.from('players').select('display_name').eq('id', ST.me.id).maybeSingle();
+        label = (meRow && meRow.display_name) ? meRow.display_name : (ST.me.user_metadata?.display_name || ST.me.email);
+        NAME_CACHE.set(ST.me.id, label);
+      }catch(_e){}
+      $('whoTag').textContent = label || 'Signed in';
+    }else{
+      $('whoTag').textContent = 'Not signed in';
+    }
   });
 }
 
@@ -284,16 +313,19 @@ function mountRoom(container, room, dotId){
 
 function renderSeason(all){
   const mount=$('seasonMount'); mount.innerHTML='';
-  const season = all.find(r=>r.room_type==='season' && r.league==='NHL');
+  const season = Array.isArray(all) ? all.find(r=>r.room_type==='season' && r.league==='NHL') : null;
   if(!season){ mount.innerHTML='<div class="small">No season room yet.</div>'; return; }
   mountRoom(mount, season, 'rt-season');
 }
 
 function renderWeekly(all){
   const mount=$('weeklyMount'); mount.innerHTML='';
-  const wk = all.find(r=>r.room_type==='week' && r.week_key===CURRENT_WEEK_KEY);
+  const wk = Array.isArray(all) ? all.find(r=>r.room_type==='week' && r.week_key===CURRENT_WEEK_KEY) : null;
   if(!wk){ mount.innerHTML=`<div class="small">No room for ${CURRENT_WEEK_KEY} yet.</div>`; return; }
-  const pretty = prettyWeekLabel(wk.week_key);
+  // Title text: "Week of {range}"
+  const pretty = weekRangeLabel(wk.week_key);
+  const titleEl = document.getElementById('weeklyTitle');
+  if(titleEl) titleEl.textContent = pretty;
   mountRoom(mount, { ...wk, name: pretty }, 'rt-week');
 }
 
@@ -308,60 +340,62 @@ async function createTeamRoom(abbr, name){
 
 function renderTeams(all){
   const mount=$('teamsMount'); mount.innerHTML='';
-  const byDiv = new Map();
-  NHL_TEAMS.forEach(([abbr,name,div])=>{
-    const room = all.find(r=>r.room_type==='team' && r.team_abbr===abbr);
-    if(!byDiv.has(div)) byDiv.set(div,[]);
-    byDiv.get(div).push({abbr,name,room});
-  });
-  const container=document.createElement('div'); container.className='divGrid';
-
-  [...byDiv.keys()].sort().forEach(div=>{
-    const card=document.createElement('div'); card.className='divCard';
-    card.innerHTML=`<div class="row"><strong>${div} Division</strong></div><div class="sep"></div>`;
-    byDiv.get(div).forEach(t=>{
-      const sec=document.createElement('div'); sec.className='panel';
-      if(t.room){
-        sec.innerHTML=`<div class="row"><strong>${t.name}</strong><span class="small">${t.abbr}</span></div>`;
-        const holder=document.createElement('div'); holder.className='room'; holder.style.marginTop='8px';
-        const {wrap,listId,inId,btnId}=chatBlock(t.room); holder.appendChild(wrap); sec.appendChild(holder);
-        card.appendChild(sec);
-
-        const listEl=$(listId), inputEl=$(inId), btnEl=$(btnId);
-        btnEl.onclick = async ()=>{
-          const msg=(inputEl.value||'').trim(); if(!msg) return;
-          if(!clientFilter(msg)){ alert('Message blocked.'); return; }
-          if(!ST.me){ alert('Sign in to send messages.'); return; }
-          const { error } = await supa.from('chat_messages').insert({ room_id: t.room.id, user_id: ST.me.id, body: msg });
-          if(error){ alert(error.message); return; }
-          inputEl.value='';
-        };
-        loadInitial(t.room.id, listEl);
-        ensureChannel(t.room.id, listEl, null);
-      }else{
-        sec.innerHTML = `<div class="row"><strong>${t.name}</strong><span class="small">${t.abbr}</span><button class="btn">Create room</button></div><div class="small" style="margin-top:6px">No room yet.</div>`;
-        sec.querySelector('.btn').onclick = ()=>createTeamRoom(t.abbr, t.name);
-        card.appendChild(sec);
-      }
+  try{
+    const byDiv = new Map();
+    NHL_TEAMS.forEach(([abbr,name,div])=>{
+      const room = (Array.isArray(all) ? all.find(r=>r.room_type==='team' && r.team_abbr===abbr) : null) || null;
+      if(!byDiv.has(div)) byDiv.set(div,[]);
+      byDiv.get(div).push({abbr,name,room});
     });
-    container.appendChild(card);
-  });
 
-  mount.appendChild(container);
+    const container=document.createElement('div'); container.className='divGrid';
+
+    ['Atlantic','Metropolitan','Central','Pacific'].forEach(div=>{
+      const teams = byDiv.get(div) || [];
+      const card=document.createElement('div'); card.className='divCard';
+      card.innerHTML=`<div class="row"><strong>${div} Division</strong></div><div class="sep"></div>`;
+      teams.forEach(t=>{
+        const sec=document.createElement('div'); sec.className='panel';
+        if(t.room){
+          sec.innerHTML=`<div class="row"><strong>${t.name}</strong><span class="small">${t.abbr}</span></div>`;
+          const holder=document.createElement('div'); holder.className='room'; holder.style.marginTop='8px';
+          const {wrap,listId,inId,btnId}=chatBlock(t.room); holder.appendChild(wrap); sec.appendChild(holder);
+          const listElId = listId; // capture id
+          const btn = holder.querySelector(`#${btnId}`);
+          btn.onclick = async ()=>{
+            const inputEl = holder.querySelector(`#${inId}`);
+            const msg=(inputEl.value||'').trim(); if(!msg) return;
+            if(!clientFilter(msg)){ alert('Message blocked.'); return; }
+            if(!ST.me){ alert('Sign in to send messages.'); return; }
+            const { error } = await supa.from('chat_messages').insert({ room_id: t.room.id, user_id: ST.me.id, body: msg });
+            if(error){ alert(error.message); return; }
+            inputEl.value='';
+          };
+          container.appendChild(card);
+          card.appendChild(sec);
+          loadInitial(t.room.id, document.getElementById(listElId));
+          ensureChannel(t.room.id, document.getElementById(listElId), null);
+        }else{
+          sec.innerHTML = `<div class="row"><strong>${t.name}</strong><span class="small">${t.abbr}</span><button class="btn">Create room</button></div><div class="small" style="margin-top:6px">No room yet.</div>`;
+          sec.querySelector('.btn').onclick = ()=>createTeamRoom(t.abbr, t.name);
+          card.appendChild(sec);
+        }
+      });
+      container.appendChild(card);
+    });
+
+    mount.appendChild(container);
+  }catch(e){
+    console.error('renderTeams error', e);
+    mount.innerHTML = '<div class="small">Error loading Teams.</div>';
+  }
 }
 
 /* ====== LOAD ROOMS ====== */
 function renderAll(all){
-  const safe = (fn, mountId) => {
-    try { fn(all); }
-    catch(e){
-      console.error(e);
-      if(mountId){ const el = document.getElementById(mountId); if(el) el.innerHTML = `<div class="small">Error loading section.</div>`; }
-    }
-  };
-  safe(renderSeason, 'seasonMount');
-  safe(renderWeekly, 'weeklyMount');
-  safe(renderTeams,  'teamsMount');
+  try{ renderSeason(all); }catch(e){ console.error(e); $('seasonMount').innerHTML='<div class="small">Error loading Season.</div>'; }
+  try{ renderWeekly(all); }catch(e){ console.error(e); $('weeklyMount').innerHTML='<div class="small">Error loading Weekly.</div>'; }
+  try{ renderTeams(all);  }catch(e){ console.error(e); $('teamsMount').innerHTML = '<div class="small">Error loading Teams.</div>'; }
 }
 
 async function loadRooms(){
