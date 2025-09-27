@@ -148,16 +148,26 @@ async function fetchDisplayNames(ids){
 }
 function nameFor(uid, meId){ if(meId && uid===meId) return 'Me'; return NAME_CACHE.get(uid) || (uid?uid.slice(0,6):'user'); }
 
-/* ====== AUTH ====== */
+/* ====== AUTH (display name in header) ====== */
+async function updateWhoTag(){
+  if(!ST.me){ $('whoTag').textContent = 'Not signed in'; return; }
+  await fetchDisplayNames([ST.me.id]);                       // uses the players table
+  const dn = NAME_CACHE.get(ST.me.id);
+  $('whoTag').textContent = dn || 'Not signed in';
+}
+
 async function initAuth(){
   const { data:{session} } = await supa.auth.getSession();
   ST.me = session?.user || null;
-  $('whoTag').textContent = ST.me?.email || 'Not signed in';
+  await updateWhoTag();
+
   supa.auth.onAuthStateChange((_e,s)=>{
     ST.me = s?.user || null;
-    $('whoTag').textContent = ST.me?.email || 'Not signed in';
+    updateWhoTag();
   });
 }
+
+
 
 /* ====== FILTER ====== */
 function clientFilter(txt){
