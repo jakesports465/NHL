@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>QuickPucks — Chat Lounge</title>
+<style>
+  :root{
+    --bg:#0b0d10; --card:#12161b; --panel:#0f1318;
+    --text:#e8eef4; --muted:#8ea0b3; --br:#1b232d; --accent:#3c82f6;
+    --chip:#243241; --chip-br:#364353;
+  }
+
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  *,*::before,*::after{box-sizing:border-box}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+
+  /* Scrollbars to match app */
+  *{scrollbar-width:thin;scrollbar-color:#334658 transparent}
+  *::-webkit-scrollbar{height:10px;width:10px}
+  *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+
+  header{padding:12px 14px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{margin:0;font-size:18px;font-weight:800}
+  .pill{border:1px dashed var(--chip-br);border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
+
+  nav.tabs{display:flex;gap:8px;padding:10px 12px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:52px;z-index:19;overflow-x:auto;scrollbar-width:none}
+  nav.tabs::-webkit-scrollbar{display:none}
+  .tab{padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto}
+  .tab[aria-selected="true"]{background:#162231;border-color:#31506a;font-weight:700}
+
+  main{max-width:1160px;margin:0 auto;padding:14px 14px 64px}
+  .section{display:none}
+  .section.active{display:block}
+  .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:12px;margin-bottom:14px}
+  .panel{background:var(--panel);border:1px solid #1c2430;border-radius:12px;padding:10px;margin-bottom:10px}
+  .small{font-size:12px;color:var(--muted)}
+  .chip{border:1px dashed var(--chip-br);border-radius:999px;padding:6px 10px;font-size:12px}
+
+  /* Collapsible stacks */
+  details{background:#0f1318;border:1px solid #1c2430;border-radius:12px;margin-bottom:8px}
+  summary{cursor:pointer;padding:10px;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  summary::-webkit-details-marker{display:none}
+
+  /* Chat window */
+  .chatWrap{display:flex;flex-direction:column;height:60vh}
+  .chatList{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+  .msg{background:#11171e;border:1px solid #1f2a36;border-radius:10px;padding:8px 10px}
+  .msg .who{font-weight:700;font-size:13px;margin-bottom:4px;color:var(--muted)}
+  .msg .text{white-space:pre-wrap;word-wrap:break-word}
+  .msg.me{border-color:#335a7a;background:#12202d}
+  .sys{opacity:.8;font-size:12px}
+
+  .chatInput{display:flex;gap:8px;margin-top:10px}
+  .chatInput input{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;font-size:15px}
+  .chatInput button{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:8px;cursor:pointer}
+  .chatInput button[disabled]{opacity:.6;cursor:not-allowed}
+
+  /* Room list tiles (custom) */
+  .roomRow{padding:8px;border:1px solid #1c2430;border-radius:8px;background:#0f1318;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .roomRow:hover{background:#15202b}
+
+  /* Auth nudge */
+  .authNudge{display:inline-flex;align-items:center;gap:8px;background:#0e1620;border:1px solid #233242;border-radius:999px;padding:6px 10px}
+  .authNudge a{color:#cfe2f5;text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chat Lounge</h1>
+  <span class="pill">QuickPucks Community</span>
+  <span id="whoTag" class="pill" style="margin-left:auto">Not signed in</span>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Chat Sections">
+  <button class="tab" role="tab" aria-selected="true"  aria-controls="sec-season">Season</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-weekly">Weekly</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-games">Games</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-custom">Custom Rooms</button>
+</nav>
+
+<main>
+  <!-- ===== Season-wide chat ===== -->
+  <section id="sec-season" class="section active">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Season Chat</h2>
+        <div>
+          <button id="refreshSeason" class="tab">Refresh</button>
+          <span class="small">Normal swearing is fine; hateful/illegal content is blocked.</span>
+        </div>
+      </div>
+      <details id="seasonDetails">
+        <summary>
+          Season Lounge
+          <span class="small" id="seasonSummaryHint">collapsed</span>
+        </summary>
+        <div id="seasonMount"></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===== Weekly (only the most recent 4 weeks) ===== -->
+  <section id="sec-weekly" class="section">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Weekly Chat</h2>
+        <button id="refreshWeekly" class="tab">Refresh</button>
+      </div>
+      <div id="weeklyMount"><div class="small">Loading weeks…</div></div>
+    </div>
+  </section>
+
+  <!-- ===== Games (ONLY current week) ===== -->
+  <section id="sec-games" class="section">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Games Chat</h2>
+        <button id="refreshGames" class="tab">Refresh</button>
+      </div>
+      <div id="gamesMount"><div class="small">Loading games…</div></div>
+    </div>
+  </section>
+
+  <!-- ===== Custom Rooms ===== -->
+  <section id="sec-custom" class="section">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0">Custom Rooms</h2>
+        <span class="small">Anyone can read. Optional passwords to post.</span>
+      </div>
+
+      <div id="customRooms" class="panel">
+        <div class="small">Loading rooms…</div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0">Create a Room</h3>
+        <div class="small" style="margin-bottom:8px">Add a name and (optionally) a password if you want posting restricted.</div>
+        <input id="roomName" placeholder="Room name (e.g., Winged Wheel Talk)" style="margin-bottom:6px;width:100%">
+        <input id="roomPass" placeholder="Password (optional)" style="margin-bottom:6px;width:100%">
+        <button id="createBtn">Create</button>
+        <span id="createHint" class="small" style="margin-left:8px"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ================== Supabase client (same project as main app) ================== */
+const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
+
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
+  auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+});
+
+/* ================== Helpers ================== */
+const $ = id => document.getElementById(id);
+function el(tag, attrs={}, ...kids){
+  const n=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)){
+    if(k==='class') n.className=v;
+    else if(k==='style' && typeof v==='object') Object.assign(n.style,v);
+    else n.setAttribute(k,v);
+  }
+  kids.forEach(k=>n.append(k));
+  return n;
+}
+function groupBy(arr,sel){ const m=new Map(); (arr||[]).forEach(x=>{const k=sel(x); const a=m.get(k)||[]; a.push(x); m.set(k,a);}); return m; }
+
+/* ================== Week calc (Mon 08:00 CT) for current-week filtering ================== */
+const TZ='America/Chicago';
+function nowCT(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
+function addDaysCT(d,days){ const n=new Date(d.getTime()); n.setDate(n.getDate()+days); return new Date(n.toLocaleString('en-US',{timeZone:TZ})); }
+function parts(d,opts){ const p=new Intl.DateTimeFormat('en-US',opts).formatToParts(d); const o={}; p.forEach(x=>o[x.type]=x.value); return o; }
+function weekKey(){
+  const n=nowCT(); const wd=n.getDay(); const days=(wd-1+7)%7; const mon=addDaysCT(n,-days);
+  const hour=Number(parts(n,{hour:'2-digit',hour12:false}).hour);
+  const after8 = hour>=8 || days>0; const anchor = after8? mon : addDaysCT(mon,-7);
+  const p=parts(anchor,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`;
+}
+const CURRENT_WEEK_KEY = weekKey();
+
+/* ================== State ================== */
+const ST = {
+  myId: null,
+  myEmail: null,
+  rooms: new Map(),      // id -> room object
+  chans: new Map(),      // id -> realtime channel
+  listeners: new Map()   // id -> {listEl, inputEl, buttonEl}
+};
+
+/* ================== Auth display ================== */
+async function initAuth(){
+  const { data:{ session } } = await supa.auth.getSession();
+  ST.myId    = session?.user?.id    || null;
+  ST.myEmail = session?.user?.email || null;
+  $('whoTag').textContent = ST.myEmail ? ST.myEmail : 'Not signed in';
+  supa.auth.onAuthStateChange((_e, ses)=>{
+    ST.myId    = ses?.user?.id || null;
+    ST.myEmail = ses?.user?.email || null;
+    $('whoTag').textContent = ST.myEmail ? ST.myEmail : 'Not signed in';
+  });
+}
+
+/* ================== Client-side content filter (server also enforces) ================== */
+function clientFilter(text){
+  const bad=[
+    /child\s*(porn|sex|nude|exploita|abuse)/i,
+    /under\s*1[0-7]/i,
+    /\brape\b/i,
+    /\bkill\s*(yourself|himself|herself|themself|them)\b/i,
+    /\bnazi\b|\bhitler\b|\bkkk\b/i
+  ];
+  return !bad.some(r=>r.test(text||''));
+}
+
+/* ================== Chat block (built only when expanded) ================== */
+function buildChatBlock(room){
+  const listId = `msgs-${room.id}`;
+  const inId   = `in-${room.id}`;
+  const btnId  = `btn-${room.id}`;
+
+  const wrap = el('div', {class:'chatWrap'},
+    el('div', {class:'chatList', id:listId}, el('div',{class:'sys small'},'Loading…')),
+    el('div', {class:'chatInput'},
+      el('input', {id:inId, placeholder:`Message ${room.name}…`}),
+      el('button', {id:btnId}, 'Send')
+    )
+  );
+  return {wrap, listId, inId, btnId};
+}
+
+function appendMsg(listEl, m){
+  const me = ST.myId && m.user_id===ST.myId;
+  const card = el('div', {class:`msg ${me?'me':''}`},
+    el('div', {class:'who'}, me ? 'Me' : (m.user_id||'user').slice(0,6)),
+    el('div', {class:'text'}, m.body||'')
+  );
+  listEl.append(card);
+}
+
+async function loadMessages(room_id, listEl, limit=80){
+  const { data, error } = await supa
+    .from('chat_messages')
+    .select('id, user_id, body, created_at')
+    .eq('room_id', room_id)
+    .order('created_at', { ascending:false })
+    .limit(limit);
+  if(error){
+    listEl.innerHTML = `<div class="small">Error: ${error.message}</div>`;
+    return;
+  }
+  const msgs=(data||[]).slice().reverse();
+  listEl.innerHTML='';
+  msgs.forEach(m=>appendMsg(listEl,m));
+  listEl.scrollTop=listEl.scrollHeight;
+}
+
+/* Subscribe lazily; unsubscribe on collapse */
+function ensureChannel(room_id, listEl){
+  if(ST.chans.has(room_id)) return;
+  const ch = supa.channel(`room:${room_id}`)
+    .on('postgres_changes',
+      { event:'INSERT', schema:'public', table:'chat_messages', filter:`room_id=eq.${room_id}` },
+      payload => { appendMsg(listEl, payload.new); listEl.scrollTop=listEl.scrollHeight; }
+    )
+    .subscribe();
+  ST.chans.set(room_id, ch);
+}
+function dropChannel(room_id){
+  const ch = ST.chans.get(room_id);
+  if(ch){ try{ ch.unsubscribe(); }catch{} }
+  ST.chans.delete(room_id);
+}
+
+/* ================== Section renderers ================== */
+function renderSeason(seasonRoom){
+  const container = $('seasonMount');
+  container.innerHTML = '';
+  const {wrap, listId, inId, btnId} = buildChatBlock(seasonRoom);
+  container.append(wrap);
+
+  const listEl = $(listId);
+  const inputEl= $(inId);
+  const btnEl  = $(btnId);
+
+  ST.listeners.set(seasonRoom.id, {listEl, inputEl, btnEl});
+
+  btnEl.onclick = async ()=>{
+    const msg=(inputEl.value||'').trim(); if(!msg) return;
+    if(!clientFilter(msg)){ alert('Message blocked by content rules.'); return; }
+    if(!ST.myId){ alert('Sign in to send messages.'); return; }
+    const { error } = await supa.from('chat_messages').insert({ room_id: seasonRoom.id, user_id: ST.myId, body: msg });
+    if(error){ alert(error.message); return; }
+    inputEl.value='';
+  };
+
+  // Only load/subscribe when details opens
+  const det = $('seasonDetails');
+  const hint = $('seasonSummaryHint');
+  const onToggle = ()=>{
+    if(det.open){
+      hint.textContent='open';
+      loadMessages(seasonRoom.id, listEl);
+      ensureChannel(seasonRoom.id, listEl);
+    }else{
+      hint.textContent='collapsed';
+      dropChannel(seasonRoom.id);
+    }
+  };
+  det.removeEventListener('toggle', det._handler || (()=>{}));
+  det._handler = onToggle;
+  det.addEventListener('toggle', onToggle);
+
+  // Manual refresh for this room
+  $('refreshSeason').onclick = ()=>{
+    if(det.open) loadMessages(seasonRoom.id, listEl);
+  };
+}
+
+function renderWeekly(weeklyRooms){
+  const mount = $('weeklyMount'); mount.innerHTML='';
+  if(!weeklyRooms.length){ mount.append(el('div',{class:'small'},'No weekly rooms yet.')); return; }
+
+  // Sort by week_key desc; show only most recent 4
+  const sorted = weeklyRooms.slice().sort((a,b)=>String(b.week_key).localeCompare(String(a.week_key))).slice(0,4);
+
+  sorted.forEach(room=>{
+    const shell = el('details'); // collapsed by default
+    shell.append(el('summary',{}, `Week ${room.week_key}`));
+    const inner = el('div');
+    const {wrap, listId, inId, btnId} = buildChatBlock(room);
+    inner.append(wrap);
+    shell.append(inner);
+    mount.append(shell);
+
+    let wired=false;
+    shell.addEventListener('toggle', ()=>{
+      if(shell.open){
+        if(!wired){
+          const listEl = $(listId), inputEl=$(inId), btnEl=$(btnId);
+          ST.listeners.set(room.id, {listEl, inputEl, btnEl});
+          btnEl.onclick = async ()=>{
+            const msg=(inputEl.value||'').trim(); if(!msg) return;
+            if(!clientFilter(msg)){ alert('Message blocked by content rules.'); return; }
+            if(!ST.myId){ alert('Sign in to send messages.'); return; }
+            const { error } = await supa.from('chat_messages').insert({ room_id: room.id, user_id: ST.myId, body: msg });
+            if(error){ alert(error.message); return; }
+            inputEl.value='';
+          };
+          wired=true;
+        }
+        const listEl = $(listId);
+        loadMessages(room.id, listEl);
+        ensureChannel(room.id, listEl);
+      }else{
+        dropChannel(room.id);
+      }
+    });
+  });
+
+  $('refreshWeekly').onclick = ()=>{
+    // Refresh any open week blocks
+    weeklyRooms.forEach(r=>{
+      const li = ST.listeners.get(r.id);
+      if(li && li.listEl && document.querySelector(`details summary:contains('${r.week_key}')`)) {
+        loadMessages(r.id, li.listEl);
+      }
+    });
+  };
+}
+
+function renderGames(gameRooms){
+  const mount=$('gamesMount'); mount.innerHTML='';
+
+  // Only current week’s game rooms
+  const current = gameRooms.filter(r=>r.week_key === CURRENT_WEEK_KEY);
+  if(!current.length){
+    mount.append(el('div',{class:'small'},'No game rooms for this week yet.')); 
+    return;
+  }
+
+  // Group by division (home or away), then by matchup
+  const byDiv = groupBy(current, r=> (r.meta?.home_division || r.meta?.away_division || 'Other'));
+  [...byDiv.keys()].sort().forEach(div=>{
+    const dDetails = el('details'); // collapsed
+    dDetails.append(el('summary',{}, `${div} Division`));
+
+    // Matchups
+    const byMatchup = groupBy(byDiv.get(div), r=>{
+      const ha = (r.meta?.home_abbr || 'HOME');
+      const aa = (r.meta?.away_abbr || 'AWAY');
+      return `${aa} @ ${ha}`;
+    });
+
+    const wrap = el('div');
+    [...byMatchup.keys()].sort().forEach(mk=>{
+      const mDetails = el('details');
+      mDetails.append(el('summary',{}, mk));
+
+      byMatchup.get(mk).forEach(room=>{
+        const {wrap:chat, listId, inId, btnId} = buildChatBlock(room);
+        mDetails.append(chat);
+
+        let wired=false;
+        mDetails.addEventListener('toggle', ()=>{
+          if(mDetails.open){
+            if(!wired){
+              const listEl=$(listId), inputEl=$(inId), btnEl=$(btnId);
+              ST.listeners.set(room.id, {listEl, inputEl, btnEl});
+              btnEl.onclick = async ()=>{
+                const msg=(inputEl.value||'').trim(); if(!msg) return;
+                if(!clientFilter(msg)){ alert('Message blocked by content rules.'); return; }
+                if(!ST.myId){ alert('Sign in to send messages.'); return; }
+                const { error } = await supa.from('chat_messages').insert({ room_id: room.id, user_id: ST.myId, body: msg });
+                if(error){ alert(error.message); return; }
+                inputEl.value='';
+              };
+              wired=true;
+            }
+            const listEl=$(listId);
+            loadMessages(room.id, listEl);
+            ensureChannel(room.id, listEl);
+          }else{
+            dropChannel(room.id);
+          }
+        });
+      });
+
+      wrap.append(mDetails);
+    });
+
+    dDetails.append(wrap);
+    mount.append(dDetails);
+  });
+
+  $('refreshGames').onclick = ()=>{
+    // Refresh any OPEN game blocks
+    current.forEach(r=>{
+      const li = ST.listeners.get(r.id);
+      if(li && li.listEl){ loadMessages(r.id, li.listEl); }
+    });
+  };
+}
+
+/* ================== Custom rooms (list + create) ================== */
+function renderCustom(customRooms){
+  const box=$('customRooms'); box.innerHTML='';
+  if(!customRooms.length){ box.append(el('div',{class:'small'},'No custom rooms yet.')); return; }
+
+  customRooms.forEach(r=>{
+    const row = el('div', {class:'roomRow', role:'button', tabindex:'0'},
+      el('div', {}, `${r.name}${r.has_password?' 🔒':''}`),
+      el('div', {class:'small'}, r.description||'')
+    );
+    row.onclick = ()=>{
+      const shell = el('details', {open:true});
+      shell.append(el('summary',{}, r.name));
+      const {wrap, listId, inId, btnId} = buildChatBlock(r);
+      shell.append(wrap);
+      box.prepend(shell);
+
+      let wired=false;
+      shell.addEventListener('toggle', ()=>{
+        if(shell.open){
+          if(!wired){
+            const listEl=$(listId), inputEl=$(inId), btnEl=$(btnId);
+            ST.listeners.set(r.id, {listEl, inputEl, btnEl});
+            btnEl.onclick = async ()=>{
+              const msg=(inputEl.value||'').trim(); if(!msg) return;
+              if(!clientFilter(msg)){ alert('Message blocked by content rules.'); return; }
+              if(!ST.myId){ alert('Sign in to send messages.'); return; }
+              if(r.has_password){
+                const ok = await ensureJoined(r.id);
+                if(!ok) return;
+              }
+              const { error } = await supa.from('chat_messages').insert({ room_id: r.id, user_id: ST.myId, body: msg });
+              if(error){ alert(error.message); return; }
+              inputEl.value='';
+            };
+            wired=true;
+          }
+          const listEl=$(listId);
+          loadMessages(r.id, listEl);
+          ensureChannel(r.id, listEl);
+        }else{
+          dropChannel(r.id);
+        }
+      });
+    };
+    row.onkeypress = (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); row.click(); } };
+    box.append(row);
+  });
+
+  $('createBtn').onclick = async ()=>{
+    const nm = ($('roomName').value||'').trim();
+    const pw = ($('roomPass').value||'').trim();
+    $('createHint').textContent='';
+    if(!nm){ $('createHint').textContent='Name required.'; return; }
+    if(!ST.myId){ $('createHint').textContent='Sign in to create rooms.'; return; }
+    const { error } = await supa.rpc('create_custom_room', {
+      p_name: nm, p_description: null, p_password: pw.length?pw:null
+    });
+    if(error){ $('createHint').textContent = error.message; return; }
+    $('createHint').textContent='Created ✓';
+    $('roomName').value=''; $('roomPass').value='';
+    await loadRooms(); // refresh list
+  };
+}
+
+/* ================== Join passworded room ================== */
+async function ensureJoined(room_id){
+  const room = ST.rooms.get(room_id); if(!room) return true;
+  if(!room.has_password) return true;
+  const pwd = prompt('This room is protected. Enter password to post:');
+  if(pwd===null) return false;
+  const { data, error } = await supa.rpc('join_chat_room', { p_room_id: room_id, p_password: pwd });
+  if(error){ alert(error.message); return false; }
+  if(data!==true){ alert('Incorrect password'); return false; }
+  return true;
+}
+
+/* ================== Load rooms once (no intervals) ================== */
+async function loadRooms(){
+  const { data, error } = await supa.rpc('list_chat_rooms');
+  if (error) {
+    console.error('list_chat_rooms error:', error);
+    $('seasonMount').innerHTML = `<div class="small">Couldn’t load season room: ${error.message}</div>`;
+    $('weeklyMount').innerHTML = `<div class="small">Couldn’t load weeks: ${error.message}</div>`;
+    $('gamesMount').innerHTML  = `<div class="small">Couldn’t load games: ${error.message}</div>`;
+    $('customRooms').innerHTML = `<div class="small">Couldn’t load custom rooms: ${error.message}</div>`;
+    return;
+  }
+
+  ST.rooms.clear();
+  (data||[]).forEach(r=>ST.rooms.set(r.id, r));
+
+  const season = (data||[]).find(r=>r.room_type==='season');
+  const weekly = (data||[]).filter(r=>r.room_type==='week');
+  const games  = (data||[]).filter(r=>r.room_type==='game');
+  const custom = (data||[]).filter(r=>r.room_type==='custom');
+
+  if(season) {
+    renderSeason(season);
+  } else {
+    $('seasonMount').innerHTML = '<div class="small">No season room yet.</div>';
+  }
+  renderWeekly(weekly);
+  renderGames(games);
+  renderCustom(custom);
+}
+
+/* ================== Tabs ================== */
+document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const id = btn.getAttribute('aria-controls');
+    document.querySelectorAll('nav.tabs .tab').forEach(b=>b.setAttribute('aria-selected','false'));
+    btn.setAttribute('aria-selected','true');
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  });
+});
+
+/* ================== Cleanup on navigate ================== */
+window.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    // Tear down all channels to free sockets
+    [...ST.chans.keys()].forEach(dropChannel);
+  }
+});
+window.addEventListener('beforeunload', ()=>{
+  [...ST.chans.keys()].forEach(dropChannel);
+});
+
+/* ================== Boot ================== */
+(async ()=>{
+  await initAuth();
+  await loadRooms();
+})();
+</script>
+</body>
+</html>
