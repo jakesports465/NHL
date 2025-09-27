@@ -640,7 +640,7 @@ function leagueFactory(){
   const st={ events:[], selected:null, poll:null, gameRows:[] };
   const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB') };
   const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
-
+console.log("LeagueFactory")
   dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
   dom.add.addEventListener('click', async ()=>{
     if(!currentUser){ alert('Sign in first.'); return; }
@@ -663,6 +663,7 @@ function leagueFactory(){
   });
 
   function renderGrid(){
+  console.log("Grid")
     dom.grid.innerHTML='';
     (st.events||[]).forEach(g=>{
       const started = Date.now() >= new Date(g.start).getTime();
@@ -740,26 +741,77 @@ function leagueFactory(){
     });
   }
 
-  async function refreshGridScores(){
-    const evs = st.events || []; if(!evs.length) return;
+  // Replacement: bulk-read + no client writes
+async function refreshGridScores(){
+  const evs = st.events || [];
+  if (!evs.length) return [];
 
-    const rows = await pLimitAll(evs, 6, async (g)=>{
-      try{
-        const s = await safeJson(api.summary(g.id));
-        await pushSummaryToSQL(g.id, s);
-        const row = await getGameScoreFromDB(g.id);
-        const comp=s?.header?.competitions?.[0] || {};
-        let homeC=null, awayC=null;
-        (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-        return {
-          id:g.id,
-          awayPts: row?.away_pts ?? Number(awayC?.score ?? 0),
-          homePts: row?.home_pts ?? Number(homeC?.score ?? 0),
-          score: row?.total ?? 0,
+  // Kill-switch: prevent browser from writing score summaries to Postgres
+  const DO_CLIENT_WRITES = false;
+
+  // 1) Pull ESPN summaries in parallel (limited concurrency)
+  const espnSummaries = await pLimitAll(evs, 6, async (g) => {
+    try {
+      const s = await safeJson(api.summary(g.id));
+
+      // Only write from server/cron; browsers skip to save Disk I/O
+      if (DO_CLIENT_WRITES && typeof pushSummaryToSQL === 'function') {
+        try { await pushSummaryToSQL(g.id, s); } catch (e) { /* noop */ }
+      }
+
+      const comp = s?.header?.competitions?.[0] || {};
+      let homeC = null, awayC = null;
+      (comp.competitors || []).forEach(c => {
+        if (c.homeAway === 'home') homeC = c;
+        if (c.homeAway === 'away') awayC = c;
+      });
+
+      return {
+        id: g.id,
+        espn: {
+          awayPts: Number(awayC?.score ?? 0),
+          homePts: Number(homeC?.score ?? 0),
           status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
-        };
-      }catch{ return null; }
-    });
+        }
+      };
+    } catch {
+      return { id: g.id, espn: null };
+    }
+  });
+
+  // 2) ONE DB roundtrip for all games on the grid
+  const ids = evs.map(g => String(g.id));
+  let scoreMap = new Map();
+  try {
+    const { data, error } = await supa
+      .from('game_scores')
+      .select('game_id, away_pts, home_pts, total')
+      .eq('league','NHL')
+      .eq('week_key', WEEK_KEY)
+      .in('game_id', ids);
+
+    if (!error && Array.isArray(data)) {
+      scoreMap = new Map(data.map(r => [String(r.game_id), r]));
+    }
+  } catch (e) {
+    // If the bulk query fails, we still render using ESPN only
+  }
+
+  // 3) Merge DB + ESPN into your expected row shape
+  const rows = espnSummaries.map(({ id, espn }) => {
+    const db = scoreMap.get(String(id));
+    return {
+      id,
+      awayPts: (db?.away_pts ?? espn?.awayPts ?? 0),
+      homePts: (db?.home_pts ?? espn?.homePts ?? 0),
+      score:   (db?.total    ?? 0),
+      status:  (espn?.status || '—')
+    };
+  });
+
+  return rows.filter(Boolean);
+}
+
 
     const valid = rows.filter(Boolean);
     for(const r of valid){
@@ -1254,10 +1306,3 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
