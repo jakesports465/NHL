@@ -10,12 +10,11 @@
     --text:#e8eef4; --muted:#8ea0b3; --br:#1b232d; --accent:#3c82f6;
     --chip:#243241; --chip-br:#364353;
   }
-
   html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   *,*::before,*::after{box-sizing:border-box}
-  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:10px;border-radius:10px}
 
-  /* Scrollbars to match app */
+  /* Scrollbars */
   *{scrollbar-width:thin;scrollbar-color:#334658 transparent}
   *::-webkit-scrollbar{height:10px;width:10px}
   *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
@@ -80,7 +79,7 @@
 </nav>
 
 <main>
-  <!-- ===== Season-wide chat (single room, bound at runtime) ===== -->
+  <!-- ===== Season-wide chat ===== -->
   <section id="sec-season" class="section active">
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -88,9 +87,7 @@
         <span class="small">Be cool. Normal swearing is fine; hateful/illegal content is blocked.</span>
       </div>
       <div class="chatWrap">
-        <div id="seasonList" class="chatList">
-          <div class="sys small">Loading…</div>
-        </div>
+        <div id="seasonList" class="chatList"><div class="sys small">Loading…</div></div>
         <div class="chatInput">
           <input id="seasonInput" placeholder="Type your message…">
           <button id="seasonSend">Send</button>
@@ -100,7 +97,7 @@
     </div>
   </section>
 
-  <!-- ===== Weekly (auto-populated) ===== -->
+  <!-- ===== Weekly ===== -->
   <section id="sec-weekly" class="section">
     <div class="card">
       <h2 style="margin-top:0">Weekly Chat</h2>
@@ -108,7 +105,7 @@
     </div>
   </section>
 
-  <!-- ===== Games by Division (auto-populated) ===== -->
+  <!-- ===== Games ===== -->
   <section id="sec-games" class="section">
     <div class="card">
       <h2 style="margin-top:0">Games Chat</h2>
@@ -116,7 +113,7 @@
     </div>
   </section>
 
-  <!-- ===== Custom Rooms (public list + create) ===== -->
+  <!-- ===== Custom Rooms ===== -->
   <section id="sec-custom" class="section">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -124,9 +121,7 @@
         <span class="small">Anyone can read. Optional passwords to post.</span>
       </div>
 
-      <div id="customRooms" class="panel">
-        <div class="small">Loading rooms…</div>
-      </div>
+      <div id="customRooms" class="panel"><div class="small">Loading rooms…</div></div>
 
       <div class="panel">
         <h3 style="margin-top:0">Create a Room</h3>
@@ -166,14 +161,9 @@ function el(tag, attrs={}, ...kids){
 function groupBy(arr,sel){ const m=new Map(); (arr||[]).forEach(x=>{const k=sel(x); const a=m.get(k)||[]; a.push(x); m.set(k,a);}); return m; }
 
 /* ================== State ================== */
-const ST = {
-  myId: null,
-  myEmail: null,
-  rooms: new Map(),       // id -> room
-  chans: new Map()        // id -> realtime channel
-};
+const ST = { myId:null, myEmail:null, rooms:new Map(), chans:new Map() };
 
-/* ================== Auth (display only) ================== */
+/* ================== Auth tag ================== */
 async function initAuth(){
   const { data:{ session } } = await supa.auth.getSession();
   ST.myId    = session?.user?.id    || null;
@@ -186,9 +176,8 @@ async function initAuth(){
   });
 }
 
-/* ================== Content filter (client-side assist; server still enforces) ================== */
+/* ================== Client-side filter (server has trigger too) ================== */
 function clientFilter(text){
-  // Allow everyday swearing; block illegal/exploitative content & the worst slurs.
   const bad=[
     /child\s*(porn|sex|nude|exploita|abuse)/i,
     /under\s*1[0-7]/i,
@@ -219,18 +208,14 @@ function buildChatBlock(room){
     btn.onclick = async ()=>{
       const msg = (input.value||'').trim();
       if(!msg) return;
-      if(!clientFilter(msg)){ alert('Message blocked by content filter.'); return; }
+      if(!clientFilter(msg)){ alert('Message blocked by content rules.'); return; }
       if(!ST.myId){ alert('Sign in to send messages.'); return; }
 
-      // If passworded, join attempt (server still enforces)
       if(room.has_password){
         const ok = await ensureJoined(room.id);
         if(!ok) return;
       }
-      const { error } = await supa.from('chat_messages').insert({
-        room_id: room.id, user_id: ST.myId, body: msg
-      });
-      if(error){ alert(error.message); return; }
+      await trySend(room.id, msg);
       input.value='';
     };
   });
@@ -278,10 +263,7 @@ function ensureChannel(room_id, listEl){
       { event:'INSERT', schema:'public', table:'chat_messages', filter:`room_id=eq.${room_id}` },
       payload => { appendMsg(listEl, payload.new); listEl.scrollTop=listEl.scrollHeight; }
     )
-    .subscribe((status) => {
-      // optional status logging
-      // console.log('channel', room_id, status);
-    });
+    .subscribe();
   ST.chans.set(room_id, ch);
 }
 
@@ -303,17 +285,14 @@ function renderSeason(room){
 
   send.onclick = async ()=>{
     const msg=(input.value||'').trim(); if(!msg) return;
-    if(!clientFilter(msg)){ alert('Message blocked by content filter.'); return; }
+    if(!clientFilter(msg)){ alert('Message blocked by content rules.'); return; }
     if(!ST.myId){ alert('Sign in to send messages.'); return; }
-    const { error } = await supa.from('chat_messages').insert({
-      room_id: room.id, user_id: ST.myId, body: msg
-    });
-    if(error){ alert(error.message); return; }
+    await trySend(room.id, msg);
     input.value='';
   };
 }
 
-/* ================== Weekly (collapsible by week_key) ================== */
+/* ================== Weekly ================== */
 function renderWeekly(rooms){
   const mount = $('weeklyMount'); mount.innerHTML='';
   if(!rooms.length){ mount.append(el('div',{class:'small'},'No weekly rooms yet.')); return; }
@@ -332,17 +311,15 @@ function renderWeekly(rooms){
   });
 }
 
-/* ================== Games (Division → Matchup collapsible) ================== */
+/* ================== Games (Division → Matchup) ================== */
 function renderGames(rooms){
   const mount=$('gamesMount'); mount.innerHTML='';
   if(!rooms.length){ mount.append(el('div',{class:'small'},'No game rooms yet.')); return; }
 
-  // Group by division (home or away), then by matchup like "DET @ BOS"
   const byDiv = groupBy(rooms, r=> (r.meta?.home_division || r.meta?.away_division || 'Other'));
   [...byDiv.keys()].sort().forEach(div=>{
     const teamWrap = el('div');
 
-    // “Matchup key” using abbreviations for compact labels
     const byMatchup = groupBy(byDiv.get(div), r=>{
       const ha = (r.meta?.home_abbr || 'HOME');
       const aa = (r.meta?.away_abbr || 'AWAY');
@@ -376,7 +353,6 @@ function renderCustom(rooms){
       el('div', {class:'small'}, r.description||'')
     );
     row.onclick = ()=>{
-      // Open a chat block inline above list
       const shell = el('div', {class:'panel'});
       shell.append(el('h3', {style:'margin-top:0'}, r.name), buildChatBlock(r));
       box.prepend(shell);
@@ -400,46 +376,70 @@ async function ensureJoined(room_id){
   return true;
 }
 
-/* ================== Rooms loader ================== */
-async function loadRooms(){
+/* ================== Send helper w/ error surfacing ================== */
+async function trySend(roomId, body){
+  try{
+    const { error } = await supa.from('chat_messages').insert({ room_id: roomId, user_id: ST.myId, body });
+    if(error) throw error;
+    return true;
+  }catch(e){
+    console.error('[chat] send failed:', e?.message || e);
+    alert(e?.message || 'Message failed');
+    return false;
+  }
+}
+
+/* ================== Rooms loader with fallback ================== */
+async function fetchRoomsViaRPC(){
   const { data, error } = await supa.rpc('list_chat_rooms');
-  if (error) {
-    console.error('list_chat_rooms error:', error);
-    $('weeklyMount').innerHTML = `<div class="small">Couldn’t load weeks: ${error.message}</div>`;
-    $('gamesMount').innerHTML  = `<div class="small">Couldn’t load games: ${error.message}</div>`;
-    $('customRooms').innerHTML = `<div class="small">Couldn’t load custom rooms: ${error.message}</div>`;
+  if(error) throw error;
+  return data || [];
+}
+async function fetchRoomsDirect(){
+  const { data, error } = await supa
+    .from('chat_rooms')
+    .select('id, room_type, week_key, game_id, name, description, password_hash, created_at, meta')
+    .eq('league','NHL')
+    .order('created_at', { ascending:false });
+  if(error) throw error;
+  return (data||[]).map(r=>({
+    id:r.id, room_type:r.room_type, week_key:r.week_key, game_id:r.game_id,
+    name:r.name, description:r.description, has_password: !!r.password_hash,
+    created_at:r.created_at, meta:r.meta
+  }));
+}
+
+async function loadRooms(){
+  let rooms=null, err=null;
+  try{ rooms = await fetchRoomsViaRPC(); }
+  catch(e){ err = e?.message || String(e); }
+
+  if(!rooms || !rooms.length){
+    try{ rooms = await fetchRoomsDirect(); }
+    catch(e2){ err = err ? `${err} | ${e2?.message||e2}` : (e2?.message||String(e2)); }
+  }
+
+  if(!rooms){
+    console.error('Room load failed:', err);
+    $('weeklyMount').innerHTML = `<div class="small">Couldn't load weeks: ${err||'unknown error'}</div>`;
+    $('gamesMount').innerHTML  = `<div class="small">Couldn't load games: ${err||'unknown error'}</div>`;
+    $('customRooms').innerHTML = `<div class="small">Couldn't load rooms: ${err||'unknown error'}</div>`;
     return;
   }
 
   ST.rooms.clear();
-  (data||[]).forEach(r=>ST.rooms.set(r.id, r));
+  rooms.forEach(r=>ST.rooms.set(r.id, r));
 
-  const season = (data||[]).find(r=>r.room_type==='season');
-  const weekly = (data||[]).filter(r=>r.room_type==='week');
-  const games  = (data||[]).filter(r=>r.room_type==='game');
-  const custom = (data||[]).filter(r=>r.room_type==='custom');
+  const season = rooms.find(r=>r.room_type==='season');
+  const weekly = rooms.filter(r=>r.room_type==='week');
+  const games  = rooms.filter(r=>r.room_type==='game');
+  const custom = rooms.filter(r=>r.room_type==='custom');
 
-  if(season) renderSeason(season);
+  if(season) renderSeason(season); else console.warn('[chat] No season room found yet.');
   renderWeekly(weekly);
   renderGames(games);
   renderCustom(custom);
 }
-
-/* ================== Create custom room ================== */
-$('createBtn').onclick = async ()=>{
-  const nm = ($('roomName').value||'').trim();
-  const pw = ($('roomPass').value||'').trim();
-  $('createHint').textContent='';
-  if(!nm){ $('createHint').textContent='Name required.'; return; }
-  if(!ST.myId){ $('createHint').textContent='Sign in to create rooms.'; return; }
-  const { error } = await supa.rpc('create_custom_room', {
-    p_name: nm, p_description: null, p_password: pw.length?pw:null
-  });
-  if(error){ $('createHint').textContent = error.message; return; }
-  $('createHint').textContent='Created ✓';
-  $('roomName').value=''; $('roomPass').value='';
-  await loadRooms();
-};
 
 /* ================== Tabs ================== */
 document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
@@ -456,8 +456,7 @@ document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
 (async ()=>{
   await initAuth();
   await loadRooms();
-  // Periodic refresh of room *lists* (messages are realtime)
-  setInterval(loadRooms, 60000);
+  setInterval(loadRooms, 60000); // refresh room lists
 })();
 </script>
 </body>
