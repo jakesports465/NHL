@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>NHL Puck'Em</title>
 <style>
+  .tab {
+  /* Shared styles for all tab buttons and links */
+  padding: 0.5em 1em;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none; /* ✅ Removes underline from links */
+  color: inherit;         /* Optional: makes link text match surrounding text */
+}
+
   :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }
 
 /* === Unified scrollbars (WebKit + Firefox) === */
@@ -1159,5 +1170,6 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 </script>
 </body>
 </html>
+
 
 
