@@ -112,15 +112,13 @@ const CURRENT_WEEK_KEY = weekKey();
 
 /* ====== Weekly header: "Month dd–dd" ====== */
 function getWeekAnchorDate(){
-  // derive anchor from CURRENT_WEEK_KEY yyyy-mm-dd
   const y = Number(CURRENT_WEEK_KEY.slice(0,4));
   const m = Number(CURRENT_WEEK_KEY.slice(5,7)) - 1;
   const d = Number(CURRENT_WEEK_KEY.slice(8,10));
-  return new Date(Date.UTC(y,m,d,13,0,0)); // noon UTC to avoid TZ drift
+  return new Date(Date.UTC(y,m,d,13,0,0));
 }
 function weekRangeLabel(){
   const anchorUTC = getWeekAnchorDate();
-  // shift to CT for formatting
   const anchor = new Date(anchorUTC.toLocaleString('en-US',{timeZone:TZ}));
   const end = addDaysCT(anchor,6);
   const fmtMonth = new Intl.DateTimeFormat('en-US',{month:'long'}).format;
@@ -138,7 +136,7 @@ function weekRangeLabel(){
 const ST = { me:null, chans:new Map(), lastId:new Map() };
 const $ = id => document.getElementById(id);
 
-/* ====== ADDED earlier: display-name cache + helpers ====== */
+/* ====== display-name cache + helpers ====== */
 const NAME_CACHE = new Map();
 async function fetchDisplayNames(ids){
   const need = [...new Set(ids)].filter(id => id && !NAME_CACHE.has(id));
@@ -152,23 +150,19 @@ function nameFor(uid, meId){ if(meId && uid===meId) return 'Me'; return NAME_CAC
 /* ====== AUTH (display name in header) ====== */
 async function updateWhoTag(){
   if(!ST.me){ $('whoTag').textContent = 'Not signed in'; return; }
-  await fetchDisplayNames([ST.me.id]);                       // uses the players table
+  await fetchDisplayNames([ST.me.id]);
   const dn = NAME_CACHE.get(ST.me.id);
   $('whoTag').textContent = dn || 'Not signed in';
 }
-
 async function initAuth(){
   const { data:{session} } = await supa.auth.getSession();
   ST.me = session?.user || null;
   await updateWhoTag();
-
   supa.auth.onAuthStateChange((_e,s)=>{
     ST.me = s?.user || null;
     updateWhoTag();
   });
 }
-
-
 
 /* ====== FILTER ====== */
 function clientFilter(txt){
@@ -275,6 +269,14 @@ function mountRoom(container, room, dotId){
     inputEl.value='';
   };
 
+  /* ONLY ADD: Enter key submits */
+  inputEl.addEventListener('keydown', e=>{
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      btnEl.click();
+    }
+  });
+
   loadInitial(room.id, listEl);
   ensureChannel(room.id, listEl, dotId);
 }
@@ -290,7 +292,6 @@ function renderWeekly(all){
   const mount=$('weeklyMount'); mount.innerHTML='';
   const wk = all.find(r=>r.room_type==='week' && r.week_key===CURRENT_WEEK_KEY);
   if(!wk){ mount.innerHTML=`<div class="small">No room for ${CURRENT_WEEK_KEY} yet.</div>`; return; }
-  // set header range
   const wr = document.getElementById('weekRange');
   if(wr) wr.textContent = weekRangeLabel();
   mountRoom(mount, wk, 'rt-week');
@@ -334,7 +335,6 @@ document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
 /* ====== Boot ====== */
 (async ()=>{
   await initAuth();
-  // weekly header text right away (in case rooms lag)
   const wr = document.getElementById('weekRange');
   if(wr) wr.textContent = weekRangeLabel();
   await loadRooms();
@@ -342,3 +342,4 @@ document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
 </script>
 </body>
 </html>
+
