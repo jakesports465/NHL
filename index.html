@@ -4,36 +4,29 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>NHL Puck'Em</title>
+
+<!-- Performance hints -->
+<link rel="preconnect" href="https://acmqdokxwnkkjmfgfyhh.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="//acmqdokxwnkkjmfgfyhh.supabase.co">
+<link rel="preconnect" href="https://site.api.espn.com">
+<link rel="dns-prefetch" href="//site.api.espn.com">
+<link rel="preconnect" href="https://a.espncdn.com">
+<link rel="dns-prefetch" href="//a.espncdn.com">
+
 <style>
   :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }
 
-/* === Unified scrollbars (WebKit + Firefox) === */
-*{
-  scrollbar-width: thin;                 /* Firefox */
-  scrollbar-color: #334658 transparent;  /* thumb | track */
-}
-*::-webkit-scrollbar{
-  width:10px; height:10px;               /* Chrome/Edge/Safari */
-}
-*::-webkit-scrollbar-track{
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb{
-  background:#334658;
-  border-radius:999px;
-  border:2px solid transparent;          /* creates the inset gap */
-  background-clip: padding-box;
-}
+  /* === Unified scrollbars (WebKit + Firefox) === */
+  *{ scrollbar-width:thin; scrollbar-color:#334658 transparent }
+  *::-webkit-scrollbar{ width:10px; height:10px }
+  *::-webkit-scrollbar-track{ background:transparent }
+  *::-webkit-scrollbar-thumb{ background:#334658; border-radius:999px; border:2px solid transparent; background-clip:padding-box }
 
-
-
-  
   /* Base */
   html,body{
     margin:0;background:var(--bg);color:var(--text);
     font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-    -webkit-text-size-adjust:100%;
-    -webkit-tap-highlight-color:transparent;
+    -webkit-text-size-adjust:100%; -webkit-tap-highlight-color:transparent;
   }
   *,*::before,*::after{box-sizing:border-box}
   :focus-visible{outline:2px solid #3c82f6; outline-offset:2px; border-radius:8px}
@@ -47,32 +40,27 @@
 
   /* Header + Tabs (mobile-first) */
   header{
-    padding:12px 14px;
-    padding-top:calc(12px + env(safe-area-inset-top));
-    border-bottom:1px solid var(--br);
-    background:#0f1318; position:sticky; top:0; z-index:20;
-    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    padding:12px 14px; padding-top:calc(12px + env(safe-area-inset-top));
+    border-bottom:1px solid var(--br); background:#0f1318; position:sticky; top:0; z-index:20;
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap
   }
   h1{margin:0;font-size:18px}
   .sub{color:var(--muted);font-size:13px;margin-left:6px}
   .pill{border:1px dashed #364353;border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
 
   nav.tabs{
-    display:flex; gap:8px; padding:10px 12px;
-    background:#0f1318;border-bottom:1px solid var(--br);
-    position:sticky; top:56px; z-index:19; overflow-x:auto; scrollbar-width:none;
-    scroll-snap-type:x mandatory;
+    display:flex; gap:8px; padding:10px 12px; background:#0f1318;border-bottom:1px solid var(--br);
+    position:sticky; top:56px; z-index:19; overflow-x:auto; scrollbar-width:none; scroll-snap-type:x mandatory
   }
   nav.tabs::-webkit-scrollbar{display:none}
   .tab{
-    padding:10px 12px;border:1px solid #243241;border-radius:10px;
-    background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto;
-    scroll-snap-align:start;
+    padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);
+    cursor:pointer;font-size:13px;flex:0 0 auto; scroll-snap-align:start
   }
   .tab[aria-selected="true"]{background:#162231;border-color:#31506a;font-weight:700}
 
-  /* Sections / layout */
-  .section{display:none}
+  /* Sections / layout (content-visibility speeds first paint) */
+  .section{display:none; content-visibility:auto; contain-intrinsic-size:1000px}
   .section.active{display:block}
   main{max-width:1160px;margin:0 auto;padding:14px 14px 64px}
   .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:12px}
@@ -83,21 +71,20 @@
   /* Buttons / fields */
   .btn{
     background:#14202b;border:1px solid #243241;color:var(--text);
-    padding:12px 14px;border-radius:10px;cursor:pointer;font-size:14px;line-height:1;min-height:44px;
-    touch-action:manipulation;
+    padding:12px 14px;border-radius:10px;cursor:pointer;font-size:14px;line-height:1;min-height:44px;touch-action:manipulation
   }
   .btn.small{padding:10px 12px;font-size:13px;min-height:40px}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
   .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   input[type="text"], input[type="email"], input[type="password"]{
     flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);
-    padding:10px;min-height:40px;font-size:16px;
+    padding:10px;min-height:40px;font-size:16px
   }
   ::placeholder{color:#8ea0b3;opacity:.9}
 
   /* Games grid */
   .gamesGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-  .gameCard{background:#11171e;border:1px solid #1f2a36;border-radius:14px;overflow:hidden}
+  .gameCard{background:#11171e;border:1px solid #1f2a36;border-radius:14px;overflow:hidden;will-change:contents}
   .band{height:6px}
   .gameBody{padding:12px}
   .teamsRow{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -107,17 +94,12 @@
   .scoreTag{display:inline-block;margin-left:6px;padding:2px 6px;border:1px solid #26313c;border-radius:6px;font-weight:700;min-width:24px;text-align:center}
   .lockRow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
   .lockRow .btn{flex:1 1 140px}
-  .pickedTag{
-    display:inline-flex;align-items:center;gap:6px;border:1px solid #2e5e3f;background:#0e1a14;color:#9be7b0;
-    border-radius:999px;padding:6px 10px;font-size:12px
-  }
+  .pickedTag{display:inline-flex;align-items:center;gap:6px;border:1px solid #2e5e3f;background:#0e1a14;color:#9be7b0;border-radius:999px;padding:6px 10px;font-size:12px}
 
   /* Top detail grid */
   .topGrid{display:grid;grid-template-columns:1fr 220px 220px;gap:12px;align-items:start}
   @media(max-width:980px){.topGrid{grid-template-columns:1fr}}
-  .teamline{
-    display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:#0f1318;border:1px solid #1c2430
-  }
+  .teamline{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:#0f1318;border:1px solid #1c2430}
   .teamline img{width:44px;height:44px;border-radius:8px;border:1px solid #1e2732;background:#0d1218}
   .statusBox,.scoreBox{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
   .scoreBox{text-align:center}
@@ -161,7 +143,7 @@
     main{padding:16px 18px 70px}
     .gamesGrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
     .scoreBox .num{font-size:38px}
-    .teamline img{width:44px;height:44px}
+    .teamline img{width:44px}
   }
 
   /* Phone tweaks */
@@ -204,7 +186,7 @@
   <h1>NHL Puck'Em <span class="sub">Every Monday→Sunday · 5 picks</span></h1>
   <span id="picksLeft" class="pill">Sign in to play</span>
   <span class="small" style="margin-left:auto">Week: <b id="weekLabel">—</b></span>
-  
+
   <div id="authBox" class="field" style="margin-left:auto;gap:6px;flex-wrap:wrap">
     <a class="btn small" href="signup.html">Sign up</a>
     <form id="loginPwForm" class="field" style="gap:6px">
@@ -276,7 +258,7 @@
 
       <div class="sep"></div>
 
-      <!-- NEW: Plays (Scoring + Recent) -->
+      <!-- Plays -->
       <div class="playsWrap">
         <section class="panel">
           <h3 style="margin:0 0 6px 0">Scoring Plays</h3>
@@ -401,32 +383,40 @@
   </main>
 </section>
 
-<!-- Supabase JS -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Supabase JS (deferred so it doesn't block rendering) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
-<script>
+<script defer>
+/* ---------- Tiny helpers ---------- */
+const $ = id => document.getElementById(id);
+const on = (el,ev,fn,opts) => el.addEventListener(ev,fn,opts||{passive:true});
+const idle = (fn)=> (window.requestIdleCallback? requestIdleCallback(fn,{timeout:1200}) : setTimeout(fn,0));
+
 /* ---------- CONFIG ---------- */
 const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
-const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
-  auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
-});
+let supa=null;
 
-/* ---------- PERF helpers (unchanged) ---------- */
+/* ---------- PERF cache & fetch ---------- */
 const TZ='America/Chicago';
 const MAX_PICKS=5;
-const $ = id => document.getElementById(id);
 
 const PERF_NS = `hf:${new Date().toISOString().slice(0,10)}`;
 const L1 = new Map();
-function k(ns){ return `${PERF_NS}:${ns}`; }
-function getCache(ns){ const key=k(ns); if(L1.has(key)) return L1.get(key);
-  try{ const raw=localStorage.getItem(key); if(!raw) return null;
-    const obj=JSON.parse(raw); if(obj.exp && Date.now()>obj.exp){ localStorage.removeItem(key); return null; }
-    L1.set(key,obj.val); return obj.val; }catch{ return null; }}
-function setCache(ns,val,ttlMs){ const key=k(ns); L1.set(key,val);
-  try{ localStorage.setItem(key, JSON.stringify({val,exp: ttlMs?Date.now()+ttlMs:null})); }catch{} }
-function delCache(ns){ try{ localStorage.removeItem(k(ns)); }catch{} L1.delete(k(ns)); }
+const k = ns => `${PERF_NS}:${ns}`;
+const getCache = ns => {
+  const key=k(ns);
+  if(L1.has(key)) return L1.get(key);
+  try{
+    const raw=localStorage.getItem(key); if(!raw) return null;
+    const obj=JSON.parse(raw);
+    if(obj.exp && Date.now()>obj.exp){ localStorage.removeItem(key); return null; }
+    L1.set(key,obj.val); return obj.val;
+  }catch{ return null; }
+};
+const setCache = (ns,val,ttlMs) => { const key=k(ns); L1.set(key,val);
+  try{ localStorage.setItem(key, JSON.stringify({val,exp: ttlMs?Date.now()+ttlMs:null})); }catch{} };
+const delCache = ns => { try{ localStorage.removeItem(k(ns)); }catch{} L1.delete(k(ns)); };
 
 const INFLIGHT = new Map();
 async function dedupFetch(url){
@@ -438,7 +428,7 @@ async function dedupFetch(url){
 async function safeJson(url,retries=2){
   for(let i=0;i<=retries;i++){
     try{ return await dedupFetch(url); }
-    catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,500*(i+1))); }
+    catch(e){ if(i===retries) throw e; await new Promise(r=>setTimeout(r,300*(i+1))); }
   }
 }
 async function pLimitAll(items, limit, worker){
@@ -473,21 +463,30 @@ const WEEK_KEY=weekKey(); const WEEK=weekDates();
 $('weekLabel').textContent=WEEK.pretty; $('lbWeekLabel').textContent=`Week: ${WEEK.pretty}`; $('mineWeekLabel').textContent=WEEK.pretty;
 
 /* ---------- ESPN helpers ---------- */
-function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.logos[0].href).replace(/^http:/,'https:'); if(t.abbreviation) return `https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`; return null; }
+function cdnNHL(t){
+  if(!t) return null;
+  if(t.logos?.[0]?.href) return String(t.logos[0].href).replace(/^http:/,'https:');
+  if(t.abbreviation) return `https://a.espncdn.com/i/teamlogos/nhl/500/${t.abbreviation}.png`;
+  return null;
+}
 
 /* ---------- Supabase helpers (auth + players) ---------- */
 let session=null, currentUser=null, displayName='';
-function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
+function toast(msg){
+  const t=document.createElement('div');
+  t.textContent=msg;
+  Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50});
+  document.body.appendChild(t); setTimeout(()=>t.remove(),1200);
+}
 
 async function loadOrCreatePlayer(){
   if(!currentUser) return;
   const uid=currentUser.id;
   const { data, error } = await supa.from('players').select('*').eq('id',uid).maybeSingle();
-  if(error){ console.error(error); return; }
+  if(error) return;
   if(!data){
     const def = (currentUser.email||'user').split('@')[0];
-    const { error:insErr } = await supa.from('players').insert({ id:uid, display_name:def });
-    if(insErr){ console.error(insErr); }
+    await supa.from('players').insert({ id:uid, display_name:def }).catch(()=>{});
     displayName=def;
   }else{
     displayName=data.display_name||'';
@@ -499,7 +498,7 @@ $('saveDisplayName').addEventListener('click', async ()=>{
   if(!currentUser) return;
   const name = ($('displayNameInput').value||'').trim(); if(!name) return;
   const { error } = await supa.from('players').upsert({ id: currentUser.id, display_name: name });
-  if(!error){ displayName=name; toast('Saved ✓'); renderWeeklyBoards(); renderSeasonBoards(); }
+  if(!error){ displayName=name; toast('Saved ✓'); idle(renderWeeklyBoards); idle(renderSeasonBoards); }
 });
 $('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });
 $('loginPwForm').addEventListener('submit', async (e) => {
@@ -559,17 +558,14 @@ async function getDisplayNames(userIds){
   const map={}; ids.forEach(id=>map[id]=NAME_MEMO.get(id)); return map;
 }
 
-/* ---------- NEW: push summaries into SQL; read game score/box ---------- */
+/* ---------- SQL upsert + read score ---------- */
 async function pushSummaryToSQL(gameId, summaryJson){
-  const { error } = await supa.rpc('upsert_nhl_game_from_summary', {
+  await supa.rpc('upsert_nhl_game_from_summary', {
     p_week_key: WEEK_KEY,
     p_game_id: String(gameId),
     p_summary: summaryJson
-  });
-  if(error){ console.error('upsert_nhl_game_from_summary failed:', error.message); }
+  }).catch(()=>{});
 }
-
-/* include stat fields for breakdown */
 async function getGameScoreFromDB(gid){
   const { data } = await supa
     .from('game_scores')
@@ -578,7 +574,7 @@ async function getGameScoreFromDB(gid){
   return data||null;
 }
 
-/* ---------- Robust Scoring detector + helpers ---------- */
+/* ---------- Play filters ---------- */
 function mapPlay(x){
   return {
     raw:x,
@@ -591,7 +587,7 @@ function isRealGoal(pRaw){
   const typeText = (pRaw?.type?.text || '').toLowerCase();
   const bodyText = (pRaw?.text || pRaw?.description || pRaw?.shortText || '').toLowerCase();
   if (pRaw?.scoringPlay === true) return true;
-  if (pRaw?.type?.id === '521') return true; // ESPN "Goal"
+  if (pRaw?.type?.id === '521') return true;
   const hasGoalWord = /\bgoal\b/i.test(typeText) || /\bgoal\b/i.test(bodyText);
   const isNeg = /\bno goal\b|\bgoalie\b|\bstopped\b|\bsave\b|\bsaved\b|\bdisallowed\b/i.test(typeText + ' ' + bodyText);
   return hasGoalWord && !isNeg;
@@ -625,8 +621,16 @@ async function getRecentPlays(eventId, summaryJson){
 /* ---------- League (NHL) UI ---------- */
 function leagueFactory(){
   const st={ events:[], selected:null, poll:null, gameRows:[] };
-  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB') };
-  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
+  const dom={
+    gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'),
+    back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'),
+    teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'),
+    clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB')
+  };
+  const api={
+    scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
+    summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`
+  };
 
   dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
   dom.add.addEventListener('click', async ()=>{
@@ -641,91 +645,95 @@ function leagueFactory(){
     const ok = await setPick(currentUser.id,gid);
     if(ok){
       updatePicksLeft();
-      renderWeeklyBoards();
-      renderMyPicks();
+      idle(renderWeeklyBoards); idle(renderMyPicks);
       const tag=$(`picked-${st.selected.id}`); if(tag) tag.style.display='inline-flex';
       const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
       toast('Pick saved ✓');
     }
   });
 
+  function gridCardHTML(g, started, puck){
+    const aLogo = g.away.logo ? `<img src="${g.away.logo}" loading="lazy" decoding="async" alt="">` : ``;
+    const hLogo = g.home.logo ? `<img src="${g.home.logo}" loading="lazy" decoding="async" alt="">` : ``;
+    return `
+      <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
+      <div class="gameBody">
+        <div class="teamsRow">
+          <div class="team">
+            ${aLogo}
+            <div class="name">${g.away.name}</div>
+            <span class="scoreTag" id="NHL-a-${g.id}">0</span>
+          </div>
+          <div class="small" style="opacity:.8">@</div>
+          <div class="team" style="justify-content:flex-end">
+            ${hLogo}
+            <div class="name">${g.home.name}</div>
+            <span class="scoreTag" id="NHL-h-${g.id}">0</span>
+          </div>
+        </div>
+
+        <div class="small" style="margin-top:6px;opacity:.9">
+          Score: <span id="NHL-scr-${g.id}">—</span> ·
+          <span id="NHL-st-${g.id}">pre</span> ·
+          Puck drop: ${puck}
+        </div>
+
+        <div class="small" style="margin-top:8px">
+          <span class="fantWrap" id="NHL-fant-${g.id}-wrap"
+                style="display:inline-flex;align-items:center;gap:8px;background:#0e1a14;border:1px solid #2e5e3f;color:#9be7b0;padding:6px 12px;border-radius:999px;font-weight:800;letter-spacing:.2px;">
+            <span style="opacity:.9">Fantasy</span>
+            <span id="NHL-fant-${g.id}" style="font-variant-numeric:tabular-nums">—</span>
+          </span>
+        </div>
+
+        <div class="lockRow">
+          <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
+          <button class="btn pickBtn" data-gid="${g.id}" ${started ? 'style="display:none"' : ''}>Add to my picks</button>
+          <button class="btn small viewBtn" data-open="${g.id}">Open</button>
+        </div>
+
+        ${started ? '<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
+      </div>`;
+  }
+
   function renderGrid(){
-    dom.grid.innerHTML='';
+    const frag=document.createDocumentFragment();
     (st.events||[]).forEach(g=>{
       const started = Date.now() >= new Date(g.start).getTime();
       const card = document.createElement('div');
       card.className = 'gameCard';
       const puck = new Date(g.start).toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
-
-      card.innerHTML = `
-        <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
-        <div class="gameBody">
-          <div class="teamsRow">
-            <div class="team">
-              ${g.away.logo ? `<img src="${g.away.logo}" alt="">` : ``}
-              <div class="name">${g.away.name}</div>
-              <span class="scoreTag" id="NHL-a-${g.id}">0</span>
-            </div>
-            <div class="small" style="opacity:.8">@</div>
-            <div class="team" style="justify-content:flex-end">
-              ${g.home.logo ? `<img src="${g.home.logo}" alt="">` : ``}
-              <div class="name">${g.home.name}</div>
-              <span class="scoreTag" id="NHL-h-${g.id}">0</span>
-            </div>
-          </div>
-
-          <div class="small" style="margin-top:6px;opacity:.9">
-            Score: <span id="NHL-scr-${g.id}">—</span> ·
-            <span id="NHL-st-${g.id}">pre</span> ·
-            Puck drop: ${puck}
-          </div>
-
-          <div class="small" style="margin-top:8px">
-            <span id="NHL-fant-${g.id}-wrap"
-                  style="display:inline-flex;align-items:center;gap:8px;
-                         background:#0e1a14;border:1px solid #2e5e3f;color:#9be7b0;
-                         padding:6px 12px;border-radius:999px;font-weight:800;
-                         letter-spacing:.2px;">
-              <span style="opacity:.9">Fantasy</span>
-              <span id="NHL-fant-${g.id}" style="font-variant-numeric:tabular-nums">—</span>
-            </span>
-          </div>
-
-          <div class="lockRow">
-            <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
-            <button class="btn pickBtn" data-gid="${g.id}" ${started ? 'style="display:none"' : ''}>Add to my picks</button>
-            <button class="btn small viewBtn">Open</button>
-          </div>
-
-          ${started ? '<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
-        </div>`;
-
-      card.querySelector('.viewBtn').addEventListener('click', ()=>openGame(g));
-
-      const pickBtn = card.querySelector('.pickBtn');
-      if(pickBtn){
-        pickBtn.addEventListener('click', async ()=>{
-          if(!currentUser){ alert('Sign in first.'); return; }
-          if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
-          const myList = await picksForUser(currentUser.id);
-          const gid = String(g.id);
-          if(myList.includes(gid)){ alert('Already picked.'); return; }
-          if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-          const ok = await setPick(currentUser.id, gid);
-          if(ok){
-            updatePicksLeft();
-            renderWeeklyBoards();
-            renderMyPicks();
-            const tag = $(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
-            pickBtn.style.display='none';
-            toast('Pick saved ✓');
-          }
-        });
-      }
-
-      dom.grid.appendChild(card);
+      card.innerHTML = gridCardHTML(g, started, puck);
+      frag.appendChild(card);
     });
+    dom.grid.innerHTML=''; dom.grid.appendChild(frag);
   }
+
+  // Event delegation (fewer listeners)
+  on(dom.grid,'click', async (e)=>{
+    const btn = e.target.closest('.pickBtn');
+    if(btn){
+      if(!currentUser){ alert('Sign in first.'); return; }
+      const gid = btn.getAttribute('data-gid');
+      const ev = st.events.find(x=>String(x.id)===String(gid)); if(!ev) return;
+      if(Date.now()>=new Date(ev.start).getTime()){ alert('Locked (already started)'); return; }
+      const myList = await picksForUser(currentUser.id);
+      if(myList.includes(gid)){ alert('Already picked.'); return; }
+      if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
+      const ok = await setPick(currentUser.id, gid);
+      if(ok){
+        updatePicksLeft();
+        idle(renderWeeklyBoards); idle(renderMyPicks);
+        const tag = $(`picked-${gid}`); if(tag) tag.style.display='inline-flex';
+        btn.style.display='none'; toast('Pick saved ✓');
+      }
+      return;
+    }
+    const v = e.target.closest('[data-open]'); if(v){
+      const id = v.getAttribute('data-open');
+      const g = st.events.find(x=>String(x.id)===String(id)); if(g) openGame(g);
+    }
+  });
 
   async function refreshGridScores(){
     const evs = st.events || []; if(!evs.length) return;
@@ -749,43 +757,36 @@ function leagueFactory(){
     });
 
     const valid = rows.filter(Boolean);
-    for(const r of valid){
-      const scEl = $(`NHL-scr-${r.id}`);
-      const stEl = $(`NHL-st-${r.id}`);
-      const aEl  = $(`NHL-a-${r.id}`);
-      const hEl  = $(`NHL-h-${r.id}`);
-      const fEl  = $(`NHL-fant-${r.id}`);
+    // Batch DOM writes
+    const m = new Map(valid.map(v=>[String(v.id),v]));
+    const upd = [];
+    (st.events||[]).forEach(g=>{
+      const r=m.get(String(g.id)); if(!r) return;
+      upd.push(['NHL-scr-'+g.id, `${r.awayPts}–${r.homePts}`]);
+      upd.push(['NHL-st-'+g.id,  r.status || '—']);
+      upd.push(['NHL-a-'+g.id,   r.awayPts]);
+      upd.push(['NHL-h-'+g.id,   r.homePts]);
+      upd.push(['NHL-fant-'+g.id, Number(r.score||0).toFixed(2)]);
+    });
+    for(const [id,val] of upd){ const el=$(id); if(el) el.textContent = String(val); }
 
-      if(scEl) scEl.textContent = `${r.awayPts}–${r.homePts}`;
-      if(stEl) stEl.textContent = r.status || '—';
-      if(aEl)  aEl.textContent  = r.awayPts;
-      if(hEl)  hEl.textContent  = r.homePts;
-      if(fEl)  fEl.textContent  = Number(r.score || 0).toFixed(2);
-    }
-
-    st.gameRows = evs.map(g=>{
-      const r = valid.find(x => x && String(x.id)===String(g.id));
-      if(!r) return null;
-      return {
-        id: g.id, awayName: g.away.name, homeName: g.home.name,
-        awayLogo: g.away.logo, homeLogo: g.home.logo,
-        score: r.score, status: r.status
-      };
+    st.gameRows = (st.events||[]).map(g=>{
+      const r = m.get(String(g.id)); if(!r) return null;
+      return { id:g.id, awayName:g.away.name, homeName:g.home.name, awayLogo:g.away.logo, homeLogo:g.home.logo, score:r.score, status:r.status };
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
-    renderGameLB(); renderUserLB();
+    renderGameLB(); idle(renderUserLB);
   }
 
   function renderGameLB(){
     if(!st.gameRows) return;
     const tgt = $('nhl-gameLB'); if(!tgt) return;
-
     tgt.innerHTML = st.gameRows.map(r => `
       <div class="lbRow" data-gid="${r.id}" style="cursor:pointer" role="button" tabindex="0" aria-label="Open ${r.awayName} at ${r.homeName}">
         <div class="lbTeam">
-          ${r.awayLogo?`<img src="${r.awayLogo}" alt="">`:''}
+          ${r.awayLogo?`<img src="${r.awayLogo}" loading="lazy" decoding="async" alt="">`:''}
           <span class="lbName" style="max-width:280px">${r.awayName} @ ${r.homeName}</span>
-          ${r.homeLogo?`<img src="${r.homeLogo}" alt="" style="margin-left:6px">`:''}
+          ${r.homeLogo?`<img src="${r.homeLogo}" loading="lazy" decoding="async" alt="" style="margin-left:6px">`:''}
         </div>
         <div class="lbPts">${Number(r.score||0).toFixed(2)}</div>
         <div class="small">${r.status||''}</div>
@@ -818,27 +819,30 @@ function leagueFactory(){
     dom.teamSide.innerHTML=
       `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
          <div style="display:flex;gap:10px;align-items:center">
-           ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
+           ${g.away.logo?`<img src="${g.away.logo}" loading="lazy" decoding="async" alt="">`:''}
            <div style="font-weight:700">${g.away.name}</div>
          </div>
          <div id="NHL-awayScore" style="font-weight:800">—</div>
        </div>
        <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
          <div style="display:flex;gap:10px;align-items:center">
-           ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
+           ${g.home.logo?`<img src="${g.home.logo}" loading="lazy" decoding="async" alt="">`:''}
            <div style="font-weight:700">${g.home.name}</div>
          </div>
          <div id="NHL-homeScore" style="font-weight:800">—</div>
        </div>`;
 
-    dom.gridCard.style.display='none'; 
+    dom.gridCard.style.display='none';
     dom.top.style.display='block';
 
-    updateGameOnce(); 
-    if(st.poll) clearInterval(st.poll); 
-    st.poll = setInterval(updateGameOnce, 20000);
+    updateGameOnce();
+    if(st.poll) clearInterval(st.poll);
 
-    renderGameLB(); renderUserLB();
+    // Throttle polling if user enables data-saver
+    const base = (navigator.connection && (navigator.connection.saveData || navigator.connection.effectiveType==='2g')) ? 45000 : 20000;
+    st.poll = setInterval(()=>{ if(!document.hidden) updateGameOnce(); }, base);
+
+    renderGameLB(); idle(renderUserLB);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -855,8 +859,7 @@ function leagueFactory(){
       { label:'Blocked Shots', count:safe(row.blocks), per:W.block, pts:safe(row.blocks)*W.block },
       { label:'Penalty Minutes',count:safe(row.pim),   per:W.pim,   pts:safe(row.pim)*W.pim },
     ];
-    const tbody = document.querySelector('#nhl-breakdown tbody');
-    if(!tbody) return;
+    const tbody = document.querySelector('#nhl-breakdown tbody'); if(!tbody) return;
     tbody.innerHTML = items.map(it=>`
       <tr>
         <td>${it.label}</td>
@@ -866,8 +869,7 @@ function leagueFactory(){
       </tr>`).join('');
 
     const bonus = safe(row.close_bonus)+safe(row.ot_bonus)+safe(row.so_bonus);
-    const offenseDefense = items.reduce((s,x)=>s+x.pts,0);
-    const total = offenseDefense + bonus;
+    const total = items.reduce((s,x)=>s+x.pts,0) + bonus;
 
     const bdBonuses = document.getElementById('bd-bonuses');
     const bdTotal = document.getElementById('bd-total');
@@ -899,7 +901,6 @@ function leagueFactory(){
 
       if(row) renderBreakdown(row);
 
-      // ----- NEW: fill Scoring Plays & Recent Plays -----
       const scoring = await getScoringPlaysRobust(id, s);
       const scoreBox = document.getElementById('nhl-scoreList');
       if(scoreBox){
@@ -920,8 +921,6 @@ function leagueFactory(){
             ).join('')
           : '<div class="small">No data yet.</div>';
       }
-      // -----------------------------------------------
-
     }catch(e){ /* ignore */ }
   }
 
@@ -951,7 +950,8 @@ function leagueFactory(){
       mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
     refreshGridScores();
-    setInterval(refreshGridScores,30000);
+    const base = (navigator.connection && (navigator.connection.saveData || navigator.connection.effectiveType==='2g')) ? 60000 : 30000;
+    setInterval(()=>{ if(!document.hidden) refreshGridScores(); }, base);
   }
 
   function renderUserLB(){ /* minimal on this tab */ }
@@ -960,7 +960,7 @@ function leagueFactory(){
 }
 const NHL = leagueFactory();
 
-/* ---------- DB-driven helpers for boards/picks ---------- */
+/* ---------- Boards/Picks ---------- */
 function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
 
 async function renderWeeklyBoards(){
@@ -968,30 +968,31 @@ async function renderWeeklyBoards(){
   if(!box) return;
   box.innerHTML='<div class="small">Loading…</div>';
   const { data, error } = await supa.from('weekly_results').select('user_id,total,rank').eq('league','NHL').eq('week_key',WEEK_KEY).order('rank');
-  if(error){ console.error(error); box.innerHTML='<div class="small">Error.</div>'; return; }
+  if(error){ box.innerHTML='<div class="small">Error.</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="small">No results yet.</div>'; return; }
   const names=await getDisplayNames(data.map(r=>r.user_id));
-  box.innerHTML='';
+  const frag=document.createDocumentFragment();
   data.forEach(r=>{
     const div=document.createElement('div'); div.className='lbRow';
     div.innerHTML=`<span class="lbPos">${r.rank}</span><div class="lbTeam"><span class="lbName">${names[r.user_id]||r.user_id.slice(0,6)}</span></div><div class="lbPts">${Number(r.total).toFixed(2)}</div><div class="small">Weekly</div>`;
-    box.appendChild(div);
+    frag.appendChild(div);
   });
+  box.innerHTML=''; box.appendChild(frag);
 }
-
 async function renderSeasonBoards(){
   const box=$('lbNHLSeason'); if(!box) return;
   box.innerHTML='<div class="small">Loading…</div>';
   const { data, error } = await supa.from('season_points').select('user_id, points').eq('league','NHL').order('points', { ascending:false });
-  if(error){ console.error(error); box.innerHTML='<div class="small">Error.</div>'; return; }
+  if(error){ box.innerHTML='<div class="small">Error.</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="small">No season data yet.</div>'; return; }
   const names=await getDisplayNames(data.map(r=>r.user_id));
-  box.innerHTML='';
+  const frag=document.createDocumentFragment();
   data.forEach((r,i)=>{
     const div=document.createElement('div'); div.className='lbRow';
     div.innerHTML=`<span class="lbPos">${i+1}</span><div class="lbTeam"><span class="lbName">${names[r.user_id]||r.user_id.slice(0,6)}</span></div><div class="lbPts">${r.points}</div><div class="small">Season</div>`;
-    box.appendChild(div);
+    frag.appendChild(div);
   });
+  box.innerHTML=''; box.appendChild(frag);
 }
 
 /* ---------- My Picks ---------- */
@@ -1001,7 +1002,7 @@ function isCurrent(key,t){ return RENDER_TICKETS.get(key)===t; }
 let LAST_ALL_IDS_JSON = '';
 
 function gameRowHTML(meta,score){
-  return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${Number(score||0).toFixed(2)}</div><div class="small">Game</div>`;
+  return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" loading="lazy" decoding="async" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" loading="lazy" decoding="async" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${Number(score||0).toFixed(2)}</div><div class="small">Game</div>`;
 }
 async function gameMeta(gid){
   const ck=`meta:${gid}`;
@@ -1039,9 +1040,14 @@ async function renderPickList(containerId, gidList){
     return {meta,score:row?.total||0};
   });
   if(!isCurrent(containerId,myTicket)) return 0;
-  let total=0; const rows=[];
-  for(const r of results){ total+=r.score; rows.push(`<div class="lbRow">${gameRowHTML(r.meta,r.score)}</div>`); }
-  el.innerHTML=rows.join('');
+  let total=0; const frag=document.createDocumentFragment();
+  for(const r of results){
+    total+=r.score;
+    const div=document.createElement('div'); div.className='lbRow';
+    div.innerHTML=gameRowHTML(r.meta,r.score);
+    frag.appendChild(div);
+  }
+  el.appendChild(frag);
   return total;
 }
 async function renderMyPicks(){
@@ -1064,10 +1070,13 @@ async function renderMyPicks(){
   if(idsJson !== LAST_ALL_IDS_JSON){
     LAST_ALL_IDS_JSON = idsJson;
     const names=await getDisplayNames(ids);
-    const frags=[]; ids.forEach(uid=>{
-      frags.push(`<div class="panel" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${names[uid]||uid.slice(0,6)}</strong><span class="small" id="sum-${uid}">NHL —</span></div><div class="sep"></div><div id="p-${uid}-nhl"></div></div>`);
+    const frag=document.createDocumentFragment();
+    ids.forEach(uid=>{
+      const wrap=document.createElement('div'); wrap.className='panel'; wrap.style.marginBottom='10px';
+      wrap.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><strong>${names[uid]||uid.slice(0,6)}</strong><span class="small" id="sum-${uid}">NHL —</span></div><div class="sep"></div><div id="p-${uid}-nhl"></div>`;
+      frag.appendChild(wrap);
     });
-    box.innerHTML=frags.join('');
+    box.innerHTML=''; box.appendChild(frag);
   }
 
   await pLimitAll(ids, 6, async (uid)=>{
@@ -1089,7 +1098,7 @@ async function refreshBadgesUI(){
       const id = el.getAttribute('data-badge');
       if(id && got.has(id)) el.classList.add('unlocked');
     });
-  }catch(e){ /* ignore */ }
+  }catch{}
 }
 
 /* ---------- Picks-left badge ---------- */
@@ -1101,65 +1110,60 @@ async function updatePicksLeft(){
 
 /* ---------- Tabs ---------- */
 const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
-Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); } if(k==='badges'){ refreshBadgesUI(); }}));
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') idle(renderMyPicks); if(k==='lb'){ idle(renderWeeklyBoards); idle(renderSeasonBoards); } if(k==='badges'){ idle(refreshBadgesUI); }}));
 
 /* ---------- Boot ---------- */
 (async ()=>{
+  // Wait for Supabase script (loaded with defer)
+  supa = window.supabase.createClient(SUPA_URL, SUPA_ANON, {
+    auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+  });
+
   const { data:{ session:ses } } = await supa.auth.getSession();
   session=ses; currentUser = session?.user || null;
 
   function showAuthUI(){
-  const login   = document.getElementById('loginPwForm');
-  const userBox = document.getElementById('userBox');
-  const signupLink = document.querySelector('a[href="signup.html"]');
+    const login   = document.getElementById('loginPwForm');
+    const userBox = document.getElementById('userBox');
+    const signupLink = document.querySelector('a[href="signup.html"]');
 
-  if (currentUser){
-    if (login)      login.style.display = 'none';
-    if (signupLink) signupLink.style.display = 'none';
-    if (userBox)    userBox.style.display = 'flex';
-    const who = document.getElementById('whoami');
-    if (who) who.textContent = currentUser.email || '(no email)';
-  } else {
-    if (login)      login.style.display = 'flex';
-    if (signupLink) signupLink.style.display = 'inline-flex';
-    if (userBox)    userBox.style.display = 'none';
+    if (currentUser){
+      if (login)      login.style.display = 'none';
+      if (signupLink) signupLink.style.display = 'none';
+      if (userBox)    userBox.style.display = 'flex';
+      const who = document.getElementById('whoami');
+      if (who) who.textContent = currentUser.email || '(no email)';
+    } else {
+      if (login)      login.style.display = 'flex';
+      if (signupLink) signupLink.style.display = 'inline-flex';
+      if (userBox)    userBox.style.display = 'none';
+    }
   }
-}
-
-
 
   showAuthUI();
-
   if(currentUser){ await loadOrCreatePlayer(); }
 
   const league = NHL; await league.loadWeek();
   await updatePicksLeft();
-  await renderWeeklyBoards();
-  await renderSeasonBoards();
-  await renderMyPicks();
-  await refreshBadgesUI();
+  idle(renderWeeklyBoards); idle(renderSeasonBoards); idle(renderMyPicks); idle(refreshBadgesUI);
 
   supa.auth.onAuthStateChange(async (_event, sess)=>{
     session=sess; currentUser=session?.user||null; showAuthUI();
     if(currentUser){ await loadOrCreatePlayer(); }
     await updatePicksLeft();
-    await renderMyPicks();
-    await renderWeeklyBoards();
+    idle(renderMyPicks);
+    idle(renderWeeklyBoards);
     if(currentUser && NHL?.state?.events){
       const mine = await picksForUser(currentUser.id);
       mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
-    await refreshBadgesUI();
+    idle(refreshBadgesUI);
   });
 
-  setInterval(renderWeeklyBoards, 60000);
+  // Keep weekly board fresh while visible
+  const weeklyTick = () => { if(!document.hidden) renderWeeklyBoards(); };
+  setInterval(weeklyTick, 60000);
 })();
 </script>
 </body>
 </html>
-
-
-
-
-
-
