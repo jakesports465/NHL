@@ -1177,9 +1177,84 @@ window.addEventListener('beforeunload', () => {
   }
 });
 
+// === PERFORMANCE & CLEANUP PATCH ===
+
+// 1) Clean up channels + timers on unload
+window.addEventListener('beforeunload', () => {
+  if (window.ST && ST.chans && ST.chans.forEach) {
+    ST.chans.forEach(({ ch, timer }) => {
+      try { ch.unsubscribe(); } catch {}
+      if (timer) clearInterval(timer);
+    });
+  }
+});
+
+// 2) Pause polling when tab is hidden
+(function () {
+  if (!window.pollSince) return;
+  const _pollSince = window.pollSince;
+  window.pollSince = async function(room_id, listEl){
+    if (document.hidden) return;   // skip when hidden
+    return _pollSince(room_id, listEl);
+  };
+})();
+
+// 3) Throttle polling per room (network-aware)
+(function () {
+  if (!window.pollSince) return;
+  const _pollSince = window.pollSince;
+  const lastRun = new Map();
+  const conn = (navigator.connection || {});
+  const GAP = ({
+    'slow-2g': 20000, '2g': 20000, '3g': 15000, '4g': 10000
+  }[conn.effectiveType]) || 12000;
+
+  window.pollSince = async function(room_id, listEl){
+    const now = Date.now();
+    const prev = lastRun.get(room_id) || 0;
+    if (now - prev < GAP) return;
+    lastRun.set(room_id, now);
+    return _pollSince(room_id, listEl);
+  };
+})();
+
+// 4) Batch DOM appends for chat messages
+(function () {
+  if (!window.appendMsg) return;
+  const _appendMsg = window.appendMsg;
+  const queue = new Map();
+  let scheduled = false;
+
+  function flush() {
+    scheduled = false;
+    queue.forEach((items, listEl) => {
+      const frag = document.createDocumentFragment();
+      items.forEach(({m, meId}) => {
+        const tmp = document.createElement('div');
+        _appendMsg(tmp, m, meId);      // render into tmp
+        while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+      });
+      listEl.appendChild(frag);
+      const nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
+      if (nearBottom) listEl.scrollTop = listEl.scrollHeight;
+    });
+    queue.clear();
+  }
+
+  window.appendMsg = function(listEl, m, meId){
+    const arr = queue.get(listEl) || [];
+    arr.push({m, meId});
+    queue.set(listEl, arr);
+    if (!scheduled) {
+      scheduled = true;
+      (window.requestAnimationFrame || setTimeout)(flush);
+    }
+  };
+})();
 </script>
 </body>
 </html>
+
 
 
 
