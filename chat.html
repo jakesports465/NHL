@@ -51,6 +51,11 @@
   .teamRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #1c2430}
   .teamRow:last-child{border-bottom:none}
 
+  /* NEW: team name + logo + centered chat mount */
+  .teamName{display:flex;align-items:center;gap:10px}
+  .teamLogo{width:26px;height:26px;object-fit:contain}
+  .teamChatSpot{margin-top:8px;display:flex;justify-content:center}
+
   /* realtime status dot */
   .rt{display:inline-flex;align-items:center;gap:6px}
   .dot{width:8px;height:8px;border-radius:50%}
@@ -321,6 +326,7 @@ function disposeRoom(room_id){
 /* ====== RENDERERS ====== */
 function mountRoom(container, room){
   const holder = document.createElement('div'); holder.className='room';
+  holder.style.maxWidth='820px'; holder.style.width='100%';   /* keep centered nicely */
   holder.innerHTML = `<div class="row"><strong>${room.name}</strong></div>`;
   const {wrap,listId,inId,btnId}=chatBlock(room);
   holder.appendChild(wrap);
@@ -361,19 +367,27 @@ function renderWeekly(all){
   mountRoom(mount, wk);
 }
 
-/* ====== TEAMS (lazy mount per team) ====== */
+/* ====== TEAMS (logos + centered chat) ====== */
+const LOGO_URL = (abbr)=>{
+  const map={
+    BOS:'bos', BUF:'buf', DET:'det', FLA:'fla', MTL:'mtl', OTT:'ott', TBL:'tb',  TOR:'tor',
+    CAR:'car', CBJ:'cbj', NJD:'nj',  NYI:'nyi', NYR:'nyr', PHI:'phi', PIT:'pit', WSH:'wsh',
+    CHI:'chi', COL:'col', DAL:'dal', MIN:'min', NSH:'nsh', STL:'stl', WPG:'wpg', ARI:'ari',
+    ANA:'ana', CGY:'cgy', EDM:'edm', LAK:'la',  SEA:'sea', SJS:'sj',  VAN:'van', VGK:'vgk'
+  };
+  const code = map[abbr] || abbr.toLowerCase();
+  return `https://a.espncdn.com/i/teamlogos/nhl/500/scoreboard/${code}.png`;
+};
+
 async function getOrCreateTeamRoom(abbr, name){
-  // find existing
   let { data:found, error } = await supa
     .from('chat_rooms')
     .select('id,room_type,team_abbr,name,has_password')
     .eq('room_type','team').eq('league','NHL').eq('team_abbr',abbr)
     .maybeSingle();
   if(found) return found;
-  if(error && error.code!=='PGRST116') throw error; // passthrough unexpected
-
+  if(error && error.code!=='PGRST116') throw error;
   if(!ST.me){ throw new Error('Sign in to create team rooms.'); }
-  // create new
   const { data, error:insErr } = await supa
     .from('chat_rooms')
     .insert({ room_type:'team', league:'NHL', team_abbr:abbr, name:`${name} Chat`, created_by: ST.me.id })
@@ -400,19 +414,21 @@ function renderTeamsShell(){
     byDiv.get(div).forEach(t=>{
       const row=document.createElement('div'); row.className='teamRow';
       row.innerHTML = `
-        <div><strong>${t.name}</strong> <span class="small">(${t.abbr})</span></div>
+        <div class="teamName">
+          <img class="teamLogo" src="${LOGO_URL(t.abbr)}" alt="${t.abbr} logo">
+          <strong>${t.name}</strong>
+        </div>
         <div>
           <button class="btn" data-state="closed">Open chat</button>
         </div>`;
       const btn=row.querySelector('button');
 
-      // container where the chat (if opened) will mount
-      const mountSpot=document.createElement('div');
+      const mountSpot=document.createElement('div');   /* centered mount */
+      mountSpot.className='teamChatSpot';
       row.appendChild(mountSpot);
 
       btn.onclick = async ()=>{
         if(btn.dataset.state === 'open'){
-          // close
           const rid = ST.mounted.get(t.abbr);
           if(rid){ disposeRoom(rid); }
           mountSpot.innerHTML='';
@@ -485,16 +501,17 @@ document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
 
 /* ====== Boot ====== */
 document.addEventListener('DOMContentLoaded', ()=>{
-  const pick = $('colorPick');
+  const wr = document.getElementById('weekRange');
+  if(wr) wr.textContent = weekRangeLabel();
+  const pick = document.getElementById('colorPick');
   if(pick){ pick.addEventListener('input', e => saveMyColor(e.target.value)); }
 });
 
 (async ()=>{
   await initAuth();
-  const wr = document.getElementById('weekRange');
-  if(wr) wr.textContent = weekRangeLabel();
   await loadRooms();
 })();
 </script>
 </body>
 </html>
+```0
