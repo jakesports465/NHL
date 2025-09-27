@@ -1167,9 +1167,20 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 
   setInterval(renderWeeklyBoards, 60000);
 })();
+// Clean up channels + timers on page unload
+window.addEventListener('beforeunload', () => {
+  if (window.ST && Array.isArray(ST.chans)) {
+    ST.chans.forEach(({ ch, timer }) => {
+      try { ch.unsubscribe(); } catch {}
+      if (timer) clearInterval(timer);
+    });
+  }
+});
+
 </script>
 </body>
 </html>
+
 
 
 
