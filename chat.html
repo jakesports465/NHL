@@ -41,14 +41,11 @@
   .chatInput button{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:8px;cursor:pointer}
   .chatInput button[disabled]{opacity:.6;cursor:not-allowed}
 
-  .divGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:12px}
-  @media (min-width:920px){.divGrid{grid-template-columns:repeat(4,minmax(260px,1fr))}}
-  .divCard{background:#101722;border:1px solid #1c2430;border-radius:12px;padding:10px}
-
   .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
   .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
 
+  /* realtime status dot */
   .rt{display:inline-flex;align-items:center;gap:6px}
   .dot{width:8px;height:8px;border-radius:50%}
   .dot.ok{background:#2ad97a}.dot.wait{background:#997}.dot.err{background:#d85}
@@ -65,7 +62,6 @@
 <nav class="tabs" role="tablist">
   <button class="tab" aria-controls="sec-season" aria-selected="true">Season</button>
   <button class="tab" aria-controls="sec-weekly" aria-selected="false">Weekly</button>
-  <button class="tab" aria-controls="sec-teams"  aria-selected="false">Teams</button>
 </nav>
 
 <main>
@@ -84,21 +80,10 @@
   <section id="sec-weekly" class="section">
     <div class="card">
       <div class="row">
-        <h2 id="weeklyTitle" style="margin:0">Weekly</h2>
+        <h2 style="margin:0">Week of <span id="weekRange">—</span></h2>
         <span class="rt small"><span id="rt-week" class="dot wait"></span><span>Live</span></span>
       </div>
       <div id="weeklyMount"><div class="small">Loading…</div></div>
-    </div>
-  </section>
-
-  <!-- TEAMS (by division) -->
-  <section id="sec-teams" class="section">
-    <div class="card">
-      <div class="row">
-        <h2 style="margin:0">Teams</h2>
-        <span class="small">Grouped by division • each has its own live stream</span>
-      </div>
-      <div id="teamsMount"><div class="small">Loading teams…</div></div>
     </div>
   </section>
 </main>
@@ -124,41 +109,35 @@ function weekKey(){
 }
 const CURRENT_WEEK_KEY = weekKey();
 
-/* === Week label: "Week of September 22–28" (Mon–Sun from week_key) === */
-function weekRangeLabel(week_key){
-  try{
-    const iso = (week_key||'').slice(0,10);
-    const [y,m,d] = iso.split('-').map(n=>parseInt(n,10));
-    if(!y||!m||!d) return 'Weekly';
-    const start = new Date(y, m-1, d);
-    const end   = new Date(y, m-1, d+6);
-    const fmtM  = new Intl.DateTimeFormat('en-US',{month:'long'}).format(start);
-    const fmtD1 = new Intl.DateTimeFormat('en-US',{day:'numeric'}).format(start);
-    const sameMonth = start.getMonth()===end.getMonth();
-    const fmtD2 = sameMonth
-      ? new Intl.DateTimeFormat('en-US',{day:'numeric'}).format(end)
-      : new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric'}).format(end);
-    return `Week of ${fmtM} ${fmtD1}–${fmtD2}`;
-  }catch(_e){ return 'Weekly'; }
+/* ====== Weekly header: "Month dd–dd" ====== */
+function getWeekAnchorDate(){
+  // derive anchor from CURRENT_WEEK_KEY yyyy-mm-dd
+  const y = Number(CURRENT_WEEK_KEY.slice(0,4));
+  const m = Number(CURRENT_WEEK_KEY.slice(5,7)) - 1;
+  const d = Number(CURRENT_WEEK_KEY.slice(8,10));
+  return new Date(Date.UTC(y,m,d,13,0,0)); // noon UTC to avoid TZ drift
 }
-
-/* ====== NHL TEAMS ====== */
-const NHL_TEAMS = [
-  ['BOS','Boston Bruins','Atlantic'],['BUF','Buffalo Sabres','Atlantic'],['DET','Detroit Red Wings','Atlantic'],['FLA','Florida Panthers','Atlantic'],
-  ['MTL','Montreal Canadiens','Atlantic'],['OTT','Ottawa Senators','Atlantic'],['TBL','Tampa Bay Lightning','Atlantic'],['TOR','Toronto Maple Leafs','Atlantic'],
-  ['CAR','Carolina Hurricanes','Metropolitan'],['CBJ','Columbus Blue Jackets','Metropolitan'],['NJD','New Jersey Devils','Metropolitan'],['NYI','NY Islanders','Metropolitan'],
-  ['NYR','NY Rangers','Metropolitan'],['PHI','Philadelphia Flyers','Metropolitan'],['PIT','Pittsburgh Penguins','Metropolitan'],['WSH','Washington Capitals','Metropolitan'],
-  ['CHI','Chicago Blackhawks','Central'],['COL','Colorado Avalanche','Central'],['DAL','Dallas Stars','Central'],['MIN','Minnesota Wild','Central'],
-  ['NSH','Nashville Predators','Central'],['STL','St. Louis Blues','Central'],['WPG','Winnipeg Jets','Central'],['ARI','Arizona Coyotes','Central'],
-  ['ANA','Anaheim Ducks','Pacific'],['CGY','Calgary Flames','Pacific'],['EDM','Edmonton Oilers','Pacific'],['LAK','Los Angeles Kings','Pacific'],
-  ['SEA','Seattle Kraken','Pacific'],['SJS','San Jose Sharks','Pacific'],['VAN','Vancouver Canucks','Pacific'],['VGK','Vegas Golden Knights','Pacific'],
-];
+function weekRangeLabel(){
+  const anchorUTC = getWeekAnchorDate();
+  // shift to CT for formatting
+  const anchor = new Date(anchorUTC.toLocaleString('en-US',{timeZone:TZ}));
+  const end = addDaysCT(anchor,6);
+  const fmtMonth = new Intl.DateTimeFormat('en-US',{month:'long'}).format;
+  const fmtDay   = new Intl.DateTimeFormat('en-US',{day:'2-digit'}).format;
+  const startMonth = fmtMonth(anchor);
+  const endMonth   = fmtMonth(end);
+  const startDay = fmtDay(anchor);
+  const endDay   = fmtDay(end);
+  return (startMonth===endMonth)
+    ? `${startMonth} ${startDay}–${endDay}`
+    : `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
+}
 
 /* ====== STATE ====== */
 const ST = { me:null, chans:new Map(), lastId:new Map() };
 const $ = id => document.getElementById(id);
 
-/* ====== display-name cache + helpers ====== */
+/* ====== ADDED earlier: display-name cache + helpers ====== */
 const NAME_CACHE = new Map();
 async function fetchDisplayNames(ids){
   const need = [...new Set(ids)].filter(id => id && !NAME_CACHE.has(id));
@@ -169,36 +148,14 @@ async function fetchDisplayNames(ids){
 }
 function nameFor(uid, meId){ if(meId && uid===meId) return 'Me'; return NAME_CACHE.get(uid) || (uid?uid.slice(0,6):'user'); }
 
-/* ====== AUTH (show display_name in header) ====== */
+/* ====== AUTH ====== */
 async function initAuth(){
   const { data:{session} } = await supa.auth.getSession();
   ST.me = session?.user || null;
-
-  if(ST.me){
-    let label = ST.me.email;
-    try{
-      const { data:meRow } = await supa.from('players').select('display_name').eq('id', ST.me.id).maybeSingle();
-      label = (meRow && meRow.display_name) ? meRow.display_name : (ST.me.user_metadata?.display_name || ST.me.email);
-      NAME_CACHE.set(ST.me.id, label);
-    }catch(_e){}
-    $('whoTag').textContent = label || 'Signed in';
-  }else{
-    $('whoTag').textContent = 'Not signed in';
-  }
-
-  supa.auth.onAuthStateChange(async (_e,s)=>{
+  $('whoTag').textContent = ST.me?.email || 'Not signed in';
+  supa.auth.onAuthStateChange((_e,s)=>{
     ST.me = s?.user || null;
-    if(ST.me){
-      let label = ST.me.email;
-      try{
-        const { data:meRow } = await supa.from('players').select('display_name').eq('id', ST.me.id).maybeSingle();
-        label = (meRow && meRow.display_name) ? meRow.display_name : (ST.me.user_metadata?.display_name || ST.me.email);
-        NAME_CACHE.set(ST.me.id, label);
-      }catch(_e){}
-      $('whoTag').textContent = label || 'Signed in';
-    }else{
-      $('whoTag').textContent = 'Not signed in';
-    }
+    $('whoTag').textContent = ST.me?.email || 'Not signed in';
   });
 }
 
@@ -313,90 +270,23 @@ function mountRoom(container, room, dotId){
 
 function renderSeason(all){
   const mount=$('seasonMount'); mount.innerHTML='';
-  const season = Array.isArray(all) ? all.find(r=>r.room_type==='season' && r.league==='NHL') : null;
+  const season = all.find(r=>r.room_type==='season' && r.league==='NHL');
   if(!season){ mount.innerHTML='<div class="small">No season room yet.</div>'; return; }
   mountRoom(mount, season, 'rt-season');
 }
 
 function renderWeekly(all){
   const mount=$('weeklyMount'); mount.innerHTML='';
-  const wk = Array.isArray(all) ? all.find(r=>r.room_type==='week' && r.week_key===CURRENT_WEEK_KEY) : null;
+  const wk = all.find(r=>r.room_type==='week' && r.week_key===CURRENT_WEEK_KEY);
   if(!wk){ mount.innerHTML=`<div class="small">No room for ${CURRENT_WEEK_KEY} yet.</div>`; return; }
-  // Title text: "Week of {range}"
-  const pretty = weekRangeLabel(wk.week_key);
-  const titleEl = document.getElementById('weeklyTitle');
-  if(titleEl) titleEl.textContent = pretty;
-  mountRoom(mount, { ...wk, name: pretty }, 'rt-week');
-}
-
-async function createTeamRoom(abbr, name){
-  if(!ST.me){ alert('Sign in first'); return; }
-  const { error } = await supa.from('chat_rooms').insert({
-    room_type:'team', league:'NHL', team_abbr:abbr, name:`${name} Chat`, created_by: ST.me.id
-  });
-  if(error){ alert(error.message); return; }
-  await loadRooms();
-}
-
-function renderTeams(all){
-  const mount=$('teamsMount'); mount.innerHTML='';
-  try{
-    const byDiv = new Map();
-    NHL_TEAMS.forEach(([abbr,name,div])=>{
-      const room = (Array.isArray(all) ? all.find(r=>r.room_type==='team' && r.team_abbr===abbr) : null) || null;
-      if(!byDiv.has(div)) byDiv.set(div,[]);
-      byDiv.get(div).push({abbr,name,room});
-    });
-
-    const container=document.createElement('div'); container.className='divGrid';
-
-    ['Atlantic','Metropolitan','Central','Pacific'].forEach(div=>{
-      const teams = byDiv.get(div) || [];
-      const card=document.createElement('div'); card.className='divCard';
-      card.innerHTML=`<div class="row"><strong>${div} Division</strong></div><div class="sep"></div>`;
-      teams.forEach(t=>{
-        const sec=document.createElement('div'); sec.className='panel';
-        if(t.room){
-          sec.innerHTML=`<div class="row"><strong>${t.name}</strong><span class="small">${t.abbr}</span></div>`;
-          const holder=document.createElement('div'); holder.className='room'; holder.style.marginTop='8px';
-          const {wrap,listId,inId,btnId}=chatBlock(t.room); holder.appendChild(wrap); sec.appendChild(holder);
-          const listElId = listId; // capture id
-          const btn = holder.querySelector(`#${btnId}`);
-          btn.onclick = async ()=>{
-            const inputEl = holder.querySelector(`#${inId}`);
-            const msg=(inputEl.value||'').trim(); if(!msg) return;
-            if(!clientFilter(msg)){ alert('Message blocked.'); return; }
-            if(!ST.me){ alert('Sign in to send messages.'); return; }
-            const { error } = await supa.from('chat_messages').insert({ room_id: t.room.id, user_id: ST.me.id, body: msg });
-            if(error){ alert(error.message); return; }
-            inputEl.value='';
-          };
-          container.appendChild(card);
-          card.appendChild(sec);
-          loadInitial(t.room.id, document.getElementById(listElId));
-          ensureChannel(t.room.id, document.getElementById(listElId), null);
-        }else{
-          sec.innerHTML = `<div class="row"><strong>${t.name}</strong><span class="small">${t.abbr}</span><button class="btn">Create room</button></div><div class="small" style="margin-top:6px">No room yet.</div>`;
-          sec.querySelector('.btn').onclick = ()=>createTeamRoom(t.abbr, t.name);
-          card.appendChild(sec);
-        }
-      });
-      container.appendChild(card);
-    });
-
-    mount.appendChild(container);
-  }catch(e){
-    console.error('renderTeams error', e);
-    mount.innerHTML = '<div class="small">Error loading Teams.</div>';
-  }
+  // set header range
+  const wr = document.getElementById('weekRange');
+  if(wr) wr.textContent = weekRangeLabel();
+  mountRoom(mount, wk, 'rt-week');
 }
 
 /* ====== LOAD ROOMS ====== */
-function renderAll(all){
-  try{ renderSeason(all); }catch(e){ console.error(e); $('seasonMount').innerHTML='<div class="small">Error loading Season.</div>'; }
-  try{ renderWeekly(all); }catch(e){ console.error(e); $('weeklyMount').innerHTML='<div class="small">Error loading Weekly.</div>'; }
-  try{ renderTeams(all);  }catch(e){ console.error(e); $('teamsMount').innerHTML = '<div class="small">Error loading Teams.</div>'; }
-}
+function renderAll(all){ renderSeason(all); renderWeekly(all); }
 
 async function loadRooms(){
   const { data, error } = await supa.rpc('list_chat_rooms');
@@ -404,7 +294,6 @@ async function loadRooms(){
     const msg = `Couldn’t load rooms: ${error.message}`;
     $('seasonMount').innerHTML = `<div class="small">${msg}</div>`;
     $('weeklyMount').innerHTML = '';
-    $('teamsMount').innerHTML  = '';
     return;
   }
   if(!data || !data.length){
@@ -434,6 +323,9 @@ document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
 /* ====== Boot ====== */
 (async ()=>{
   await initAuth();
+  // weekly header text right away (in case rooms lag)
+  const wr = document.getElementById('weekRange');
+  if(wr) wr.textContent = weekRangeLabel();
   await loadRooms();
 })();
 </script>
