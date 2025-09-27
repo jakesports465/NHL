@@ -55,6 +55,14 @@
 <header>
   <h1>Chat Lounge</h1>
   <span class="pill">QuickPucks Community</span>
+
+  <!-- color picker (stores to players.chat_color) -->
+  <label class="pill" style="display:inline-flex;align-items:center;gap:8px">
+    My chat color
+    <input id="colorPick" type="color" value="#3c82f6"
+           style="width:28px;height:18px;padding:0;border:none;background:transparent;cursor:pointer">
+  </label>
+
   <a class="btn" href="./index.html" style="margin-left:auto">← Back to App</a>
   <span class="small" style="margin-left:auto">Hateful/illegal content is blocked</span>
   <span id="whoTag" class="pill">Not signed in</span>
@@ -136,23 +144,45 @@ function weekRangeLabel(){
 const ST = { me:null, chans:new Map(), lastId:new Map() };
 const $ = id => document.getElementById(id);
 
-/* ====== display-name cache + helpers ====== */
+/* ====== display-name + color cache ====== */
 const NAME_CACHE = new Map();
+const COLOR_CACHE = new Map();
+
 async function fetchDisplayNames(ids){
-  const need = [...new Set(ids)].filter(id => id && !NAME_CACHE.has(id));
+  const need = [...new Set(ids)].filter(id => id && (!NAME_CACHE.has(id) || !COLOR_CACHE.has(id)));
   if(!need.length) return;
-  const { data, error } = await supa.from('players').select('id,display_name').in('id', need);
-  if(!error && data){ data.forEach(r=> NAME_CACHE.set(r.id, r.display_name || r.id.slice(0,6))); }
-  need.forEach(id => { if(!NAME_CACHE.has(id)) NAME_CACHE.set(id, id.slice(0,6)); });
+  const { data, error } = await supa.from('players').select('id,display_name,chat_color').in('id', need);
+  if(!error && data){
+    data.forEach(r=>{
+      NAME_CACHE.set(r.id, r.display_name || r.id.slice(0,6));
+      COLOR_CACHE.set(r.id, r.chat_color || '#335a7a');
+    });
+  }
+  need.forEach(id=>{
+    if(!NAME_CACHE.has(id)) NAME_CACHE.set(id, id.slice(0,6));
+    if(!COLOR_CACHE.has(id)) COLOR_CACHE.set(id, '#335a7a');
+  });
 }
 function nameFor(uid, meId){ if(meId && uid===meId) return 'Me'; return NAME_CACHE.get(uid) || (uid?uid.slice(0,6):'user'); }
+function hexA(hex, a=0.2){
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex||'#335a7a');
+  const r=parseInt(m[1],16), g=parseInt(m[2],16), b=parseInt(m[3],16);
+  return `rgba(${r},${g},${b},${a})`;
+}
 
-/* ====== AUTH (display name in header) ====== */
+/* ====== AUTH (display name + color in header) ====== */
+async function saveMyColor(hex){
+  if(!ST.me) return;
+  if(!/^#[0-9A-F]{6}$/i.test(hex)) { alert('Enter a valid hex like #FF8800'); return; }
+  const { error } = await supa.from('players').update({ chat_color: hex }).eq('id', ST.me.id);
+  if(error){ alert(error.message); return; }
+  COLOR_CACHE.set(ST.me.id, hex);
+}
 async function updateWhoTag(){
   if(!ST.me){ $('whoTag').textContent = 'Not signed in'; return; }
   await fetchDisplayNames([ST.me.id]);
-  const dn = NAME_CACHE.get(ST.me.id);
-  $('whoTag').textContent = dn || 'Not signed in';
+  $('whoTag').textContent = NAME_CACHE.get(ST.me.id) || 'Not signed in';
+  const pick = $('colorPick'); if(pick) pick.value = COLOR_CACHE.get(ST.me.id) || '#3c82f6';
 }
 async function initAuth(){
   const { data:{session} } = await supa.auth.getSession();
@@ -187,8 +217,15 @@ function appendMsg(listEl, m, meId){
   const div=document.createElement('div');
   div.className = 'msg'+(isMe?' me':'');
   const who = nameFor(m.user_id, meId);
+  const col = COLOR_CACHE.get(m.user_id) || '#335a7a';
+
   div.innerHTML = `<div class="who"></div><div class="text"></div>`;
-  div.querySelector('.who').textContent = who;
+  const whoEl = div.querySelector('.who');
+  whoEl.textContent = who;
+  whoEl.style.color = col;                   // tint name
+  div.style.borderColor = col;               // tint border
+  div.style.background = isMe ? hexA(col, .28) : hexA(col, .12); // soft bg
+
   div.querySelector('.text').textContent = m.body || '';
   listEl.appendChild(div);
 }
@@ -269,7 +306,7 @@ function mountRoom(container, room, dotId){
     inputEl.value='';
   };
 
-  /* ONLY ADD: Enter key submits */
+  /* Enter key submits */
   inputEl.addEventListener('keydown', e=>{
     if(e.key === 'Enter'){
       e.preventDefault();
@@ -333,6 +370,11 @@ document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
 });
 
 /* ====== Boot ====== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  const pick = $('colorPick');
+  if(pick){ pick.addEventListener('input', e => saveMyColor(e.target.value)); }
+});
+
 (async ()=>{
   await initAuth();
   const wr = document.getElementById('weekRange');
@@ -342,4 +384,3 @@ document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
 </script>
 </body>
 </html>
-
