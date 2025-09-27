@@ -49,7 +49,6 @@
   .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
 
-  /* realtime status dot */
   .rt{display:inline-flex;align-items:center;gap:6px}
   .dot{width:8px;height:8px;border-radius:50%}
   .dot.ok{background:#2ad97a}.dot.wait{background:#997}.dot.err{background:#d85}
@@ -145,12 +144,14 @@ function weekKey(){
 }
 const CURRENT_WEEK_KEY = weekKey();
 
-/* === ADDED: pretty week label (e.g., "September 22") === */
+/* === pretty week label (e.g., "September 22") — Safari-safe === */
 function prettyWeekLabel(week_key){
   try{
-    const iso = (week_key||'').slice(0,10);       // YYYY-MM-DD
-    const d = new Date(iso+'T12:00:00');          // safe parse
-    return new Intl.DateTimeFormat('en-US',{month:'long', day:'numeric'}).format(d);
+    const iso = (week_key||'').slice(0,10); // YYYY-MM-DD
+    const [y,m,d] = iso.split('-').map(n=>parseInt(n,10));
+    if(!y || !m || !d) return week_key || 'This Week';
+    const dt = new Date(y, m-1, d);         // avoid Date('YYYY-MM-DD') Safari bug
+    return new Intl.DateTimeFormat('en-US',{month:'long', day:'numeric'}).format(dt);
   }catch(_e){ return week_key || 'This Week'; }
 }
 
@@ -170,7 +171,7 @@ const NHL_TEAMS = [
 const ST = { me:null, chans:new Map(), lastId:new Map() };
 const $ = id => document.getElementById(id);
 
-/* ====== ADDED: display-name cache + helpers ====== */
+/* ====== display-name cache + helpers ====== */
 const NAME_CACHE = new Map();
 async function fetchDisplayNames(ids){
   const need = [...new Set(ids)].filter(id => id && !NAME_CACHE.has(id));
@@ -312,8 +313,8 @@ function renderWeekly(all){
   const mount=$('weeklyMount'); mount.innerHTML='';
   const wk = all.find(r=>r.room_type==='week' && r.week_key===CURRENT_WEEK_KEY);
   if(!wk){ mount.innerHTML=`<div class="small">No room for ${CURRENT_WEEK_KEY} yet.</div>`; return; }
-  const pretty = prettyWeekLabel(wk.week_key);                 /* ADDED */
-  mountRoom(mount, { ...wk, name: pretty }, 'rt-week');        /* ADDED */
+  const pretty = prettyWeekLabel(wk.week_key);
+  mountRoom(mount, { ...wk, name: pretty }, 'rt-week');
 }
 
 async function createTeamRoom(abbr, name){
@@ -409,7 +410,19 @@ function renderCustom(all){
 }
 
 /* ====== LOAD ROOMS ====== */
-function renderAll(all){ renderSeason(all); renderWeekly(all); renderTeams(all); renderCustom(all); }
+function renderAll(all){
+  const safe = (fn, mountId) => {
+    try { fn(all); }
+    catch(e){
+      console.error(e);
+      if(mountId){ const el = document.getElementById(mountId); if(el) el.innerHTML = `<div class="small">Error loading section.</div>`; }
+    }
+  };
+  safe(renderSeason, 'seasonMount');
+  safe(renderWeekly, 'weeklyMount');
+  safe(renderTeams,  'teamsMount');
+  safe(renderCustom, 'customMount');
+}
 
 async function loadRooms(){
   const { data, error } = await supa.rpc('list_chat_rooms');
