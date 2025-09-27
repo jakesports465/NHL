@@ -161,6 +161,17 @@ const NHL_TEAMS = [
 const ST = { me:null, chans:new Map(), lastId:new Map() };
 const $ = id => document.getElementById(id);
 
+/* ====== ADDED: display-name cache + helpers ====== */
+const NAME_CACHE = new Map();
+async function fetchDisplayNames(ids){
+  const need = [...new Set(ids)].filter(id => id && !NAME_CACHE.has(id));
+  if(!need.length) return;
+  const { data, error } = await supa.from('players').select('id,display_name').in('id', need);
+  if(!error && data){ data.forEach(r=> NAME_CACHE.set(r.id, r.display_name || r.id.slice(0,6))); }
+  need.forEach(id => { if(!NAME_CACHE.has(id)) NAME_CACHE.set(id, id.slice(0,6)); });
+}
+function nameFor(uid, meId){ if(meId && uid===meId) return 'Me'; return NAME_CACHE.get(uid) || (uid?uid.slice(0,6):'user'); }
+
 /* ====== AUTH ====== */
 async function initAuth(){
   const { data:{session} } = await supa.auth.getSession();
@@ -191,10 +202,12 @@ function chatBlock(room, rtDotId){
   return {wrap,listId,inId,btnId,rtDotId};
 }
 function appendMsg(listEl, m, meId){
-  const me = meId && m.user_id===meId;
+  const isMe = meId && m.user_id===meId;
   const div=document.createElement('div');
-  div.className = 'msg'+(me?' me':'');
-  div.innerHTML = `<div class="who">${me?'Me':(m.user_id||'user').slice(0,6)}</div><div class="text"></div>`;
+  div.className = 'msg'+(isMe?' me':'');
+  const who = nameFor(m.user_id, meId);                         /* ADDED */
+  div.innerHTML = `<div class="who"></div><div class="text"></div>`;
+  div.querySelector('.who').textContent = who;                  /* ADDED */
   div.querySelector('.text').textContent = m.body || '';
   listEl.appendChild(div);
 }
@@ -206,6 +219,7 @@ async function loadInitial(room_id, listEl){
     .limit(120);
   if(error){ listEl.innerHTML=`<div class="small">Error: ${error.message}</div>`; return; }
   const msgs=(data||[]).slice().reverse();
+  await fetchDisplayNames(msgs.map(x=>x.user_id));              /* ADDED */
   listEl.innerHTML = msgs.length? '' : '<div class="small">Be the first to say something…</div>';
   msgs.forEach(m=>appendMsg(listEl,m,ST.me?.id));
   ST.lastId.set(room_id, msgs.length ? msgs[msgs.length-1].id : 0);
@@ -220,6 +234,7 @@ async function pollSince(room_id, listEl){
     .order('id',{ascending:true})
     .limit(100);
   if(error || !data || !data.length) return;
+  await fetchDisplayNames(data.map(x=>x.user_id));              /* ADDED */
   data.forEach(m=>appendMsg(listEl,m,ST.me?.id));
   ST.lastId.set(room_id, data[data.length-1].id);
   listEl.scrollTop=listEl.scrollHeight;
@@ -229,14 +244,15 @@ function setDot(id, cls){ const el=$(id); if(!el) return; el.classList.remove('o
 function ensureChannel(room_id, listEl, dotId){
   if(ST.chans.has(room_id)) return;
 
-  // realtime
   const ch = supa.channel(`room:${room_id}`)
     .on('postgres_changes',
       {event:'INSERT',schema:'public',table:'chat_messages',filter:`room_id=eq.${room_id}`},
       payload => {
-        appendMsg(listEl, payload.new, ST.me?.id);
-        ST.lastId.set(room_id, Math.max(ST.lastId.get(room_id)||0, payload.new.id||0));
-        listEl.scrollTop=listEl.scrollHeight;
+        fetchDisplayNames([payload.new.user_id]).then(()=>{      /* ADDED */
+          appendMsg(listEl, payload.new, ST.me?.id);
+          ST.lastId.set(room_id, Math.max(ST.lastId.get(room_id)||0, payload.new.id||0));
+          listEl.scrollTop=listEl.scrollHeight;
+        });
       }
     )
     .subscribe((status)=>{
