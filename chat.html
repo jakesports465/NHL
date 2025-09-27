@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>QuickPucks — Chat</title>
+<style>
+  :root{
+    --bg:#0b0d10; --card:#12161b; --panel:#0f1318; --text:#e8eef4; --muted:#8ea0b3;
+    --br:#1b232d; --accent:#3c82f6; --chip:#243241; --chip-br:#364353;
+  }
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  *,*::before,*::after{box-sizing:border-box}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+  *{scrollbar-width:thin;scrollbar-color:#334658 transparent}
+  *::-webkit-scrollbar{height:10px;width:10px} *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+
+  header{padding:12px 14px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{margin:0;font-size:18px;font-weight:800}
+  .pill{border:1px dashed var(--chip-br);border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
+  .muted{color:var(--muted)}
+  nav.tabs{display:flex;gap:8px;padding:10px 12px;background:#0f1318;border-bottom:1px solid var(--br);position:sticky;top:52px;z-index:19;overflow-x:auto}
+  nav.tabs .tab{padding:10px 12px;border:1px solid #243241;border-radius:10px;background:#111822;color:var(--text);cursor:pointer;font-size:13px;flex:0 0 auto}
+  nav.tabs .tab[aria-selected="true"]{background:#162231;border-color:#31506a;font-weight:700}
+
+  main{max-width:1160px;margin:0 auto;padding:14px 14px 64px}
+  .section{display:none} .section.active{display:block}
+  .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:12px;margin-bottom:14px}
+  .panel{background:var(--panel);border:1px solid #1c2430;border-radius:12px;padding:10px;margin-bottom:10px}
+  .rowTitle{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+
+  /* Chat blocks */
+  .roomGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+  .chatWrap{display:flex;flex-direction:column;height:46vh;min-height:360px}
+  .chatList{flex:1;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px;background:#0f1318;border:1px solid #1c2430;border-radius:10px}
+  .msg{background:#11171e;border:1px solid #1f2a36;border-radius:10px;padding:8px 10px}
+  .msg.me{border-color:#335a7a;background:#12202d}
+  .msg .who{font-weight:700;font-size:12px;margin-bottom:3px;color:var(--muted)}
+  .msg .text{white-space:pre-wrap;word-wrap:break-word}
+  .sys{opacity:.8;font-size:12px}
+  .chatInput{display:flex;gap:8px;margin-top:8px}
+  .chatInput input{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;font-size:15px}
+  .chatInput button{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 14px;border-radius:8px;cursor:pointer}
+  .chatInput button[disabled]{opacity:.6;cursor:not-allowed}
+
+  /* Teams by division */
+  .divGroup{margin-top:10px}
+  .divHeader{font-weight:800;margin:8px 0 6px 2px;color:#cfe2f5}
+  .teamTag{display:inline-flex;align-items:center;gap:6px;border:1px dashed #314055;border-radius:999px;padding:6px 10px;margin:4px 6px 0 0;background:#0e1620}
+
+  /* Auth box like your app */
+  #authBox{background:#0f1318;border:1px solid var(--br);border-radius:12px;padding:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
+  #authBox input{min-width:170px;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:8px}
+  #authBox .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:9px 12px;border-radius:8px;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1>Chat Lounge</h1>
+  <span class="pill">QuickPucks Community</span>
+  <span class="muted" id="whoTag" style="margin-left:auto">Not signed in</span>
+
+  <div id="authBox">
+    <form id="loginPwForm" class="field" style="display:flex;gap:6px">
+      <input id="liEmail" type="email" placeholder="email@example.com" required>
+      <input id="liPass" type="password" placeholder="Password" required>
+      <button class="btn" type="submit">Log in</button>
+    </form>
+    <div id="userBox" class="field" style="display:none;gap:6px">
+      <button id="logoutBtn" class="btn" type="button">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Chat Sections">
+  <button class="tab" role="tab" aria-selected="true"  aria-controls="sec-season">Season</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-weekly">Weekly</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-teams">Teams</button>
+  <button class="tab" role="tab" aria-selected="false" aria-controls="sec-custom">Custom</button>
+</nav>
+
+<main>
+  <!-- ===== Season ===== -->
+  <section id="sec-season" class="section active">
+    <div class="card">
+      <div class="rowTitle"><h2 style="margin:0">Season Chat</h2><span class="muted">Hateful/illegal content is blocked.</span></div>
+      <div id="seasonMount"><div class="muted">Loading…</div></div>
+    </div>
+  </section>
+
+  <!-- ===== Weekly ===== -->
+  <section id="sec-weekly" class="section">
+    <div class="card">
+      <div class="rowTitle"><h2 style="margin:0">Weekly Rooms</h2><span class="muted" id="wkHint">Loading…</span></div>
+      <div id="weeklyMount" class="roomGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== Teams (by division) ===== -->
+  <section id="sec-teams" class="section">
+    <div class="card">
+      <div class="rowTitle"><h2 style="margin:0">Teams</h2><span class="muted">Grouped by division</span></div>
+      <div id="teamsMount"></div>
+    </div>
+  </section>
+
+  <!-- ===== Custom ===== -->
+  <section id="sec-custom" class="section">
+    <div class="card">
+      <div class="rowTitle"><h2 style="margin:0">Custom Rooms</h2><span class="muted">Anyone can read. Password needed to post if locked.</span></div>
+      <div id="customList" class="roomGrid" style="margin-bottom:10px"></div>
+      <div class="panel">
+        <h3 style="margin:0 0 6px 0">Create a Room</h3>
+        <div class="muted" style="margin-bottom:8px">Add a name and (optionally) a password if you want posting restricted.</div>
+        <input id="roomName" placeholder="Room name (e.g., Winged Wheel Talk)" style="margin-bottom:6px;width:100%">
+        <input id="roomPass" placeholder="Password (optional)" style="margin-bottom:6px;width:100%">
+        <button id="createBtn" class="btn">Create</button>
+        <span id="createHint" class="muted" style="margin-left:8px"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ================== Supabase ================== */
+const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
+const supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
+  auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+});
+
+/* ================== NHL divisions map ================== */
+const TEAM_DIV = {
+  ATLANTIC: ['BOS','BUF','DET','FLA','MTL','OTT','TBL','TOR'],
+  METROPOLITAN: ['CAR','CBJ','NJD','NYI','NYR','PHI','PIT','WSH'],
+  CENTRAL: ['ARI','CHI','COL','DAL','MIN','NSH','STL','WPG'],
+  PACIFIC: ['ANA','CGY','EDM','LAK','SJS','SEA','VAN','VGK']
+};
+
+/* ================== State ================== */
+const ST = {
+  user: null,
+  rooms: new Map(),      // id -> room
+  chans: new Map(),      // id -> realtime channel
+  listeners: new Map()   // id -> {listEl, inputEl, btnEl}
+};
+const $ = id => document.getElementById(id);
+
+/* ================== Auth UI ================== */
+function showAuthUI(){
+  $('whoTag').textContent = ST.user?.email || 'Not signed in';
+  $('loginPwForm').style.display = ST.user ? 'none':'flex';
+  $('userBox').style.display = ST.user ? 'flex':'none';
+}
+$('loginPwForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const { error } = await supa.auth.signInWithPassword({ email: $('liEmail').value.trim(), password: $('liPass').value });
+  if(error) alert(error.message);
+});
+$('logoutBtn').addEventListener('click', async ()=>{
+  await supa.auth.signOut(); location.reload();
+});
+
+/* ================== Helpers ================== */
+function buildChatBlock(room){
+  const listId = `list-${room.id}`, inId = `in-${room.id}`, btnId = `btn-${room.id}`;
+  const wrap = document.createElement('div'); wrap.className='chatWrap';
+  wrap.innerHTML = `
+    <div class="chatList" id="${listId}">
+      <div class="sys muted">Loading…</div>
+    </div>
+    <div class="chatInput">
+      <input id="${inId}" placeholder="Message ${room.name}…">
+      <button id="${btnId}">Send</button>
+    </div>`;
+  return {wrap,listId,inId,btnId};
+}
+function appendMsg(listEl, m){
+  const me = ST.user && m.user_id===ST.user.id;
+  const card = document.createElement('div');
+  card.className = 'msg' + (me?' me':'');
+  card.innerHTML = `<div class="who">${me?'Me':(m.user_id||'user').slice(0,6)}</div><div class="text"></div>`;
+  card.querySelector('.text').textContent = m.body || '';
+  listEl.append(card);
+}
+async function loadMessages(room_id, listEl){
+  const { data, error } = await supa
+    .from('chat_messages')
+    .select('id, user_id, body, created_at')
+    .eq('room_id', room_id)
+    .order('created_at', { ascending:false })
+    .limit(50);
+  if(error){ listEl.innerHTML=`<div class="muted">Error: ${error.message}</div>`; return; }
+  const msgs=(data||[]).slice().reverse();
+  listEl.innerHTML='';
+  msgs.forEach(m=>appendMsg(listEl,m));
+  listEl.scrollTop=listEl.scrollHeight;
+}
+function ensureChannel(room_id, listEl){
+  if(ST.chans.has(room_id)) return;
+  const ch = supa.channel(`room:${room_id}`)
+    .on('postgres_changes',
+      { event:'INSERT', schema:'public', table:'chat_messages', filter:`room_id=eq.${room_id}` },
+      payload => { appendMsg(listEl, payload.new); listEl.scrollTop=listEl.scrollHeight; }
+    )
+    .subscribe();
+  ST.chans.set(room_id, ch);
+}
+function dropAllChannels(){
+  [...ST.chans.values()].forEach(ch=>{ try{ ch.unsubscribe(); }catch{} });
+  ST.chans.clear();
+}
+
+/* ================== Client speech filter (quick) ================== */
+function clientFilter(text){
+  const bad=[
+    /child\s*(porn|sex|nude|abuse)/i, /\bkill\s*(yourself|himself|herself|them)\b/i,
+    /\brape\b/i, /\bnazi\b|\bhitler\b|\bkkk\b/i
+  ];
+  return !bad.some(r=>r.test(text||''));
+}
+
+/* ================== Renderers ================== */
+function mountRoomCard(room){
+  const card = document.createElement('div'); card.className='panel';
+  card.innerHTML = `
+    <div class="rowTitle">
+      <div><b>${room.name}</b> ${room.has_password?' <span class="muted">🔒</span>':''}</div>
+      <div class="muted" style="font-size:12px">${room.room_type}${room.week_key?` · ${room.week_key}`:''}${room.team_abbr?` · ${room.team_abbr}`:''}</div>
+    </div>`;
+  const {wrap,listId,inId,btnId} = buildChatBlock(room);
+  card.append(wrap);
+
+  const listEl = $(listId);
+  const inputEl= $(inId);
+  const btnEl  = $(btnId);
+
+  ST.listeners.set(room.id, {listEl, inputEl, btnEl});
+
+  btnEl.onclick = async ()=>{
+    const msg=(inputEl.value||'').trim(); if(!msg) return;
+    if(!clientFilter(msg)){ alert('Message blocked.'); return; }
+    if(!ST.user){ alert('Sign in to post.'); return; }
+    if(room.has_password){
+      const { data } = await supa.from('chat_room_members').select('room_id').eq('room_id',room.id).eq('user_id',ST.user.id).maybeSingle();
+      if(!data){
+        const pwd = prompt('This room is protected. Enter password to post:'); if(pwd===null) return;
+        const j = await supa.rpc('join_chat_room', { p_room_id: room.id, p_password: pwd });
+        if(j.error || j.data!==true){ alert(j.error?.message || 'Incorrect password'); return; }
+      }
+    }
+    const { error } = await supa.from('chat_messages').insert({ room_id: room.id, user_id: ST.user.id, body: msg });
+    if(error){ alert(error.message); return; }
+    inputEl.value='';
+  };
+
+  // Instant load + subscribe
+  loadMessages(room.id, listEl);
+  ensureChannel(room.id, listEl);
+
+  return card;
+}
+
+function renderSeason(all){
+  const mount = $('seasonMount'); mount.innerHTML='';
+  const r = all.find(x=>x.room_type==='season'); 
+  if(!r){ mount.innerHTML='<div class="muted">No season room yet.</div>'; return; }
+  mount.append(mountRoomCard(r));
+}
+
+function renderWeekly(all){
+  const mount = $('weeklyMount'); mount.innerHTML='';
+  const list = all.filter(x=>x.room_type==='week').sort((a,b)=>String(b.week_key).localeCompare(String(a.week_key)));
+  $('wkHint').textContent = list.length ? `${list.length} rooms` : 'No weekly rooms';
+  if(!list.length){ return; }
+  list.forEach(r=> mount.append(mountRoomCard(r)));
+}
+
+function renderTeams(all){
+  const mount=$('teamsMount'); mount.innerHTML='';
+  const tRooms = all.filter(x=>x.room_type==='team');
+  if(!tRooms.length){ mount.innerHTML='<div class="muted">No team rooms yet.</div>'; return; }
+
+  const byAbbr = new Map(); tRooms.forEach(r=>byAbbr.set(r.team_abbr, r));
+  const makeDiv = (name, list) => {
+    const wrap = document.createElement('div'); wrap.className='divGroup';
+    wrap.innerHTML = `<div class="divHeader">${name} Division</div>`;
+    const grid = document.createElement('div'); grid.className='roomGrid';
+    list.forEach(ab=>{
+      const r = byAbbr.get(ab);
+      if(r) grid.append(mountRoomCard(r));
+      else {
+        // placeholder tag if room missing (shows badge only)
+        const tag = document.createElement('span'); tag.className='teamTag'; tag.textContent = ab;
+        wrap.append(tag);
+      }
+    });
+    wrap.append(grid);
+    return wrap;
+  };
+  mount.append(makeDiv('Atlantic', TEAM_DIV.ATLANTIC));
+  mount.append(makeDiv('Metropolitan', TEAM_DIV.METROPOLITAN));
+  mount.append(makeDiv('Central', TEAM_DIV.CENTRAL));
+  mount.append(makeDiv('Pacific', TEAM_DIV.PACIFIC));
+}
+
+function renderCustom(all){
+  const mount=$('customList'); mount.innerHTML='';
+  const list = all.filter(x=>x.room_type==='custom').sort((a,b)=>a.name.localeCompare(b.name));
+  if(!list.length){ mount.innerHTML='<div class="muted">No custom rooms yet.</div>'; return; }
+  list.forEach(r=> mount.append(mountRoomCard(r)));
+}
+
+/* ================== Load rooms (instant) ================== */
+async function loadRooms(){
+  const { data, error } = await supa.rpc('list_chat_rooms');
+  if(error){
+    $('seasonMount').innerHTML = `<div class="muted">Couldn’t load rooms: ${error.message}</div>`;
+    $('weeklyMount').innerHTML = '';
+    $('teamsMount').innerHTML  = '';
+    $('customList').innerHTML  = '';
+    return;
+  }
+  ST.rooms.clear(); (data||[]).forEach(r=>ST.rooms.set(r.id,r));
+  const all = data || [];
+  renderSeason(all);
+  renderWeekly(all);
+  renderTeams(all);
+  renderCustom(all);
+}
+
+/* ================== Tabs ================== */
+document.querySelectorAll('nav.tabs .tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const id = btn.getAttribute('aria-controls');
+    document.querySelectorAll('nav.tabs .tab').forEach(b=>b.setAttribute('aria-selected','false'));
+    btn.setAttribute('aria-selected','true');
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  });
+});
+
+/* ================== Custom create ================== */
+$('createBtn').addEventListener('click', async ()=>{
+  $('createHint').textContent='';
+  if(!ST.user){ $('createHint').textContent='Sign in to create rooms.'; return; }
+  const nm = ($('roomName').value||'').trim();
+  const pw = ($('roomPass').value||'').trim();
+  if(!nm){ $('createHint').textContent='Name required.'; return; }
+  const { data, error } = await supa.rpc('create_custom_room', {
+    p_name: nm, p_description: null, p_password: pw.length?pw:null
+  });
+  if(error){ $('createHint').textContent = error.message; return; }
+  $('createHint').textContent='Created ✓';
+  $('roomName').value=''; $('roomPass').value='';
+  await loadRooms();
+});
+
+/* ================== Boot ================== */
+(async ()=>{
+  const { data:{ session } } = await supa.auth.getSession();
+  ST.user = session?.user || null; showAuthUI();
+  supa.auth.onAuthStateChange((_e, ses)=>{ ST.user = ses?.user || null; showAuthUI(); });
+
+  await loadRooms();  // instant build + subscribe for all visible rooms
+
+  // Safety: if tab hidden, drop sockets; re-load on return
+  document.addEventListener('visibilitychange', async ()=>{
+    if(document.hidden){ dropAllChannels(); }
+    else { await loadRooms(); }
+  });
+})();
+</script>
+</body>
+</html>
