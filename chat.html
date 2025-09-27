@@ -29,12 +29,12 @@
   .panel{background:var(--panel);border:1px solid #1c2430;border-radius:12px;padding:10px;margin-bottom:10px}
   .sep{height:1px;background:var(--br);margin:10px 0}
 
-  .room{border:1px solid #1c2430;background:#0f1318;border-radius:12px;padding:10px;margin-bottom:10px}
+  .room{border:1px solid #1c2430;background:#0f1318;border-radius:12px;padding:10px;margin:10px 0}
   .chatWrap{display:flex;flex-direction:column;height:52vh;min-height:340px}
   .chatList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:6px}
   .msg{background:#11171e;border:1px solid #1f2a36;border-radius:10px;padding:8px 10px}
   .msg.me{background:#12202d;border-color:#335a7a}
-  .who{font-weight:700;font-size:12px;color:#9db0c4;margin-bottom:4px}
+  .who{font-weight:700;font-size:12px;margin-bottom:4px}
   .text{white-space:pre-wrap;word-wrap:break-word}
   .chatInput{display:flex;gap:8px;margin-top:10px}
   .chatInput input{flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px;font-size:15px}
@@ -44,6 +44,12 @@
   .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
   .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
+
+  .divGrid{display:grid;grid-template-columns:repeat(1,minmax(260px,1fr));gap:12px}
+  @media (min-width:920px){.divGrid{grid-template-columns:repeat(2,minmax(260px,1fr))}}
+  .divCard{background:#101722;border:1px solid #1c2430;border-radius:12px;padding:10px}
+  .teamRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #1c2430}
+  .teamRow:last-child{border-bottom:none}
 
   /* realtime status dot */
   .rt{display:inline-flex;align-items:center;gap:6px}
@@ -71,6 +77,7 @@
 <nav class="tabs" role="tablist">
   <button class="tab" aria-controls="sec-season" aria-selected="true">Season</button>
   <button class="tab" aria-controls="sec-weekly" aria-selected="false">Weekly</button>
+  <button class="tab" aria-controls="sec-teams"  aria-selected="false">Teams</button>
 </nav>
 
 <main>
@@ -93,6 +100,17 @@
         <span class="rt small"><span id="rt-week" class="dot wait"></span><span>Live</span></span>
       </div>
       <div id="weeklyMount"><div class="small">Loading…</div></div>
+    </div>
+  </section>
+
+  <!-- TEAMS -->
+  <section id="sec-teams" class="section">
+    <div class="card">
+      <div class="row">
+        <h2 style="margin:0">Teams</h2>
+        <span class="small">Open a team to load its live chat</span>
+      </div>
+      <div id="teamsMount"><div class="small">Loading teams…</div></div>
     </div>
   </section>
 </main>
@@ -140,8 +158,20 @@ function weekRangeLabel(){
     : `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
 }
 
+/* ====== NHL TEAMS ====== */
+const NHL_TEAMS = [
+  ['BOS','Boston Bruins','Atlantic'],['BUF','Buffalo Sabres','Atlantic'],['DET','Detroit Red Wings','Atlantic'],['FLA','Florida Panthers','Atlantic'],
+  ['MTL','Montreal Canadiens','Atlantic'],['OTT','Ottawa Senators','Atlantic'],['TBL','Tampa Bay Lightning','Atlantic'],['TOR','Toronto Maple Leafs','Atlantic'],
+  ['CAR','Carolina Hurricanes','Metropolitan'],['CBJ','Columbus Blue Jackets','Metropolitan'],['NJD','New Jersey Devils','Metropolitan'],['NYI','NY Islanders','Metropolitan'],
+  ['NYR','NY Rangers','Metropolitan'],['PHI','Philadelphia Flyers','Metropolitan'],['PIT','Pittsburgh Penguins','Metropolitan'],['WSH','Washington Capitals','Metropolitan'],
+  ['CHI','Chicago Blackhawks','Central'],['COL','Colorado Avalanche','Central'],['DAL','Dallas Stars','Central'],['MIN','Minnesota Wild','Central'],
+  ['NSH','Nashville Predators','Central'],['STL','St. Louis Blues','Central'],['WPG','Winnipeg Jets','Central'],['ARI','Arizona Coyotes','Central'],
+  ['ANA','Anaheim Ducks','Pacific'],['CGY','Calgary Flames','Pacific'],['EDM','Edmonton Oilers','Pacific'],['LAK','Los Angeles Kings','Pacific'],
+  ['SEA','Seattle Kraken','Pacific'],['SJS','San Jose Sharks','Pacific'],['VAN','Vancouver Canucks','Pacific'],['VGK','Vegas Golden Knights','Pacific'],
+];
+
 /* ====== STATE ====== */
-const ST = { me:null, chans:new Map(), lastId:new Map() };
+const ST = { me:null, chans:new Map(), lastId:new Map(), mounted:new Map() };
 const $ = id => document.getElementById(id);
 
 /* ====== display-name + color cache ====== */
@@ -170,7 +200,7 @@ function hexA(hex, a=0.2){
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/* ====== AUTH (display name + color in header) ====== */
+/* ====== AUTH (name + color in header) ====== */
 async function saveMyColor(hex){
   if(!ST.me) return;
   if(!/^#[0-9A-F]{6}$/i.test(hex)) { alert('Enter a valid hex like #FF8800'); return; }
@@ -201,7 +231,7 @@ function clientFilter(txt){
 }
 
 /* ====== CHAT CORE ====== */
-function chatBlock(room, rtDotId){
+function chatBlock(room){
   const listId=`l-${room.id}`, inId=`i-${room.id}`, btnId=`b-${room.id}`;
   const wrap = document.createElement('div'); wrap.className='chatWrap';
   wrap.innerHTML = `
@@ -210,7 +240,7 @@ function chatBlock(room, rtDotId){
       <input id="${inId}" placeholder="Message ${room.name}…">
       <button id="${btnId}">Send</button>
     </div>`;
-  return {wrap,listId,inId,btnId,rtDotId};
+  return {wrap,listId,inId,btnId};
 }
 function appendMsg(listEl, m, meId){
   const isMe = meId && m.user_id===meId;
@@ -222,13 +252,14 @@ function appendMsg(listEl, m, meId){
   div.innerHTML = `<div class="who"></div><div class="text"></div>`;
   const whoEl = div.querySelector('.who');
   whoEl.textContent = who;
-  whoEl.style.color = col;                   // tint name
-  div.style.borderColor = col;               // tint border
-  div.style.background = isMe ? hexA(col, .28) : hexA(col, .12); // soft bg
+  whoEl.style.color = col;
+  div.style.borderColor = col;
+  div.style.background = isMe ? hexA(col, .28) : hexA(col, .12);
 
   div.querySelector('.text').textContent = m.body || '';
   listEl.appendChild(div);
 }
+
 async function loadInitial(room_id, listEl){
   const { data, error } = await supa.from('chat_messages')
     .select('id,user_id,body,created_at')
@@ -243,6 +274,7 @@ async function loadInitial(room_id, listEl){
   ST.lastId.set(room_id, msgs.length ? msgs[msgs.length-1].id : 0);
   listEl.scrollTop=listEl.scrollHeight;
 }
+
 async function pollSince(room_id, listEl){
   const since = ST.lastId.get(room_id) || 0;
   const { data, error } = await supa.from('chat_messages')
@@ -257,11 +289,9 @@ async function pollSince(room_id, listEl){
   ST.lastId.set(room_id, data[data.length-1].id);
   listEl.scrollTop=listEl.scrollHeight;
 }
-function setDot(id, cls){ const el=$(id); if(!el) return; el.classList.remove('ok','wait','err'); el.classList.add(cls); }
 
-function ensureChannel(room_id, listEl, dotId){
+function ensureChannel(room_id, listEl){
   if(ST.chans.has(room_id)) return;
-
   const ch = supa.channel(`room:${room_id}`)
     .on('postgres_changes',
       {event:'INSERT',schema:'public',table:'chat_messages',filter:`room_id=eq.${room_id}`},
@@ -273,22 +303,28 @@ function ensureChannel(room_id, listEl, dotId){
         });
       }
     )
-    .subscribe((status)=>{
-      if(status==='SUBSCRIBED') setDot(dotId,'ok');
-      else if(status==='TIMED_OUT' || status==='CLOSED' || status==='CHANNEL_ERROR') setDot(dotId,'err');
-      else setDot(dotId,'wait');
-    });
+    .subscribe();
+  const timer = setInterval(()=>pollSince(room_id,listEl), 5000);
+  ST.chans.set(room_id,{ch,timer});
+}
 
-  ST.chans.set(room_id,{ch, timer:setInterval(()=>pollSince(room_id,listEl), 5000)});
+function disposeRoom(room_id){
+  const entry = ST.chans.get(room_id);
+  if(entry){
+    try{ entry.ch.unsubscribe(); }catch(e){}
+    if(entry.timer) clearInterval(entry.timer);
+    ST.chans.delete(room_id);
+  }
+  ST.lastId.delete(room_id);
 }
 
 /* ====== RENDERERS ====== */
-function mountRoom(container, room, dotId){
-  const shell=document.createElement('div'); shell.className='room';
-  shell.innerHTML = `<div class="row"><strong>${room.name}</strong><span class="small">${room.has_password?'🔒':''}</span></div>`;
-  const {wrap,listId,inId,btnId}=chatBlock(room, dotId);
-  shell.appendChild(wrap);
-  container.appendChild(shell);
+function mountRoom(container, room){
+  const holder = document.createElement('div'); holder.className='room';
+  holder.innerHTML = `<div class="row"><strong>${room.name}</strong></div>`;
+  const {wrap,listId,inId,btnId}=chatBlock(room);
+  holder.appendChild(wrap);
+  container.appendChild(holder);
 
   const listEl=$(listId), inputEl=$(inId), btnEl=$(btnId);
 
@@ -296,33 +332,24 @@ function mountRoom(container, room, dotId){
     const msg=(inputEl.value||'').trim(); if(!msg) return;
     if(!clientFilter(msg)){ alert('Message blocked by content rules.'); return; }
     if(!ST.me){ alert('Sign in to send messages.'); return; }
-    if(room.has_password){
-      const pwd = prompt('This room is protected. Enter password to post:'); if(pwd===null) return;
-      const { data, error } = await supa.rpc('join_chat_room',{ p_room_id: room.id, p_password: pwd });
-      if(error || data!==true){ alert(error?error.message:'Incorrect password'); return; }
-    }
     const { error } = await supa.from('chat_messages').insert({ room_id: room.id, user_id: ST.me.id, body: msg });
     if(error){ alert(error.message); return; }
     inputEl.value='';
   };
-
-  /* Enter key submits */
   inputEl.addEventListener('keydown', e=>{
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      btnEl.click();
-    }
+    if(e.key === 'Enter'){ e.preventDefault(); btnEl.click(); }
   });
 
   loadInitial(room.id, listEl);
-  ensureChannel(room.id, listEl, dotId);
+  ensureChannel(room.id, listEl);
+  return holder;
 }
 
 function renderSeason(all){
   const mount=$('seasonMount'); mount.innerHTML='';
   const season = all.find(r=>r.room_type==='season' && r.league==='NHL');
   if(!season){ mount.innerHTML='<div class="small">No season room yet.</div>'; return; }
-  mountRoom(mount, season, 'rt-season');
+  mountRoom(mount, season);
 }
 
 function renderWeekly(all){
@@ -331,11 +358,97 @@ function renderWeekly(all){
   if(!wk){ mount.innerHTML=`<div class="small">No room for ${CURRENT_WEEK_KEY} yet.</div>`; return; }
   const wr = document.getElementById('weekRange');
   if(wr) wr.textContent = weekRangeLabel();
-  mountRoom(mount, wk, 'rt-week');
+  mountRoom(mount, wk);
+}
+
+/* ====== TEAMS (lazy mount per team) ====== */
+async function getOrCreateTeamRoom(abbr, name){
+  // find existing
+  let { data:found, error } = await supa
+    .from('chat_rooms')
+    .select('id,room_type,team_abbr,name,has_password')
+    .eq('room_type','team').eq('league','NHL').eq('team_abbr',abbr)
+    .maybeSingle();
+  if(found) return found;
+  if(error && error.code!=='PGRST116') throw error; // passthrough unexpected
+
+  if(!ST.me){ throw new Error('Sign in to create team rooms.'); }
+  // create new
+  const { data, error:insErr } = await supa
+    .from('chat_rooms')
+    .insert({ room_type:'team', league:'NHL', team_abbr:abbr, name:`${name} Chat`, created_by: ST.me.id })
+    .select('id,room_type,team_abbr,name,has_password')
+    .single();
+  if(insErr) throw insErr;
+  return data;
+}
+
+function renderTeamsShell(){
+  const mount=$('teamsMount'); mount.innerHTML='';
+  const byDiv = new Map();
+  NHL_TEAMS.forEach(([abbr,name,div])=>{
+    if(!byDiv.has(div)) byDiv.set(div,[]);
+    byDiv.get(div).push({abbr,name});
+  });
+
+  const grid=document.createElement('div'); grid.className='divGrid';
+
+  [...byDiv.keys()].sort().forEach(div=>{
+    const card=document.createElement('div'); card.className='divCard';
+    card.innerHTML=`<div class="row"><strong>${div} Division</strong></div><div class="sep"></div>`;
+
+    byDiv.get(div).forEach(t=>{
+      const row=document.createElement('div'); row.className='teamRow';
+      row.innerHTML = `
+        <div><strong>${t.name}</strong> <span class="small">(${t.abbr})</span></div>
+        <div>
+          <button class="btn" data-state="closed">Open chat</button>
+        </div>`;
+      const btn=row.querySelector('button');
+
+      // container where the chat (if opened) will mount
+      const mountSpot=document.createElement('div');
+      row.appendChild(mountSpot);
+
+      btn.onclick = async ()=>{
+        if(btn.dataset.state === 'open'){
+          // close
+          const rid = ST.mounted.get(t.abbr);
+          if(rid){ disposeRoom(rid); }
+          mountSpot.innerHTML='';
+          ST.mounted.delete(t.abbr);
+          btn.dataset.state='closed';
+          btn.textContent='Open chat';
+          return;
+        }
+        btn.disabled=true; btn.textContent='Opening…';
+        try{
+          const room = await getOrCreateTeamRoom(t.abbr, t.name);
+          mountSpot.innerHTML='';
+          const holder = mountRoom(mountSpot, room);
+          ST.mounted.set(t.abbr, room.id);
+          btn.dataset.state='open';
+          btn.textContent='Close';
+        }catch(e){
+          alert(e.message || 'Could not open room');
+          btn.dataset.state='closed';
+          btn.textContent='Open chat';
+        }finally{
+          btn.disabled=false;
+        }
+      };
+
+      card.appendChild(row);
+    });
+
+    grid.appendChild(card);
+  });
+
+  mount.appendChild(grid);
 }
 
 /* ====== LOAD ROOMS ====== */
-function renderAll(all){ renderSeason(all); renderWeekly(all); }
+function renderAll(all){ renderSeason(all); renderWeekly(all); renderTeamsShell(); }
 
 async function loadRooms(){
   const { data, error } = await supa.rpc('list_chat_rooms');
@@ -343,6 +456,7 @@ async function loadRooms(){
     const msg = `Couldn’t load rooms: ${error.message}`;
     $('seasonMount').innerHTML = `<div class="small">${msg}</div>`;
     $('weeklyMount').innerHTML = '';
+    $('teamsMount').innerHTML = '';
     return;
   }
   if(!data || !data.length){
