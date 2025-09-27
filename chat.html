@@ -66,7 +66,6 @@
   <button class="tab" aria-controls="sec-season" aria-selected="true">Season</button>
   <button class="tab" aria-controls="sec-weekly" aria-selected="false">Weekly</button>
   <button class="tab" aria-controls="sec-teams"  aria-selected="false">Teams</button>
-  <button class="tab" aria-controls="sec-custom" aria-selected="false">Custom</button>
 </nav>
 
 <main>
@@ -102,25 +101,6 @@
       <div id="teamsMount"><div class="small">Loading teams…</div></div>
     </div>
   </section>
-
-  <!-- CUSTOM -->
-  <section id="sec-custom" class="section">
-    <div class="card">
-      <div class="row">
-        <h2 style="margin:0">Custom Rooms</h2>
-        <span class="small">Anyone can read · passwords restrict posting</span>
-      </div>
-      <div class="panel">
-        <div class="row">
-          <input id="roomName" placeholder="Room name" style="flex:1;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px">
-          <input id="roomPass" placeholder="Password (optional)" style="width:220px;background:#0b1117;border:1px solid #1b2633;border-radius:8px;color:var(--text);padding:10px">
-          <button id="createBtn" class="btn">Create</button>
-        </div>
-        <div id="createHint" class="small" style="margin-top:6px"></div>
-      </div>
-      <div id="customMount"><div class="small">Loading…</div></div>
-    </div>
-  </section>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -150,7 +130,7 @@ function prettyWeekLabel(week_key){
     const iso = (week_key||'').slice(0,10); // YYYY-MM-DD
     const [y,m,d] = iso.split('-').map(n=>parseInt(n,10));
     if(!y || !m || !d) return week_key || 'This Week';
-    const dt = new Date(y, m-1, d);         // avoid Date('YYYY-MM-DD') Safari bug
+    const dt = new Date(y, m-1, d);
     return new Intl.DateTimeFormat('en-US',{month:'long', day:'numeric'}).format(dt);
   }catch(_e){ return week_key || 'This Week'; }
 }
@@ -357,7 +337,7 @@ function renderTeams(all){
           inputEl.value='';
         };
         loadInitial(t.room.id, listEl);
-        ensureChannel(t.room.id, listEl, null); // team cards don’t show dot
+        ensureChannel(t.room.id, listEl, null);
       }else{
         sec.innerHTML = `<div class="row"><strong>${t.name}</strong><span class="small">${t.abbr}</span><button class="btn">Create room</button></div><div class="small" style="margin-top:6px">No room yet.</div>`;
         sec.querySelector('.btn').onclick = ()=>createTeamRoom(t.abbr, t.name);
@@ -368,45 +348,6 @@ function renderTeams(all){
   });
 
   mount.appendChild(container);
-}
-
-function renderCustom(all){
-  const mount=$('customMount'); mount.innerHTML='';
-  const list = all.filter(r=>r.room_type==='custom');
-  if(!list.length){ mount.innerHTML='<div class="small">No custom rooms yet.</div>'; return; }
-  list.forEach(room=>{
-    const shell=document.createElement('div'); shell.className='room';
-    shell.innerHTML = `<div class="row"><strong>${room.name}</strong><span class="small">${room.has_password?'🔒':''}</span></div>`;
-    const {wrap,listId,inId,btnId}=chatBlock(room); shell.appendChild(wrap); mount.appendChild(shell);
-    const listEl=$(listId), inputEl=$(inId), btnEl=$(btnId);
-    btnEl.onclick = async ()=>{
-      const msg=(inputEl.value||'').trim(); if(!msg) return;
-      if(!clientFilter(msg)){ alert('Message blocked.'); return; }
-      if(!ST.me){ alert('Sign in to send messages.'); return; }
-      if(room.has_password){
-        const pwd = prompt('Password required:'); if(pwd===null) return;
-        const { data, error } = await supa.rpc('join_chat_room',{ p_room_id: room.id, p_password: pwd });
-        if(error || data!==true){ alert(error?error.message:'Incorrect password'); return; }
-      }
-      const { error } = await supa.from('chat_messages').insert({ room_id: room.id, user_id: ST.me.id, body: msg });
-      if(error){ alert(error.message); return; }
-      inputEl.value='';
-    };
-    loadInitial(room.id, listEl);
-    ensureChannel(room.id, listEl, null);
-  });
-
-  $('createBtn').onclick = async ()=>{
-    const nm = ($('roomName').value||'').trim();
-    const pw = ($('roomPass').value||'').trim();
-    $('createHint').textContent='';
-    if(!ST.me){ $('createHint').textContent='Sign in to create rooms.'; return; }
-    if(!nm){ $('createHint').textContent='Name required.'; return; }
-    const { error } = await supa.rpc('create_custom_room',{ p_name:nm, p_description:null, p_password: pw.length?pw:null });
-    if(error){ $('createHint').textContent=error.message; return; }
-    $('createHint').textContent='Created ✓'; $('roomName').value=''; $('roomPass').value='';
-    await loadRooms();
-  };
 }
 
 /* ====== LOAD ROOMS ====== */
@@ -421,7 +362,6 @@ function renderAll(all){
   safe(renderSeason, 'seasonMount');
   safe(renderWeekly, 'weeklyMount');
   safe(renderTeams,  'teamsMount');
-  safe(renderCustom, 'customMount');
 }
 
 async function loadRooms(){
@@ -431,7 +371,6 @@ async function loadRooms(){
     $('seasonMount').innerHTML = `<div class="small">${msg}</div>`;
     $('weeklyMount').innerHTML = '';
     $('teamsMount').innerHTML  = '';
-    $('customMount').innerHTML = '';
     return;
   }
   if(!data || !data.length){
