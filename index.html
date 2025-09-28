@@ -591,32 +591,134 @@ async function setPick(uid, gameId){
 }
 
 async function allPicksThisWeek(){
-  const cached = getCache(CK_ALL); if(cached) return cached;
-  const { data, error } = await supa.from('picks').select('user_id, game_id').eq('league','NHL').eq('week_key',WEEK_KEY);
-  const rows = error ? [] : (data||[]);
-  setCache(CK_ALL, rows, 20000); return rows;
-}
-async function getDisplayNames(userIds){
-  const ids = [...new Set(userIds||[])].filter(Boolean); if(ids.length===0) return {};
-  const need = ids.filter(id=>!NAME_MEMO.has(id));
-  if(need.length){
-    const { data, error } = await supa.from('players').select('id,display_name').in('id', need);
-    if(!error && data){ data.forEach(r=>NAME_MEMO.set(r.id, r.display_name || r.id.slice(0,6)));
-      need.forEach(id=>{ if(!NAME_MEMO.has(id)) NAME_MEMO.set(id, id.slice(0,6)); });
-    }else{ need.forEach(id=>NAME_MEMO.set(id, id.slice(0,6))); }
+  const cached = getCache(CK_ALL);
+  if (cached) return cached;
+
+  const { data, error } = await supa
+    .from('picks')
+    .select('user_id, game_id')     // only what we need
+    .eq('league','NHL')
+    .eq('week_key', WEEK_KEY);
+
+  if (error) {
+    console.error('allPicksThisWeek:', error);
+    return [];
   }
-  const map={}; ids.forEach(id=>map[id]=NAME_MEMO.get(id)); return map;
+
+  const rows = data || [];
+  // Cache longer to cut reads; but if empty, cache briefly to avoid “stuck blank”
+  setCache(CK_ALL, rows, rows.length ? 180000 : 30000); // 3 min if data, else 30s
+  return rows;
 }
+
+async function getDisplayNames(userIds){
+  const ids = [...new Set(userIds||[])].filter(Boolean);
+  if (!ids.length) return {};
+
+  // hydrate memo from localStorage first (24h TTL per id)
+  const NAME_CK = id => `name:${id}`;
+  ids.forEach(id => {
+    if (!NAME_MEMO.has(id)) {
+      const cached = getCache(NAME_CK(id));
+      if (cached) NAME_MEMO.set(id, cached);
+    }
+  });
+
+  // only fetch what's still missing
+  let need = ids.filter(id => !NAME_MEMO.has(id));
+  if (need.length){
+    // chunk to keep the IN(...) list small (reduces load & errors)
+    const CHUNK = 50;
+    for (let i = 0; i < need.length; i += CHUNK){
+      const batch = need.slice(i, i + CHUNK);
+
+      const { data, error } = await supa
+        .from('players')
+        .select('id,display_name')
+        .in('id', batch);
+
+      if (!error && Array.isArray(data)){
+        // fill memo + localStorage
+        data.forEach(r => {
+          const val = r.display_name || r.id.slice(0,6);
+          NAME_MEMO.set(r.id, val);
+          setCache(NAME_CK(r.id), val, 24*60*60*1000); // 24h
+        });
+        // any ids not returned: fallback + cache to avoid refetch thrash
+        batch.forEach(id => {
+          if (!NAME_MEMO.has(id)) {
+            const val = id.slice(0,6);
+            NAME_MEMO.set(id, val);
+            setCache(NAME_CK(id), val, 24*60*60*1000);
+          }
+        });
+      } else {
+        // on error, fallback for this batch (and cache) so we don't refetch immediately
+        batch.forEach(id => {
+          const val = id.slice(0,6);
+          NAME_MEMO.set(id, val);
+          setCache(NAME_CK(id), val, 5*60*1000); // short 5m on error
+        });
+      }
+    }
+  }
+
+  const map = {};
+  ids.forEach(id => map[id] = NAME_MEMO.get(id));
+  return map;
+}
+
 
 /* ---------- NEW: push summaries into SQL; read game score/box ---------- */
 async function pushSummaryToSQL(gameId, summaryJson){
+  // 0) HARD SWITCH: browsers don't write to DB (flip to true only if you must)
+  const CLIENT_WRITES = false;
+  if (!CLIENT_WRITES) return;
+
+  // 1) Per-game caches (safe globals on window)
+  const _H = (window.__SUM_HASH ||= new Map()); // last signature written
+  const _T = (window.__SUM_TIME ||= new Map()); // last write time
+  const gid = String(gameId);
+  const now = Date.now();
+
+  // 2) Build a tiny "signature" of only fields that affect scoring/status
+  const comp = summaryJson?.header?.competitions?.[0] || {};
+  const stType = comp?.status?.type || {};
+  const state  = String(stType.state || stType.name || '').toLowerCase();
+  let home=null, away=null;
+  (comp.competitors || []).forEach(c => {
+    if (c.homeAway === 'home') home = c;
+    if (c.homeAway === 'away') away = c;
+  });
+  const a = Number(away?.score || 0);
+  const h = Number(home?.score || 0);
+  const sig = JSON.stringify({ a, h, sid: stType.id || stType.shortDetail || '' });
+
+  // 3) Only write once game is underway (or finished), never pregame
+  const started = (state && state !== 'pre') || (a + h) > 0;
+  if (!started) return;
+
+  // 4) Debounce: max one write per 60s per game
+  const MIN_INTERVAL_MS = 60_000;
+  if ((now - (_T.get(gid) || 0)) < MIN_INTERVAL_MS) return;
+
+  // 5) Skip if nothing changed since last write
+  if (_H.get(gid) === sig) return;
+
+  // 6) Perform the upsert; on failure, roll back the memoized hash so we can retry later
+  _T.set(gid, now);
+  _H.set(gid, sig);
   const { error } = await supa.rpc('upsert_nhl_game_from_summary', {
     p_week_key: WEEK_KEY,
-    p_game_id: String(gameId),
+    p_game_id: gid,
     p_summary: summaryJson
   });
-  if(error){ console.error('upsert_nhl_game_from_summary failed:', error.message); }
+  if (error){
+    console.error('upsert_nhl_game_from_summary failed:', error.message);
+    _H.delete(gid); // allow a retry on next tick
+  }
 }
+
 
 /* include stat fields for breakdown */
 async function getGameScoreFromDB(gid){
@@ -1290,4 +1392,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
+
+
 
