@@ -815,45 +815,15 @@ async function getScoringPlaysRobust(eventId, summaryJson){
   // 1) Try summary first (free — already fetched)
   let list = (summaryJson?.scoringPlays || []).map(mapPlay);
   if (!list.length) {
-    const alt = (summaryJson?.allPlays || summaryJson?.plays || [])
-      .filter(isRealGoal).map(mapPlay);
+    const alt = (summaryJson?.allPlays || summaryJson?.plays || []).filter(isRealGoal).map(mapPlay);
     list = alt;
     if (list.length) {
+      // de-dupe and return without any extra network I/O
       const seen = new Set(), out = [];
       for (const p of list){ const k=`${p.per}|${p.clk}|${p.text}`; if(!seen.has(k)){ seen.add(k); out.push(p); } }
-      return out; // no extra network I/O
+      return out;
     }
   }
-
-  // 2) Cache PBP per game to avoid repeated ESPN calls
-  const CK = `pbp:${eventId}`;
-  const cached = getCache(CK);
-  if (cached) return cached;
-
-  // 3) Fetch ESPN PBP only if needed (no cache-buster)
-  const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}`;
-  let out = [];
-  try {
-    const pbp = await safeJson(pbpUrl).catch(()=>null);
-    const fromPbp = (pbp?.allPlays || pbp?.plays || [])
-      .filter(isRealGoal)
-      .map(mapPlay);
-
-    // de-dupe
-    const seen = new Set();
-    for (const p of fromPbp){
-      const k = `${p.per}|${p.clk}|${p.text}`;
-      if (!seen.has(k)){ seen.add(k); out.push(p); }
-    }
-  } catch {
-    out = [];
-  }
-
-  // 4) Cache: longer if data, shorter if empty to avoid hammering
-  setCache(CK, out, out.length ? 120000 : 30000); // 2m if data, 30s if empty
-  return out;
-}
-
 
   // 2) If summary had scoring plays, just return them (no extra fetch)
   if (list.length) {
@@ -1535,8 +1505,6 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
-
 
 
 
