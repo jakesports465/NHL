@@ -1439,51 +1439,73 @@ async function gameMeta(gid){
   const key = String(gid);
   const ck  = `meta:${key}`;
 
-  // in-memory memo + inflight dedup
-  const memo      = (window.__metaMemo ||= new Map());       // gid -> {v,t,ok}
-  const inflight  = (window.__metaMetaInflight ||= new Map());
-  const HIT_TTL   = 24*60*60*1000;  // 24h for good data (names/logos rarely change)
-  const MISS_TTL  = 10*60*1000;     // 10m for misses/partials to avoid hammering
+  // global memos (safe on window)
+  const memo        = (window.__metaMemo        ||= new Map()); // game_id -> {v,t,ok}
+  const inflight    = (window.__metaInflight    ||= new Map()); // game_id -> Promise
+  const teamMemo    = (window.__teamMetaMemo    ||= new Map()); // teamKey -> {v,t}
+  const now         = Date.now();
 
-  const now = Date.now();
+  // TTLs
+  const HIT_TTL   = 24*60*60*1000;  // 24h for good game meta
+  const MISS_TTL  = 10*60*1000;     // 10m for misses
+  const TEAM_TTL  = 7*24*60*60*1000; // 7d for team name/logo (rarely change)
 
-  // 1) In-memory fresh?
+  // --- 1) fresh in-memory game cache?
   const mHit = memo.get(key);
   if (mHit && (now - mHit.t) < (mHit.ok ? HIT_TTL : MISS_TTL)) return mHit.v;
 
-  // 2) localStorage cache?
+  // --- 2) localStorage game cache?
   const ls = getCache(ck);
   if (ls) {
     memo.set(key, { v: ls, t: now, ok: !!(ls.awayLogo || ls.homeLogo) });
     return ls;
   }
 
-  // 3) From already loaded schedule (free)
+  // helper: build team object using per-team memo (cuts repeated work across games)
+  function teamKey(t){
+    // prefer stable ids; fall back to abbreviation/name
+    return t?.id ? `id:${t.id}` : (t?.abbreviation ? `abbr:${t.abbreviation}` : (t?.name ? `nm:${t.name}` : ''));
+  }
+  function teamMeta(t){
+    if (!t) return { name:'', logo:null };
+    const tk = teamKey(t) || '';
+    if (tk){
+      const thit = teamMemo.get(tk);
+      if (thit && (now - thit.t) < TEAM_TTL) return thit.v;
+    }
+    const v = {
+      name: (t.shortDisplayName || t.displayName || t.name || '').trim() || '',
+      logo: cdnNHL(t) || null
+    };
+    if (teamKey(t)) teamMemo.set(teamKey(t), { v, t: now });
+    return v;
+  }
+
+  // --- 3) from already loaded schedule (free)
   try{
-    const ev = (NHL && NHL.state && Array.isArray(NHL.state.events))
+    const ev = (window.NHL && NHL.state && Array.isArray(NHL.state.events))
       ? NHL.state.events.find(e => String(e.id) === key)
-      : (st && Array.isArray(st.events) ? st.events.find(e => String(e.id) === key) : null);
+      : (typeof st !== 'undefined' && st && Array.isArray(st.events) ? st.events.find(e => String(e.id) === key) : null);
 
     if (ev){
       const v = {
-        awayName: ev.away.name,
-        homeName: ev.home.name,
-        awayLogo: ev.away.logo || null,
-        homeLogo: ev.home.logo || null
+        awayName: ev.away?.name || '',
+        homeName: ev.home?.name || '',
+        awayLogo: ev.away?.logo || null,
+        homeLogo: ev.home?.logo || null
       };
       memo.set(key, { v, t: now, ok: !!(v.awayLogo || v.homeLogo) });
       setCache(ck, v, HIT_TTL);
       return v;
     }
-  }catch{/* ignore */}
+  }catch{ /* ignore */ }
 
-  // 4) If another call is already fetching this gid, piggyback on it
+  // --- 4) piggyback if another fetch is in-flight
   if (inflight.has(key)) {
-    try { return await inflight.get(key); }
-    catch { /* fall through to do our own fallback */ }
+    try { return await inflight.get(key); } catch { /* fall through */ }
   }
 
-  // 5) Fetch ESPN summary only if needed (use cached helper if present)
+  // --- 5) ESPN summary only if needed (uses st.fetchSummary if provided)
   const fetchSummary = (typeof st?.fetchSummary === 'function')
     ? st.fetchSummary
     : (id)=>safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`);
@@ -1498,11 +1520,14 @@ async function gameMeta(gid){
         if (x.homeAway === 'away') away = x;
       });
 
+      const a = teamMeta(away?.team || null);
+      const h = teamMeta(home?.team || null);
+
       const v = {
-        awayName: away?.team ? (away.team.shortDisplayName || away.team.displayName) : 'Away',
-        homeName: home?.team ? (home.team.shortDisplayName || home.team.displayName) : 'Home',
-        awayLogo: cdnNHL(away?.team || null),
-        homeLogo: cdnNHL(home?.team || null)
+        awayName: a.name || 'Away',
+        homeName: h.name || 'Home',
+        awayLogo: a.logo,
+        homeLogo: h.logo
       };
 
       const ok = !!(v.awayLogo || v.homeLogo);
@@ -1813,6 +1838,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
