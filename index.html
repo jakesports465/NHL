@@ -1011,53 +1011,97 @@ function leagueFactory(){
 }
 
   async function refreshGridScores(){
-    const evs = st.events || []; if(!evs.length) return;
+  const evs = st.events || [];
+  if (!evs.length) return;
 
-    const rows = await pLimitAll(evs, 6, async (g)=>{
-      try{
-        const s = await safeJson(api.summary(g.id));
-        await pushSummaryToSQL(g.id, s);
-        const row = await getGameScoreFromDB(g.id);
-        const comp=s?.header?.competitions?.[0] || {};
-        let homeC=null, awayC=null;
-        (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-        return {
-          id:g.id,
-          awayPts: row?.away_pts ?? Number(awayC?.score ?? 0),
-          homePts: row?.home_pts ?? Number(homeC?.score ?? 0),
-          score: row?.total ?? 0,
-          status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
-        };
-      }catch{ return null; }
-    });
+  // ---- 1) Get ESPN summaries with small concurrency (uses cache if st.fetchSummary exists) ----
+  const getSummary = (id) => (typeof st.fetchSummary === 'function'
+    ? st.fetchSummary(id)
+    : safeJson(api.summary(id)));
 
-    const valid = rows.filter(Boolean);
-    for(const r of valid){
-      const scEl = $(`NHL-scr-${r.id}`);
-      const stEl = $(`NHL-st-${r.id}`);
-      const aEl  = $(`NHL-a-${r.id}`);
-      const hEl  = $(`NHL-h-${r.id}`);
-      const fEl  = $(`NHL-fant-${r.id}`);
-
-      if(scEl) scEl.textContent = `${r.awayPts}–${r.homePts}`;
-      if(stEl) stEl.textContent = r.status || '—';
-      if(aEl)  aEl.textContent  = r.awayPts;
-      if(hEl)  hEl.textContent  = r.homePts;
-      if(fEl)  fEl.textContent  = Number(r.score || 0).toFixed(2);
-    }
-
-    st.gameRows = evs.map(g=>{
-      const r = valid.find(x => x && String(x.id)===String(g.id));
-      if(!r) return null;
+  const espnArr = await pLimitAll(evs, 3, async (g) => {
+    try {
+      const s = await getSummary(g.id);
+      const comp = s?.header?.competitions?.[0] || {};
+      let homeC = null, awayC = null;
+      (comp.competitors || []).forEach(c => {
+        if (c.homeAway === 'home') homeC = c;
+        if (c.homeAway === 'away') awayC = c;
+      });
       return {
-        id: g.id, awayName: g.away.name, homeName: g.home.name,
-        awayLogo: g.away.logo, homeLogo: g.home.logo,
-        score: r.score, status: r.status
+        id: String(g.id),
+        awayPtsESPN: Number(awayC?.score ?? 0),
+        homePtsESPN: Number(homeC?.score ?? 0),
+        status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
       };
-    }).filter(Boolean).sort((a,b)=>b.score-a.score);
+    } catch {
+      return { id: String(g.id), awayPtsESPN: 0, homePtsESPN: 0, status: '—' };
+    }
+  });
 
-    renderGameLB(); renderUserLB();
+  const espnMap = new Map(espnArr.map(r => [String(r.id), r]));
+
+  // ---- 2) ONE bulk DB read for all games on grid ----
+  const ids = evs.map(g => String(g.id));
+  let scoreMap = new Map();
+  try {
+    const { data, error } = await supa
+      .from('game_scores')
+      .select('game_id, away_pts, home_pts, total')
+      .eq('league','NHL')
+      .eq('week_key', WEEK_KEY)
+      .in('game_id', ids);
+
+    if (!error && Array.isArray(data)) {
+      scoreMap = new Map(data.map(r => [String(r.game_id), r]));
+    }
+  } catch {
+    // ignore; we'll fall back to ESPN-only values
   }
+
+  // ---- 3) Merge DB + ESPN → rows ----
+  const rows = ids.map(id => {
+    const db   = scoreMap.get(id);
+    const espn = espnMap.get(id) || { awayPtsESPN:0, homePtsESPN:0, status:'—' };
+    return {
+      id,
+      awayPts: (db?.away_pts ?? espn.awayPtsESPN ?? 0),
+      homePts: (db?.home_pts ?? espn.homePtsESPN ?? 0),
+      score:   (db?.total    ?? 0),
+      status:  espn.status || '—'
+    };
+  });
+
+  // ---- 4) Paint DOM (same ids as before) ----
+  for (const r of rows){
+    const scEl = $(`NHL-scr-${r.id}`);
+    const stEl = $(`NHL-st-${r.id}`);
+    const aEl  = $(`NHL-a-${r.id}`);
+    const hEl  = $(`NHL-h-${r.id}`);
+    const fEl  = $(`NHL-fant-${r.id}`);
+
+    if (scEl) scEl.textContent = `${r.awayPts}–${r.homePts}`;
+    if (stEl) stEl.textContent = r.status || '—';
+    if (aEl)  aEl.textContent  = r.awayPts;
+    if (hEl)  hEl.textContent  = r.homePts;
+    if (fEl)  fEl.textContent  = Number(r.score || 0).toFixed(2);
+  }
+
+  // ---- 5) Build leaderboard rows (unchanged shape) ----
+  st.gameRows = evs.map(g=>{
+    const r = rows.find(x => String(x.id) === String(g.id));
+    if(!r) return null;
+    return {
+      id: g.id,
+      awayName: g.away.name, homeName: g.home.name,
+      awayLogo: g.away.logo, homeLogo: g.home.logo,
+      score: r.score, status: r.status
+    };
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+
+  renderGameLB(); 
+  renderUserLB();
+}
 
   function renderGameLB(){
     if(!st.gameRows) return;
@@ -1524,4 +1568,5 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
