@@ -888,64 +888,9 @@ async function getRecentPlays(eventId, summaryJson){
 
 /* ---------- League (NHL) UI ---------- */
 function leagueFactory(){
-  const st = { events:[], selected:null, poll:null, gameRows:[] };
-
-  const dom = {
-    gridCard: $('nhl-gridCard'),
-    note:     $('nhl-note'),
-    grid:     $('nhl-grid'),
-    top:      $('nhl-top'),
-    back:     $('nhl-back'),
-    add:      $('nhl-addPick'),
-    live:     $('nhl-liveHeader'),
-    teamSide: $('nhl-teamSide'),
-    fscore:   $('nhl-fscore'),
-    bonus:    $('nhl-bonuses'),
-    clock:    $('nhl-clock'),
-    q:        $('nhl-q'),
-    state:    $('nhl-state'),
-    gameLB:   $('nhl-gameLB')
-  };
-
-  // Keep original URL builders (backwards compatible)
-  const api = {
-    scoreboard: (d) => `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
-    summary:    (id)=> `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`
-  };
-
-  // === I/O helpers (additive) ===
-  // cache scoreboard per date for 5m; summaries per game for 60s
-  const SCOREBOARD_TTL = 5 * 60 * 1000;
-  const SUMMARY_TTL    = 60 * 1000;
-
-  const _sbCache = new Map(); // date -> {v,t}
-  const _suCache = new Map(); // id   -> {v,t}
-
-  st.fetchScoreboard = async (d) => {
-    const key = String(d);
-    const hit = _sbCache.get(key);
-    if (hit && (Date.now() - hit.t) < SCOREBOARD_TTL) return hit.v;
-
-    // use your global safeJson (already dedup/retry capable)
-    const v = await safeJson(api.scoreboard(d)).catch(()=>null);
-    if (v) _sbCache.set(key, { v, t: Date.now() });
-    return v;
-  };
-
-  st.fetchSummary = async (id) => {
-    const key = String(id);
-    const hit = _suCache.get(key);
-    if (hit && (Date.now() - hit.t) < SUMMARY_TTL) return hit.v;
-
-    const v = await safeJson(api.summary(id)).catch(()=>null);
-    if (v) _suCache.set(key, { v, t: Date.now() });
-    return v;
-  };
-
-  // expose what the rest of your file expects later:
-  // return { loadWeek, state: st, ... } (unchanged in other parts)
-  return { loadWeek, state: st };
-}
+  const st={ events:[], selected:null, poll:null, gameRows:[] };
+  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB') };
+  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
 
   dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
   dom.add.addEventListener('click', async ()=>{
@@ -1560,8 +1505,6 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
-
 
 
 
