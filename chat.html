@@ -48,13 +48,13 @@
   .divGrid{display:grid;grid-template-columns:repeat(1,minmax(260px,1fr));gap:12px}
   @media (min-width:920px){.divGrid{grid-template-columns:repeat(2,minmax(260px,1fr))}}
   .divCard{background:#101722;border:1px solid #1c2430;border-radius:12px;padding:10px}
-  .teamRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #1c2430}
+  .teamRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #1c2430;flex-wrap:wrap} /* <-- wrap so chat goes UNDER */
   .teamRow:last-child{border-bottom:none}
 
   /* NEW: team name + logo + centered chat mount */
   .teamName{display:flex;align-items:center;gap:10px}
   .teamLogo{width:26px;height:26px;object-fit:contain}
-  .teamChatSpot{margin-top:8px;display:flex;justify-content:center}
+  .teamChatSpot{margin-top:8px;display:flex;justify-content:center;width:100%} /* <-- full width row below */
 
   /* realtime status dot */
   .rt{display:inline-flex;align-items:center;gap:6px}
@@ -423,7 +423,7 @@ function renderTeamsShell(){
         </div>`;
       const btn=row.querySelector('button');
 
-      const mountSpot=document.createElement('div');   /* centered mount */
+      const mountSpot=document.createElement('div');   /* centered mount UNDER name+logo */
       mountSpot.className='teamChatSpot';
       row.appendChild(mountSpot);
 
