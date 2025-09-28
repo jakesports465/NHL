@@ -1728,54 +1728,97 @@ Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.k
 /* ---------- Boot ---------- */
 (async ()=>{
   const { data:{ session:ses } } = await supa.auth.getSession();
-  session=ses; currentUser = session?.user || null;
+  session = ses; 
+  currentUser = session?.user || null;
 
   function showAuthUI(){
-  const login   = document.getElementById('loginPwForm');
-  const userBox = document.getElementById('userBox');
-  const signupLink = document.querySelector('a[href="signup.html"]');
+    const login   = document.getElementById('loginPwForm');
+    const userBox = document.getElementById('userBox');
+    const signupLink = document.querySelector('a[href="signup.html"]');
 
-  if (currentUser){
-    if (login)      login.style.display = 'none';
-    if (signupLink) signupLink.style.display = 'none';
-    if (userBox)    userBox.style.display = 'flex';
-    const who = document.getElementById('whoami');
-    if (who) who.textContent = currentUser.email || '(no email)';
-  } else {
-    if (login)      login.style.display = 'flex';
-    if (signupLink) signupLink.style.display = 'inline-flex';
-    if (userBox)    userBox.style.display = 'none';
+    if (currentUser){
+      if (login)      login.style.display = 'none';
+      if (signupLink) signupLink.style.display = 'none';
+      if (userBox)    userBox.style.display = 'flex';
+      const who = document.getElementById('whoami');
+      if (who) who.textContent = currentUser.email || '(no email)';
+    } else {
+      if (login)      login.style.display = 'flex';
+      if (signupLink) signupLink.style.display = 'inline-flex';
+      if (userBox)    userBox.style.display = 'none';
+    }
   }
-}
-
-
 
   showAuthUI();
 
-  if(currentUser){ await loadOrCreatePlayer(); }
+  if (currentUser) { 
+    // one light read on first auth
+    await loadOrCreatePlayer(); 
+  }
 
-  const league = NHL; await league.loadWeek();
-  await updatePicksLeft();
-  await renderWeeklyBoards();
-  await renderSeasonBoards();
-  await renderMyPicks();
-  await refreshBadgesUI();
+  const league = NHL;
+  await league.loadWeek();
 
-  supa.auth.onAuthStateChange(async (_event, sess)=>{
-    session=sess; currentUser=session?.user||null; showAuthUI();
-    if(currentUser){ await loadOrCreatePlayer(); }
-    await updatePicksLeft();
-    await renderMyPicks();
-    await renderWeeklyBoards();
-    if(currentUser && NHL?.state?.events){
-      const mine = await picksForUser(currentUser.id);
-      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
-    }
-    await refreshBadgesUI();
+  // Run non-critical UI fills in parallel (fewer round trips perceived)
+  await Promise.allSettled([
+    updatePicksLeft(),
+    renderWeeklyBoards(),
+    renderSeasonBoards(),
+    currentUser ? renderMyPicks() : Promise.resolve(),
+    refreshBadgesUI()
+  ]);
+
+  // ---- background refresh for boards (visible tab only) ----
+  const BOARDS_MS = 180000; // 3 minutes
+  let boardsTimer = null;
+
+  function startBoardsTimer(){
+    if (boardsTimer) return;
+    boardsTimer = setInterval(()=>{
+      if (document.hidden) return; // skip when not visible
+      renderWeeklyBoards();
+      renderSeasonBoards();
+    }, BOARDS_MS);
+  }
+  function stopBoardsTimer(){
+    if (boardsTimer){ clearInterval(boardsTimer); boardsTimer = null; }
+  }
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.hidden) stopBoardsTimer();
+    else startBoardsTimer();
   });
+  startBoardsTimer();
 
-  setInterval(renderWeeklyBoards, 60000);
+  // ---- auth changes (debounced to avoid double work) ----
+  let authDebounce = null;
+  supa.auth.onAuthStateChange((_event, sess)=>{
+    if (authDebounce) clearTimeout(authDebounce);
+    authDebounce = setTimeout(async ()=>{
+      session = sess; 
+      currentUser = session?.user || null;
+      showAuthUI();
+
+      if (currentUser){ await loadOrCreatePlayer(); }
+
+      await Promise.allSettled([
+        updatePicksLeft(),
+        renderMyPicks(),
+        renderWeeklyBoards(),
+        refreshBadgesUI()
+      ]);
+
+      // mark picked tags on the grid without extra reads
+      if (currentUser && NHL?.state?.events){
+        const mine = await picksForUser(currentUser.id);
+        mine.forEach(gid=>{
+          const tag = $(`picked-${gid}`); if(tag) tag.style.display='inline-flex';
+          const btn = document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
+        });
+      }
+    }, 150); // small debounce
+  });
 })();
+
 // Clean up channels + timers on page unload
 window.addEventListener('beforeunload', () => {
   if (window.ST && Array.isArray(ST.chans)) {
@@ -1863,6 +1906,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
