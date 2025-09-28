@@ -494,29 +494,99 @@ function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.l
 let session=null, currentUser=null, displayName='';
 function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
 
+/* ---------- Player cache ---------- */
+const PlayerCache = {
+  uid: null,
+  displayName: '',
+  loaded: false,
+};
+
+function _lsKey(uid){ return `player:${uid}:display_name`; }
+
+/* ---------- loadOrCreatePlayer (IO-optimized) ---------- */
 async function loadOrCreatePlayer(){
-  if(!currentUser) return;
-  const uid=currentUser.id;
-  const { data, error } = await supa.from('players').select('*').eq('id',uid).maybeSingle();
-  if(error){ console.error(error); return; }
-  if(!data){
-    const def = (currentUser.email||'user').split('@')[0];
-    const { error:insErr } = await supa.from('players').insert({ id:uid, display_name:def });
-    if(insErr){ console.error(insErr); }
-    displayName=def;
-  }else{
-    displayName=data.display_name||'';
+  if (!currentUser) return;
+  const uid = currentUser.id;
+  PlayerCache.uid = uid;
+
+  // 1) Instant UI from localStorage if present (no I/O)
+  const cached = localStorage.getItem(_lsKey(uid));
+  if (cached) {
+    displayName = cached;
+    PlayerCache.displayName = cached;
+    PlayerCache.loaded = true;
+    const inp = $('displayNameInput'); if (inp) inp.value = displayName;
   }
-  $('displayNameInput').value=displayName||'';
+
+  // 2) If we already fetched this session, skip another read
+  if (PlayerCache.loaded) return;
+
+  // 3) Read only what's needed
+  const { data, error } = await supa
+    .from('players')
+    .select('display_name')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (error) { console.error(error); }
+
+  if (!data) {
+    // 4) Create default row once; ignore duplicate errors if it exists
+    const def = (currentUser.email || 'user').split('@')[0];
+    const { error: insErr } = await supa
+      .from('players')
+      .insert({ id: uid, display_name: def });
+    if (insErr && insErr.code !== '23505') { // ignore unique_violation
+      console.error(insErr);
+    }
+    displayName = def;
+  } else {
+    displayName = data.display_name || '';
+  }
+
+  PlayerCache.displayName = displayName;
+  PlayerCache.loaded = true;
+  localStorage.setItem(_lsKey(uid), displayName);
+
+  const inp = $('displayNameInput'); if (inp) inp.value = displayName || '';
 }
 
+/* ---------- Save display name (debounced, optimistic, no board reload) ---------- */
+let _saveDN_inflight = null;
 $('saveDisplayName').addEventListener('click', async ()=>{
   if(!currentUser) return;
-  const name = ($('displayNameInput').value||'').trim(); if(!name) return;
-  const { error } = await supa.from('players').upsert({ id: currentUser.id, display_name: name });
-  if(!error){ displayName=name; toast('Saved ✓'); renderWeeklyBoards(); renderSeasonBoards(); }
+  if (_saveDN_inflight) return; // de-dupe rapid clicks
+
+  const name = ($('displayNameInput').value||'').trim();
+  if(!name || name === displayName) return;
+
+  // Optimistic UI
+  displayName = name;
+  PlayerCache.displayName = name;
+  localStorage.setItem(_lsKey(currentUser.id), name);
+  toast('Saved ✓');
+
+  _saveDN_inflight = supa
+    .from('players')
+    .upsert({ id: currentUser.id, display_name: name })
+    .then(({ error })=>{
+      if (error) { console.error(error); toast('Save failed'); }
+    })
+    .finally(()=>{ _saveDN_inflight = null; });
+
+  await _saveDN_inflight;
 });
-$('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });
+
+/* ---------- Auth actions (unchanged behavior) ---------- */
+$('logoutBtn').addEventListener('click', async ()=>{
+  await supa.auth.signOut();
+  // Faster than full reload; clears UI and cache safely
+  PlayerCache.loaded = false;
+  PlayerCache.displayName = '';
+  localStorage.removeItem(_lsKey(currentUser?.id || ''));
+  location.reload();
+});
+
 $('loginPwForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = $('liEmail').value.trim();
@@ -525,6 +595,7 @@ $('loginPwForm').addEventListener('submit', async (e) => {
   if (error) { alert(error.message); return; }
   toast('Logged in ✓');
 });
+
 $('forgotLink').addEventListener('click', async (e) => {
   e.preventDefault();
   const email = prompt('Enter your account email:'); if (!email) return;
@@ -533,6 +604,7 @@ $('forgotLink').addEventListener('click', async (e) => {
   if (error) { alert(error.message); return; }
   toast('Reset email sent.');
 });
+
 
 /* ---------- Picks (Supabase) ---------- */
 function uniqLimit(arr){ const out=[]; const seen=new Set(); (arr||[]).forEach(x=>{ const id=String(x); if(!seen.has(id)){ seen.add(id); out.push(id); } }); return out.slice(0,MAX_PICKS); }
@@ -1542,6 +1614,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
