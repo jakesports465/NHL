@@ -1107,7 +1107,10 @@ function leagueFactory(){
   if (!st.gameRows) return;
   const tgt = $('nhl-gameLB'); if (!tgt) return;
 
-  // Build HTML once (with lazy images) and only touch DOM if it actually changed
+  const FORCE_MS = 10_000; // force repaint at least this often
+  const now = Date.now();
+  const mustForce = !tgt._lastPaintAt || (now - tgt._lastPaintAt) >= FORCE_MS;
+
   const html = (st.gameRows || []).map(r => {
     const pts = Number(r.score || 0).toFixed(2);
     const aImg = r.awayLogo ? `<img loading="lazy" src="${r.awayLogo}" alt="">` : '';
@@ -1124,12 +1127,12 @@ function leagueFactory(){
       </div>`;
   }).join('');
 
-  // Avoid unnecessary DOM I/O: only re-render if content actually differs
-  if (tgt._lastHTML !== html) {
-    // Batch the write on the next frame to keep layout smooth
+  // Only skip DOM write if content is identical AND we’re inside the force window
+  if (tgt._lastHTML !== html || mustForce){
     (window.requestAnimationFrame || function(fn){ return setTimeout(fn,0); })(() => {
       tgt.innerHTML = html;
       tgt._lastHTML = html;
+      tgt._lastPaintAt = now;
     });
   }
 
@@ -1993,6 +1996,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
