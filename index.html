@@ -673,65 +673,107 @@ async function getDisplayNames(userIds){
 }
 
 
-/* ---------- NEW: push summaries into SQL; read game score/box ---------- */
-async function pushSummaryToSQL(gameId, summaryJson){
-  // 0) HARD SWITCH: browsers don't write to DB (flip to true only if you must)
-  const CLIENT_WRITES = false;
-  if (!CLIENT_WRITES) return;
+/* ---------- push summaries into SQL; and read game score/box (IO-friendly) ---------- */
 
-  // 1) Per-game caches (safe globals on window)
-  const _H = (window.__SUM_HASH ||= new Map()); // last signature written
-  const _T = (window.__SUM_TIME ||= new Map()); // last write time
+// Write from a small cohort of clients (~10%) so the DB gets fresh totals.
+async function pushSummaryToSQL(gameId, summaryJson){
+  // decide once per browser if this client is a writer
+  const IS_WRITER = (()=>{
+    const k='qp_writer';
+    let v = localStorage.getItem(k);
+    if (v == null){ v = Math.random() < 0.10 ? '1' : '0'; localStorage.setItem(k, v); }
+    return v === '1';
+  })();
+  if (!IS_WRITER) return; // most clients skip to save I/O
+
   const gid = String(gameId);
   const now = Date.now();
+  const _H = (window.__SUM_HASH ||= new Map()); // last signature written
+  const _T = (window.__SUM_TIME ||= new Map()); // last write time
 
-  // 2) Build a tiny "signature" of only fields that affect scoring/status
+  // tiny signature of only things that matter
   const comp = summaryJson?.header?.competitions?.[0] || {};
-  const stType = comp?.status?.type || {};
-  const state  = String(stType.state || stType.name || '').toLowerCase();
+  const st   = comp?.status?.type || {};
   let home=null, away=null;
-  (comp.competitors || []).forEach(c => {
-    if (c.homeAway === 'home') home = c;
-    if (c.homeAway === 'away') away = c;
-  });
-  const a = Number(away?.score || 0);
-  const h = Number(home?.score || 0);
-  const sig = JSON.stringify({ a, h, sid: stType.id || stType.shortDetail || '' });
+  (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') home=c; if(c.homeAway==='away') away=c; });
+  const a = Number(away?.score||0), h = Number(home?.score||0);
+  const sig = JSON.stringify({ a, h, sid: st.id||st.shortDetail||st.name||'' });
 
-  // 3) Only write once game is underway (or finished), never pregame
-  const started = (state && state !== 'pre') || (a + h) > 0;
+  // only after start / when scores exist
+  const state = String(st.state||st.name||'').toLowerCase();
+  const started = state !== 'pre' || (a + h) > 0;
   if (!started) return;
 
-  // 4) Debounce: max one write per 60s per game
-  const MIN_INTERVAL_MS = 60_000;
-  if ((now - (_T.get(gid) || 0)) < MIN_INTERVAL_MS) return;
-
-  // 5) Skip if nothing changed since last write
+  // debounce to ~15s while live
+  const MIN_INTERVAL_MS = 15_000;
+  if ((now - (_T.get(gid)||0)) < MIN_INTERVAL_MS) return;
   if (_H.get(gid) === sig) return;
 
-  // 6) Perform the upsert; on failure, roll back the memoized hash so we can retry later
   _T.set(gid, now);
   _H.set(gid, sig);
+
   const { error } = await supa.rpc('upsert_nhl_game_from_summary', {
     p_week_key: WEEK_KEY,
     p_game_id: gid,
     p_summary: summaryJson
   });
   if (error){
-    console.error('upsert_nhl_game_from_summary failed:', error.message);
-    _H.delete(gid); // allow a retry on next tick
+    console.error('upsert_nhl_game_from_summary:', error.message);
+    _H.delete(gid); // allow retry next tick
   }
 }
 
-
-
-
-/* include stat fields — low I/O + not-sticky */
-const __gsCache     = window.__gsCache     || (window.__gsCache = new Map()); // key -> {row,t,ok}
+/* include stat fields — low I/O + responsive */
+const __gsCache     = window.__gsCache     || (window.__gsCache = new Map()); // key -> {row,t,ttl}
 const __gsInflight  = window.__gsInflight  || (window.__gsInflight = new Map());
-const __HIT_TTL_MS  = 120000; // 2 min for good rows
-const __MISS_TTL_MS = 5000;   // 5s for misses to avoid hammering
-const __DB_TIMEOUT  = 2500;   // 2.5s soft timeout so UI never stalls
+const __DB_TIMEOUT  = 2500;   // soft timeout so UI never stalls
+
+async function getGameScoreFromDB(gid){
+  const key = String(gid);
+  const now = Date.now();
+  const c = __gsCache.get(key);
+
+  // serve fresh cache
+  if (c && (now - c.t) < c.ttl) return c.row;
+
+  // piggyback if another call is already in flight
+  if (__gsInflight.has(key)) {
+    try { return await __gsInflight.get(key); } catch {}
+  }
+
+  // timed DB query
+  const query = (async ()=>{
+    const { data, error } = await supa
+      .from('game_scores')
+      .select('total,home_pts,away_pts,is_final,close_bonus,ot_bonus,so_bonus,goals,ppg,shg,shots,saves,hits,blocks,pim')
+      .eq('league','NHL')
+      .eq('week_key', WEEK_KEY)
+      .eq('game_id', key)
+      .maybeSingle();
+
+    const row = !error && data ? data : null;
+
+    // live: refresh often; final: cache longer
+    const ttl = row?.is_final ? (5*60*1000) : (15*1000);
+
+    // never downgrade a good cached row to null
+    const keep = row || c?.row || null;
+    const useTtl = row ? ttl : (c?.ttl || 5000);
+
+    __gsCache.set(key, { row: keep, t: now, ttl: useTtl });
+    return keep;
+  })();
+
+  const timed = Promise.race([
+    query,
+    new Promise(r => setTimeout(()=>r(c?.row ?? null), __DB_TIMEOUT))
+  ]);
+
+  __gsInflight.set(key, timed);
+  try { return await timed; }
+  finally { __gsInflight.delete(key); }
+}
+
 
 async function getGameScoreFromDB(gid){
   const key = String(gid);
@@ -1997,5 +2039,6 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
