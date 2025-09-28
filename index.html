@@ -557,15 +557,39 @@ async function picksForUser(uid){
 }
 
 async function setPick(uid, gameId){
+  const gid = String(gameId);
+
+  // If cache already has this pick, skip DB write (saves I/O)
+  const myKey = CK_MY(uid);
+  const cached = getCache(myKey);
+  if (Array.isArray(cached) && cached.includes(gid)) return true;
+
+  // Minimal write: single-row upsert
   const { error } = await supa.from('picks').upsert(
-    [{ user_id: uid, league:'NHL', week_key: WEEK_KEY, game_id: String(gameId) }],
+    [{ user_id: uid, league:'NHL', week_key: WEEK_KEY, game_id: gid }],
     { onConflict: 'user_id,league,week_key,game_id' }
   );
-  if(error){ alert(error.message); return false; }
-  delCache(CK_MY(uid)); delCache(CK_ALL);
+  if (error){ alert(error.message); return false; }
+
+  // Optimistic cache update (avoid immediate re-read)
+  const next = Array.isArray(cached) ? uniqLimit([...cached, gid]) : [gid];
+  setCache(myKey, next, 180000); // 3 min TTL
+
+  // Keep "all picks" cache in sync if present; otherwise let it refetch later
+  const all = getCache(CK_ALL);
+  if (Array.isArray(all)) {
+    if (!all.some(r => r.user_id === uid && String(r.game_id) === gid)) {
+      all.push({ user_id: uid, game_id: gid });
+      setCache(CK_ALL, all, 180000);
+    }
+  } else {
+    delCache(CK_ALL);
+  }
+
   refreshBadgesUI().catch(()=>{});
   return true;
 }
+
 async function allPicksThisWeek(){
   const cached = getCache(CK_ALL); if(cached) return cached;
   const { data, error } = await supa.from('picks').select('user_id, game_id').eq('league','NHL').eq('week_key',WEEK_KEY);
@@ -1266,4 +1290,5 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
