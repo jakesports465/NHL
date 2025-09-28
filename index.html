@@ -539,11 +539,23 @@ const CK_ALL = `allpicks:${WEEK_KEY}`;
 const NAME_MEMO = new Map();
 
 async function picksForUser(uid){
-  const ck = CK_MY(uid); const cached = getCache(ck); if(cached) return cached;
-  const { data, error } = await supa.from('picks').select('game_id').eq('user_id', uid).eq('league','NHL').eq('week_key', WEEK_KEY);
+  const ck = CK_MY(uid);
+  const cached = getCache(ck);
+  if (cached) return cached;
+
+  const { data, error } = await supa
+    .from('picks')
+    .select('game_id')
+    .eq('user_id', uid)
+    .eq('league','NHL')
+    .eq('week_key', WEEK_KEY)
+    .limit(MAX_PICKS);
+
   const list = error ? [] : uniqLimit((data||[]).map(r=>String(r.game_id)));
-  setCache(ck, list, 15000); return list;
+  setCache(ck, list, 180000); // 3-minute TTL instead of 15s
+  return list;
 }
+
 async function setPick(uid, gameId){
   const { error } = await supa.from('picks').upsert(
     [{ user_id: uid, league:'NHL', week_key: WEEK_KEY, game_id: String(gameId) }],
@@ -1254,3 +1266,4 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
