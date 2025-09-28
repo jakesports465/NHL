@@ -889,10 +889,65 @@ async function getRecentPlays(eventId, summaryJson){
 /* ---------- League (NHL) UI ---------- */
 function leagueFactory(){
   const st={ events:[], selected:null, poll:null, gameRows:[] };
-  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB') };
-  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
+  const dom={
+    gridCard:$('nhl-gridCard'),
+    note:$('nhl-note'),
+    grid:$('nhl-grid'),
+    top:$('nhl-top'),
+    back:$('nhl-back'),
+    add:$('nhl-addPick'),
+    live:$('nhl-liveHeader'),
+    teamSide:$('nhl-teamSide'),
+    fscore:$('nhl-fscore'),
+    bonus:$('nhl-bonuses'),
+    clock:$('nhl-clock'),
+    q:$('nhl-q'),
+    state:$('nhl-state'),
+    gameLB:$('nhl-gameLB')
+  };
 
-  dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
+  // Keep original URL builders (unchanged behavior)
+  const api={
+    scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
+    summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`
+  };
+
+  // ---- I/O helpers (optional; do not change existing calls) ----
+  // Use st.fetchScoreboard(d) or st.fetchSummary(id) elsewhere to reduce ESPN calls.
+  const SB_TTL = 5*60*1000;   // 5 minutes per date
+  const SU_TTL = 60*1000;     // 60 seconds per game
+  const _sbCache = new Map(); // date -> {v,t}
+  const _suCache = new Map(); // id   -> {v,t}
+  const _inflight = new Map();// key  -> Promise
+
+  async function _cachedFetch(key, ttl, url){
+    const now=Date.now();
+    const cache = key.startsWith('sb:') ? _sbCache : _suCache;
+    const hit = cache.get(key);
+    if (hit && (now - hit.t) < ttl) return hit.v;
+
+    if (_inflight.has(key)) return _inflight.get(key);
+
+    const p = safeJson(url).catch(()=>null).then(v=>{
+      if (v) cache.set(key,{v,t:Date.now()});
+      _inflight.delete(key);
+      return v;
+    });
+    _inflight.set(key,p);
+    return p;
+  }
+
+  // Expose cached fetchers WITHOUT changing existing behavior
+  st.fetchScoreboard = async (d)=>_cachedFetch(`sb:${d}`, SB_TTL, api.scoreboard(d));
+  st.fetchSummary    = async (id)=>_cachedFetch(`su:${id}`, SU_TTL, api.summary(id));
+
+  // ---- UI wiring (unchanged) ----
+  dom.back.addEventListener('click', ()=>{
+    dom.top.style.display='none';
+    dom.gridCard.style.display='block';
+    st.selected=null;
+  });
+
   dom.add.addEventListener('click', async ()=>{
     if(!currentUser){ alert('Sign in first.'); return; }
     if(!st.selected) return;
@@ -912,6 +967,10 @@ function leagueFactory(){
       toast('Pick saved ✓');
     }
   });
+
+  // return original surface (unchanged)
+  return { loadWeek, state: st };
+}
 
   function renderGrid(){
     dom.grid.innerHTML='';
@@ -1505,6 +1564,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
