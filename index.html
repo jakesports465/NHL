@@ -664,12 +664,39 @@ async function setPick(uid, gameId){
   return true;
 }
 
+// shared bag for in-flight promises (if you don't already have one)
+const _inflight = new Map();
+
 async function allPicksThisWeek(){
-  const cached = getCache(CK_ALL); if(cached) return cached;
-  const { data, error } = await supa.from('picks').select('user_id, game_id').eq('league','NHL').eq('week_key',WEEK_KEY);
-  const rows = error ? [] : (data||[]);
-  setCache(CK_ALL, rows, 20000); return rows;
+  const key = `${CK_ALL}:${WEEK_KEY}`;
+  const cached = getCache(key);
+  if (cached) return cached;
+
+  // If the page is in the background and we have no urgent need, avoid DB hits
+  if (typeof document !== 'undefined' && document.hidden) {
+    const fallback = getCache(key); // recheck (if someone warmed it)
+    if (fallback) return fallback;
+  }
+
+  // De-dupe concurrent callers
+  if (_inflight.has(key)) return _inflight.get(key);
+
+  const p = (async () => {
+    const { data, error } = await supa
+      .from('picks')
+      .select('user_id, game_id')         // minimal columns
+      .eq('league', 'NHL')
+      .eq('week_key', WEEK_KEY);
+
+    const rows = error ? [] : (data || []);
+    setCache(key, rows, 20000);           // same TTL (20s)
+    return rows;
+  })().finally(() => _inflight.delete(key));
+
+  _inflight.set(key, p);
+  return p;
 }
+
 async function getDisplayNames(userIds){
   const ids = [...new Set(userIds||[])].filter(Boolean); if(ids.length===0) return {};
   const need = ids.filter(id=>!NAME_MEMO.has(id));
@@ -1614,6 +1641,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
