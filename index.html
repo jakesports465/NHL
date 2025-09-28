@@ -770,21 +770,55 @@ function isRealGoal(pRaw){
   return hasGoalWord && !isNeg;
 }
 async function getScoringPlaysRobust(eventId, summaryJson){
+  // 1) Try summary first (free — already fetched)
   let list = (summaryJson?.scoringPlays || []).map(mapPlay);
-  if(!list.length){
-    const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}&_=${Date.now()}`;
-    const pbp = await safeJson(pbpUrl).catch(()=>null);
-    const fromPbp = (pbp?.allPlays || pbp?.plays || []).filter(isRealGoal).map(mapPlay);
-    list = fromPbp;
-  }
-  if(!list.length){
+  if (!list.length) {
     const alt = (summaryJson?.allPlays || summaryJson?.plays || []).filter(isRealGoal).map(mapPlay);
     list = alt;
+    if (list.length) {
+      // de-dupe and return without any extra network I/O
+      const seen = new Set(), out = [];
+      for (const p of list){ const k=`${p.per}|${p.clk}|${p.text}`; if(!seen.has(k)){ seen.add(k); out.push(p); } }
+      return out;
+    }
   }
-  const seen=new Set(); const out=[];
-  for(const p of list){ const key=`${p.per}|${p.clk}|${p.text}`; if(!seen.has(key)){ seen.add(key); out.push(p); } }
+
+  // 2) If summary had scoring plays, just return them (no extra fetch)
+  if (list.length) {
+    const seen = new Set(), out = [];
+    for (const p of list){ const k=`${p.per}|${p.clk}|${p.text}`; if(!seen.has(k)){ seen.add(k); out.push(p); } }
+    return out;
+  }
+
+  // 3) Cache play-by-play so we don't refetch constantly
+  const CK = `pbp:${eventId}`;
+  const cached = getCache(CK);
+  if (cached) return cached;
+
+  // 4) Fetch play-by-play (no cache-buster in URL; safeJson/dedup handles inflight)
+  const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}`;
+  let out = [];
+  try {
+    const pbp = await safeJson(pbpUrl).catch(()=>null);
+    const fromPbp = (pbp?.allPlays || pbp?.plays || [])
+      .filter(isRealGoal)
+      .map(mapPlay);
+
+    // de-dupe
+    const seen = new Set();
+    for (const p of fromPbp){
+      const k = `${p.per}|${p.clk}|${p.text}`;
+      if (!seen.has(k)){ seen.add(k); out.push(p); }
+    }
+  } catch {
+    out = [];
+  }
+
+  // 5) Cache result: longer if we have data, short if empty to avoid hammering
+  setCache(CK, out, out.length ? 120000 : 30000); // 2m if data, else 30s
   return out;
 }
+
 async function getRecentPlays(eventId, summaryJson){
   let arr = (summaryJson?.allPlays || summaryJson?.plays || []);
   if(!arr.length){
@@ -1414,6 +1448,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
