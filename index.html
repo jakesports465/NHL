@@ -820,13 +820,28 @@ async function getScoringPlaysRobust(eventId, summaryJson){
 }
 
 async function getRecentPlays(eventId, summaryJson){
+  // 1) Start with summaryJson if it has plays (free)
   let arr = (summaryJson?.allPlays || summaryJson?.plays || []);
-  if(!arr.length){
-    const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}&_=${Date.now()}`;
+  if (arr.length) return arr.map(mapPlay);
+
+  // 2) Check local cache before hitting ESPN
+  const CK = `recent:${eventId}`;
+  const cached = getCache(CK);
+  if (cached) return cached;
+
+  // 3) Fetch play-by-play only if needed (no Date.now() busting)
+  const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}`;
+  let plays = [];
+  try {
     const pbp = await safeJson(pbpUrl).catch(()=>null);
-    arr = (pbp?.allPlays || pbp?.plays || []);
+    plays = (pbp?.allPlays || pbp?.plays || []).map(mapPlay);
+  } catch {
+    plays = [];
   }
-  return arr.map(mapPlay);
+
+  // 4) Cache: keep data longer if we got some, shorter if empty
+  setCache(CK, plays, plays.length ? 120000 : 30000); // 2m if data, 30s if empty
+  return plays;
 }
 
 /* ---------- League (NHL) UI ---------- */
@@ -1448,6 +1463,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
