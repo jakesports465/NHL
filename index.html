@@ -1387,24 +1387,95 @@ let LAST_ALL_IDS_JSON = '';
 function gameRowHTML(meta,score){
   return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${Number(score||0).toFixed(2)}</div><div class="small">Game</div>`;
 }
+// I/O-friendly drop-in: caches success for 24h, failures briefly, dedups concurrent fetches,
+// and prefers already-loaded event data over hitting ESPN.
 async function gameMeta(gid){
-  const ck=`meta:${gid}`;
-  const c=getCache(ck);
-  if(c) return c;
-  const ev=NHL.state.events.find(e=>String(e.id)===String(gid));
-  if(ev){
-    const m={awayName:ev.away.name,homeName:ev.home.name,awayLogo:ev.away.logo,homeLogo:ev.home.logo};
-    setCache(ck,m,24*60*60*1000);
-    return m;
+  const key = String(gid);
+  const ck  = `meta:${key}`;
+
+  // in-memory memo + inflight dedup
+  const memo      = (window.__metaMemo ||= new Map());       // gid -> {v,t,ok}
+  const inflight  = (window.__metaMetaInflight ||= new Map());
+  const HIT_TTL   = 24*60*60*1000;  // 24h for good data (names/logos rarely change)
+  const MISS_TTL  = 10*60*1000;     // 10m for misses/partials to avoid hammering
+
+  const now = Date.now();
+
+  // 1) In-memory fresh?
+  const mHit = memo.get(key);
+  if (mHit && (now - mHit.t) < (mHit.ok ? HIT_TTL : MISS_TTL)) return mHit.v;
+
+  // 2) localStorage cache?
+  const ls = getCache(ck);
+  if (ls) {
+    memo.set(key, { v: ls, t: now, ok: !!(ls.awayLogo || ls.homeLogo) });
+    return ls;
   }
+
+  // 3) From already loaded schedule (free)
   try{
-    const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
-    const comp=s?.header?.competitions?.[0]||{}; let home=null,away=null; (comp.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
-    const m={ awayName:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', homeName:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', awayLogo:cdnNHL(away?.team||null), homeLogo:cdnNHL(home?.team||null) };
-    setCache(ck,m,24*60*60*1000);
-    return m;
-  }catch{ return {awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null}; }
+    const ev = (NHL && NHL.state && Array.isArray(NHL.state.events))
+      ? NHL.state.events.find(e => String(e.id) === key)
+      : (st && Array.isArray(st.events) ? st.events.find(e => String(e.id) === key) : null);
+
+    if (ev){
+      const v = {
+        awayName: ev.away.name,
+        homeName: ev.home.name,
+        awayLogo: ev.away.logo || null,
+        homeLogo: ev.home.logo || null
+      };
+      memo.set(key, { v, t: now, ok: !!(v.awayLogo || v.homeLogo) });
+      setCache(ck, v, HIT_TTL);
+      return v;
+    }
+  }catch{/* ignore */}
+
+  // 4) If another call is already fetching this gid, piggyback on it
+  if (inflight.has(key)) {
+    try { return await inflight.get(key); }
+    catch { /* fall through to do our own fallback */ }
+  }
+
+  // 5) Fetch ESPN summary only if needed (use cached helper if present)
+  const fetchSummary = (typeof st?.fetchSummary === 'function')
+    ? st.fetchSummary
+    : (id)=>safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`);
+
+  const p = (async ()=>{
+    try{
+      const s = await fetchSummary(key).catch(()=>null);
+      const comp = s?.header?.competitions?.[0] || {};
+      let home=null, away=null;
+      (comp.competitors || []).forEach(x => {
+        if (x.homeAway === 'home') home = x;
+        if (x.homeAway === 'away') away = x;
+      });
+
+      const v = {
+        awayName: away?.team ? (away.team.shortDisplayName || away.team.displayName) : 'Away',
+        homeName: home?.team ? (home.team.shortDisplayName || home.team.displayName) : 'Home',
+        awayLogo: cdnNHL(away?.team || null),
+        homeLogo: cdnNHL(home?.team || null)
+      };
+
+      const ok = !!(v.awayLogo || v.homeLogo);
+      memo.set(key, { v, t: now, ok });
+      setCache(ck, v, ok ? HIT_TTL : MISS_TTL);
+      return v;
+    }catch{
+      const v = { awayName:'Away', homeName:'Home', awayLogo:null, homeLogo:null };
+      memo.set(key, { v, t: now, ok:false });
+      setCache(ck, v, MISS_TTL);
+      return v;
+    }
+  })();
+
+  inflight.set(key, p);
+  try { return await p; }
+  finally { inflight.delete(key); }
 }
+
 async function renderPickList(containerId, gidList){
   const el=$(containerId);
   const myTicket = nextTicket(containerId);
@@ -1625,6 +1696,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
