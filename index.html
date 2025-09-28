@@ -1153,206 +1153,157 @@ function leagueFactory(){
   }
 }
 
- function openGame(g){
-  // Select game and paint header/team sides (no network I/O here)
+// ---------- Open game (no leagueFactory 'dom' dependency) ----------
+function openGame(g){
   st.selected = g;
-  $('nhl-top').setAttribute('data-show','true');
-  dom.live.textContent = `${g.away.name} @ ${g.home.name}`;
-  dom.teamSide.innerHTML =
-    `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
-       <div style="display:flex;gap:10px;align-items:center">
-         ${g.away.logo?`<img loading="lazy" src="${g.away.logo}" alt="">`:''}
-         <div style="font-weight:700">${g.away.name}</div>
-       </div>
-       <div id="NHL-awayScore" style="font-weight:800">—</div>
-     </div>
-     <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
-       <div style="display:flex;gap:10px;align-items:center">
-         ${g.home.logo?`<img loading="lazy" src="${g.home.logo}" alt="">`:''}
-         <div style="font-weight:700">${g.home.name}</div>
-       </div>
-       <div id="NHL-homeScore" style="font-weight:800">—</div>
-     </div>`;
 
-  dom.gridCard.style.display = 'none';
-  dom.top.style.display = 'block';
+  const topEl     = $('nhl-top');
+  const gridCard  = $('nhl-gridCard');
+  const liveEl    = $('nhl-liveHeader');
+  const teamSide  = $('nhl-teamSide');
 
-  // --- I/O-friendly polling: dedup + throttle + pause when hidden ---
-  // Immediate paint once (don’t wait for interval)
+  if (liveEl) liveEl.textContent = `${g.away.name} @ ${g.home.name}`;
+  if (teamSide) {
+    teamSide.innerHTML =
+      `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
+         <div style="display:flex;gap:10px;align-items:center">
+           ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
+           <div style="font-weight:700">${g.away.name}</div>
+         </div>
+         <div id="NHL-awayScore" style="font-weight:800">—</div>
+       </div>
+       <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
+         <div style="display:flex;gap:10px;align-items:center">
+           ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
+           <div style="font-weight:700">${g.home.name}</div>
+         </div>
+         <div id="NHL-homeScore" style="font-weight:800">—</div>
+       </div>`;
+  }
+
+  if (gridCard) gridCard.style.display = 'none';
+  if (topEl)    topEl.style.display    = 'block';
+
   updateGameOnce();
-
-  // Clear any old timer
   if (st.poll) clearInterval(st.poll);
+  st.poll = setInterval(updateGameOnce, 10000); // 10s
 
-  // Adaptive gap based on network; floor at 20s to keep UI fresh
-  const conn = (navigator.connection || {});
-  const baseGap = ({
-    'slow-2g': 35000, '2g': 30000, '3g': 25000, '4g': 20000
-  }[conn.effectiveType]) || 20000;
-
-  // Per-game guards so we don’t stack requests
-  st._lastTick = 0;
-  st._updating = false;
-
-  async function tick(){
-    // Skip work if tab not visible → saves ESPN/DB I/O
-    if (document.hidden) return;
-
-    const now = Date.now();
-    if (now - st._lastTick < baseGap) return;
-    if (st._updating) return;
-    st._updating = true;
-    try{
-      await updateGameOnce();
-      st._lastTick = now;
-    } finally {
-      st._updating = false;
-    }
-  }
-
-  // Poller: lightweight; tick itself decides whether to actually fetch
-  st.poll = setInterval(tick, 2000); // cheap heartbeat; real gap enforced in tick()
-
-  // When user returns to tab, refresh immediately (no extra intervals)
-  if (!st._visHooked){
-    document.addEventListener('visibilitychange', ()=>{
-      if (!document.hidden) { st._lastTick = 0; tick(); }
-    });
-    st._visHooked = true;
-  }
-
-  renderGameLB();
+  renderGameLB(); 
   renderUserLB();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-  function renderBreakdown(row){
-    const W = { goal:4, ppg:1.5, shg:1.0, sog:0.1, sv:0.05, hit:0.05, block:0.05, pim:-0.1, close:4, ot:2, so:2 };
-    const safe = n => Number(n||0);
-    const items = [
-      { label:'Goals',         count:safe(row.goals),  per:W.goal,  pts:safe(row.goals)*W.goal },
-      { label:'PowerPlay Goals',  count:safe(row.ppg),    per:W.ppg,   pts:safe(row.ppg)*W.ppg },
-      { label:'Shorthanded Goals',count:safe(row.shg),    per:W.shg,   pts:safe(row.shg)*W.shg },
-      { label:'Shots on Goal', count:safe(row.shots),  per:W.sog,   pts:safe(row.shots)*W.sog },
-      { label:'Saves',         count:safe(row.saves),  per:W.sv,    pts:safe(row.saves)*W.sv },
-      { label:'Hits',          count:safe(row.hits),   per:W.hit,   pts:safe(row.hits)*W.hit },
-      { label:'Blocked Shots', count:safe(row.blocks), per:W.block, pts:safe(row.blocks)*W.block },
-      { label:'Penalty Minutes',count:safe(row.pim),   per:W.pim,   pts:safe(row.pim)*W.pim },
-    ];
-    const tbody = document.querySelector('#nhl-breakdown tbody');
-    if(!tbody) return;
-    tbody.innerHTML = items.map(it=>`
-      <tr>
-        <td>${it.label}</td>
-        <td>${it.count}</td>
-        <td>${it.per.toFixed(2)}</td>
-        <td>${it.pts.toFixed(2)}</td>
-      </tr>`).join('');
+// ---------- Lightweight fantasy fallback from ESPN summary ----------
+function computeFantasyFromSummary(summary){
+  const teams = summary?.boxscore?.teams || [];
+  const sumStat = (keys) => teams.reduce((acc,t)=>{
+    const stats = t?.statistics || [];
+    let v = 0;
+    for (const k of keys){
+      const hit = stats.find(s => ((s?.name || '').toLowerCase() === k));
+      if (hit){ v = Number(hit?.displayValue ?? hit?.value ?? 0); break; }
+    }
+    return acc + (isFinite(v) ? v : 0);
+  },0);
 
-    const bonus = safe(row.close_bonus)+safe(row.ot_bonus)+safe(row.so_bonus);
-    const offenseDefense = items.reduce((s,x)=>s+x.pts,0);
-    const total = offenseDefense + bonus;
+  // ESPN key variants seen across feeds
+  const goals  = sumStat(['goals']);
+  const ppg    = sumStat(['powerplaygoals','power play goals','ppg']);
+  const shg    = sumStat(['shorthandedgoals','short handed goals','shg']);
+  const shots  = sumStat(['shots','shots on goal','shotsongoal']);
+  const saves  = sumStat(['saves']);
+  const hits   = sumStat(['hits']);
+  const blocks = sumStat(['blockedshots','blocks','blocked shots']);
+  const pim    = sumStat(['pim','penalty minutes','penaltyminutes']);
 
-    const bdBonuses = document.getElementById('bd-bonuses');
-    const bdTotal = document.getElementById('bd-total');
-    if(bdBonuses) bdBonuses.textContent = bonus.toFixed(2);
-    if(bdTotal) bdTotal.textContent = (row?.total!=null ? Number(row.total).toFixed(2) : total.toFixed(2));
+  const total =
+      goals*4.0 +
+      ppg*1.5 +
+      shg*1.0 +
+      shots*0.10 +
+      saves*0.05 +
+      hits*0.05 +
+      blocks*0.05 +
+      pim*(-0.10);
 
-    const cb = safe(row.close_bonus), ob=safe(row.ot_bonus), sb=safe(row.so_bonus);
-    document.getElementById('nhl-bonuses').textContent =
-      `Bonuses: ${cb?`Close +${cb}`:'—'} · ${ob?`OT +${ob}`:'—'} · ${sb?`SO +${sb}`:'—'}`;
-  }
-
-  async function updateGameOnce(){
-  if (!st.selected) return;
-  const id = String(st.selected.id);
-
-  // --- tiny per-tab caches (safe globals) ---
-  const SUM_TTL_MS   = 60_000;  // cache ESPN summary 60s
-  const PLAYS_TTL_MS = 30_000;  // cache plays lists 30s
-
-  const sumCache   = (window.__sumCache   ||= new Map()); // id -> {t,s}
-  const playsCache = (window.__playsCache ||= new Map()); // id -> {t,scoring,recent}
-
-  // helper: get summary with cache (prefer st.fetchSummary if present)
-  const getSummary = async (gid) => {
-    const now = Date.now();
-    const hit = sumCache.get(gid);
-    if (hit && (now - hit.t) < SUM_TTL_MS) return hit.s;
-
-    const p = (typeof st.fetchSummary === 'function'
-      ? st.fetchSummary(gid)
-      : safeJson(api.summary(gid)));
-
-    const s = await p.catch(() => null);
-    if (s) sumCache.set(gid, { t: now, s });
-    return s;
+  return {
+    total,
+    goals, ppg, shg, shots, saves, hits, blocks, pim,
+    close_bonus:0, ot_bonus:0, so_bonus:0, is_final:false
   };
+}
 
-  try {
-    // 1) ESPN summary (fast path)
+// ---------- One-shot updater (DB first, ESPN fallback) ----------
+async function updateGameOnce(){
+  if (!st.selected) return;
+  const id = st.selected.id;
+
+  try{
+    const getSummary = (typeof st.fetchSummary === 'function')
+      ? st.fetchSummary
+      : (eid)=>safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${eid}`);
+
     const s = await getSummary(id);
-    const comp = s?.header?.competitions || [];
-    const c0 = (comp[0] || {});
-    const status = c0.status || {};
-    let homeC = null, awayC = null;
-    (c0.competitors || []).forEach(c => {
-      if (c.homeAway === 'home') homeC = c;
-      if (c.homeAway === 'away') awayC = c;
-    });
 
-    // 2) (no-op if CLIENT_WRITES=false) – safe to keep call
-    await pushSummaryToSQL(id, s);
+    // Live score from ESPN immediately
+    const comp = s?.header?.competitions?.[0] || {};
+    let homeC=null, awayC=null;
+    (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+    const status = comp.status || {};
 
-    // 3) DB totals (soft-timeout handled inside getGameScoreFromDB in your code)
-    const row = await getGameScoreFromDB(id);
+    // Optional: no-op unless you enabled writes in pushSummaryToSQL
+    pushSummaryToSQL(id, s).catch(()=>{});
 
-    // 4) Paint scores / clock / status right away (fallback to ESPN if DB missing)
-    $('NHL-homeScore').textContent = String(row?.home_pts ?? homeC?.score ?? 0);
-    $('NHL-awayScore').textContent = String(row?.away_pts ?? awayC?.score ?? 0);
-    $('nhl-clock').textContent     = status.displayClock || '—';
-    $('nhl-q').textContent         = String(status.period ?? '—');
-    $('nhl-state').textContent     = (status.type?.description || status.type?.shortDetail || '—');
-    $('nhl-fscore').textContent    = (row?.total != null ? Number(row.total).toFixed(2) : '—');
+    // Prefer DB totals (bonuses etc.), fall back to client calc
+    const row      = await getGameScoreFromDB(id);
+    const fallback = row ? null : computeFantasyFromSummary(s);
 
-    if (row) renderBreakdown(row);
+    const homePts = Number(row?.home_pts ?? homeC?.score ?? 0);
+    const awayPts = Number(row?.away_pts ?? awayC?.score ?? 0);
+    const total   = Number((row?.total ?? fallback?.total ?? 0));
 
-    // 5) Scoring/Recent plays — throttle + cache to cut extra ESPN calls
-    const now = Date.now();
-    const hit = playsCache.get(id);
-    let scoring = hit && (now - hit.t) < PLAYS_TTL_MS ? hit.scoring : null;
-    let recent  = hit && (now - hit.t) < PLAYS_TTL_MS ? hit.recent  : null;
+    const hEl = $('NHL-homeScore');
+    const aEl = $('NHL-awayScore');
+    const cEl = $('nhl-clock');
+    const qEl = $('nhl-q');
+    const stEl= $('nhl-state');
+    const fEl = $('nhl-fscore');
 
-    if (!scoring || !recent) {
-      // These helpers are already I/O-friendly (try summary first, avoid extra fetches)
-      scoring = await getScoringPlaysRobust(id, s);
-      recent  = await getRecentPlays(id, s);
-      playsCache.set(id, { t: now, scoring, recent });
+    if (hEl) hEl.textContent = String(homePts);
+    if (aEl) aEl.textContent = String(awayPts);
+    if (cEl) cEl.textContent = status.displayClock || '—';
+    if (qEl) qEl.textContent = String(status.period ?? '—');
+    if (stEl) stEl.textContent= (status.type?.description || status.type?.shortDetail || '—');
+    if (fEl) fEl.textContent  = total.toFixed(2);
+
+    // Breakdown: DB row if present, else derived snapshot
+    if (typeof renderBreakdown === 'function'){
+      renderBreakdown(row || fallback);
     }
 
-    const scoreBox  = document.getElementById('nhl-scoreList');
-    const recentBox = document.getElementById('nhl-recentList');
-
+    // Scoring + recent lists
+    const scoring = await getScoringPlaysRobust(id, s);
+    const scoreBox = $('nhl-scoreList');
     if (scoreBox){
       scoreBox.innerHTML = scoring.length
         ? scoring.slice(-20).reverse().map(sp =>
             `<div class="play"><span class="dot goal"></span>
-               <div><div>${sp.text}</div><div class="when">[P${sp.per} ${sp.clk}]</div></div></div>`
+              <div><div>${sp.text}</div><div class="when">[P${sp.per} ${sp.clk}]</div></div></div>`
           ).join('')
         : '<div class="small">No data yet.</div>';
     }
 
+    const recent = await getRecentPlays(id, s);
+    const recentBox = $('nhl-recentList');
     if (recentBox){
       recentBox.innerHTML = recent.length
         ? recent.slice(-30).reverse().map(p =>
             `<div class="play"><span class="dot other"></span>
-               <div><div>${p.text}</div><div class="when">[P${p.per} ${p.clk}]</div></div></div>`
+              <div><div>${p.text}</div><div class="when">[P${p.per} ${p.clk}]</div></div></div>`
           ).join('')
         : '<div class="small">No data yet.</div>';
     }
-  } catch (e) {
-    // swallow errors to keep UI responsive
-  }
+  }catch{/* swallow */}
 }
 
   async function loadWeek(){
@@ -1993,4 +1944,5 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
