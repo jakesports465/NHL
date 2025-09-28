@@ -1014,12 +1014,13 @@ function leagueFactory(){
   const evs = st.events || [];
   if (!evs.length) return;
 
-  // ---- 1) Get ESPN summaries with small concurrency (uses cache if st.fetchSummary exists) ----
+  // ---- 0) helpers ----
   const getSummary = (id) => (typeof st.fetchSummary === 'function'
     ? st.fetchSummary(id)
     : safeJson(api.summary(id)));
 
-  const espnArr = await pLimitAll(evs, 3, async (g) => {
+  // ---- 1) FAST PATH: get ESPN first and paint scores immediately ----
+  const espnArr = await pLimitAll(evs, 4, async (g) => {
     try {
       const s = await getSummary(g.id);
       const comp = s?.header?.competitions?.[0] || {};
@@ -1030,18 +1031,24 @@ function leagueFactory(){
       });
       return {
         id: String(g.id),
-        awayPtsESPN: Number(awayC?.score ?? 0),
-        homePtsESPN: Number(homeC?.score ?? 0),
-        status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
+        a: Number(awayC?.score ?? 0),
+        h: Number(homeC?.score ?? 0),
+        st: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
       };
     } catch {
-      return { id: String(g.id), awayPtsESPN: 0, homePtsESPN: 0, status: '—' };
+      return { id:String(g.id), a:0, h:0, st:'—' };
     }
   });
 
-  const espnMap = new Map(espnArr.map(r => [String(r.id), r]));
+  // Paint ESPN scores/status right away so UI feels instant
+  for (const r of espnArr){
+    const scEl = $(`NHL-scr-${r.id}`); if (scEl) scEl.textContent = `${r.a}–${r.h}`;
+    const stEl = $(`NHL-st-${r.id}`);  if (stEl) stEl.textContent = r.st;
+    const aEl  = $(`NHL-a-${r.id}`);   if (aEl)  aEl.textContent  = r.a;
+    const hEl  = $(`NHL-h-${r.id}`);   if (hEl)  hEl.textContent  = r.h;
+  }
 
-  // ---- 2) ONE bulk DB read for all games on grid ----
+  // ---- 2) SLOW PATH: one bulk DB read for fantasy totals (and canonical pts) ----
   const ids = evs.map(g => String(g.id));
   let scoreMap = new Map();
   try {
@@ -1056,40 +1063,32 @@ function leagueFactory(){
       scoreMap = new Map(data.map(r => [String(r.game_id), r]));
     }
   } catch {
-    // ignore; we'll fall back to ESPN-only values
+    // ignore; we already painted ESPN numbers
   }
 
-  // ---- 3) Merge DB + ESPN → rows ----
+  // ---- 3) Merge ESPN + DB → final rows ----
+  const espnMap = new Map(espnArr.map(r => [r.id, r]));
   const rows = ids.map(id => {
-    const db   = scoreMap.get(id);
-    const espn = espnMap.get(id) || { awayPtsESPN:0, homePtsESPN:0, status:'—' };
+    const e  = espnMap.get(id) || { a:0, h:0, st:'—' };
+    const db = scoreMap.get(id);
     return {
       id,
-      awayPts: (db?.away_pts ?? espn.awayPtsESPN ?? 0),
-      homePts: (db?.home_pts ?? espn.homePtsESPN ?? 0),
-      score:   (db?.total    ?? 0),
-      status:  espn.status || '—'
+      awayPts: (db?.away_pts ?? e.a),
+      homePts: (db?.home_pts ?? e.h),
+      score:   (db?.total ?? 0),
+      status:  e.st
     };
   });
 
-  // ---- 4) Paint DOM (same ids as before) ----
+  // ---- 4) Paint fantasy totals (score) only now; keep earlier score/status text ----
   for (const r of rows){
-    const scEl = $(`NHL-scr-${r.id}`);
-    const stEl = $(`NHL-st-${r.id}`);
-    const aEl  = $(`NHL-a-${r.id}`);
-    const hEl  = $(`NHL-h-${r.id}`);
-    const fEl  = $(`NHL-fant-${r.id}`);
-
-    if (scEl) scEl.textContent = `${r.awayPts}–${r.homePts}`;
-    if (stEl) stEl.textContent = r.status || '—';
-    if (aEl)  aEl.textContent  = r.awayPts;
-    if (hEl)  hEl.textContent  = r.homePts;
-    if (fEl)  fEl.textContent  = Number(r.score || 0).toFixed(2);
+    const fEl = $(`NHL-fant-${r.id}`);
+    if (fEl) fEl.textContent = Number(r.score || 0).toFixed(2);
   }
 
   // ---- 5) Build leaderboard rows (unchanged shape) ----
   st.gameRows = evs.map(g=>{
-    const r = rows.find(x => String(x.id) === String(g.id));
+    const r = rows.find(x => x.id === String(g.id));
     if(!r) return null;
     return {
       id: g.id,
@@ -1099,9 +1098,10 @@ function leagueFactory(){
     };
   }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
-  renderGameLB(); 
+  renderGameLB();
   renderUserLB();
 }
+
 
   function renderGameLB(){
   if (!st.gameRows) return;
@@ -1767,6 +1767,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
