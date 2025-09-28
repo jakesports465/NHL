@@ -1264,50 +1264,96 @@ function leagueFactory(){
   }
 
   async function updateGameOnce(){
-    if(!st.selected) return; const id=st.selected.id;
-    try{
-      const s=await safeJson(api.summary(id));
-      const comp=s?.header?.competitions||[];
-      const c0=(comp[0]||{}); const status=c0.status||{};
-      let homeC=null,awayC=null; (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+  if (!st.selected) return;
+  const id = String(st.selected.id);
 
-      await pushSummaryToSQL(id, s);
-      const row = await getGameScoreFromDB(id);
+  // --- tiny per-tab caches (safe globals) ---
+  const SUM_TTL_MS   = 60_000;  // cache ESPN summary 60s
+  const PLAYS_TTL_MS = 30_000;  // cache plays lists 30s
 
-      $('NHL-homeScore').textContent=String(row?.home_pts ?? homeC?.score ?? 0);
-      $('NHL-awayScore').textContent=String(row?.away_pts ?? awayC?.score ?? 0);
-      $('nhl-clock').textContent=status.displayClock||'—';
-      $('nhl-q').textContent=String(status.period??'—');
-      $('nhl-state').textContent=(status.type?.description||status.type?.shortDetail||'—');
-      $('nhl-fscore').textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
+  const sumCache   = (window.__sumCache   ||= new Map()); // id -> {t,s}
+  const playsCache = (window.__playsCache ||= new Map()); // id -> {t,scoring,recent}
 
-      if(row) renderBreakdown(row);
+  // helper: get summary with cache (prefer st.fetchSummary if present)
+  const getSummary = async (gid) => {
+    const now = Date.now();
+    const hit = sumCache.get(gid);
+    if (hit && (now - hit.t) < SUM_TTL_MS) return hit.s;
 
-      // ----- NEW: fill Scoring Plays & Recent Plays -----
-      const scoring = await getScoringPlaysRobust(id, s);
-      const scoreBox = document.getElementById('nhl-scoreList');
-      if(scoreBox){
-        scoreBox.innerHTML = scoring.length
-          ? scoring.slice(-20).reverse().map(sp =>
-              `<div class="play"><span class="dot goal"></span>
-                <div><div>${sp.text}</div><div class="when">[P${sp.per} ${sp.clk}]</div></div></div>`
-            ).join('')
-          : '<div class="small">No data yet.</div>';
-      }
-      const recent = await getRecentPlays(id, s);
-      const recentBox = document.getElementById('nhl-recentList');
-      if(recentBox){
-        recentBox.innerHTML = recent.length
-          ? recent.slice(-30).reverse().map(p =>
-              `<div class="play"><span class="dot other"></span>
-                <div><div>${p.text}</div><div class="when">[P${p.per} ${p.clk}]</div></div></div>`
-            ).join('')
-          : '<div class="small">No data yet.</div>';
-      }
-      // -----------------------------------------------
+    const p = (typeof st.fetchSummary === 'function'
+      ? st.fetchSummary(gid)
+      : safeJson(api.summary(gid)));
 
-    }catch(e){ /* ignore */ }
+    const s = await p.catch(() => null);
+    if (s) sumCache.set(gid, { t: now, s });
+    return s;
+  };
+
+  try {
+    // 1) ESPN summary (fast path)
+    const s = await getSummary(id);
+    const comp = s?.header?.competitions || [];
+    const c0 = (comp[0] || {});
+    const status = c0.status || {};
+    let homeC = null, awayC = null;
+    (c0.competitors || []).forEach(c => {
+      if (c.homeAway === 'home') homeC = c;
+      if (c.homeAway === 'away') awayC = c;
+    });
+
+    // 2) (no-op if CLIENT_WRITES=false) – safe to keep call
+    await pushSummaryToSQL(id, s);
+
+    // 3) DB totals (soft-timeout handled inside getGameScoreFromDB in your code)
+    const row = await getGameScoreFromDB(id);
+
+    // 4) Paint scores / clock / status right away (fallback to ESPN if DB missing)
+    $('NHL-homeScore').textContent = String(row?.home_pts ?? homeC?.score ?? 0);
+    $('NHL-awayScore').textContent = String(row?.away_pts ?? awayC?.score ?? 0);
+    $('nhl-clock').textContent     = status.displayClock || '—';
+    $('nhl-q').textContent         = String(status.period ?? '—');
+    $('nhl-state').textContent     = (status.type?.description || status.type?.shortDetail || '—');
+    $('nhl-fscore').textContent    = (row?.total != null ? Number(row.total).toFixed(2) : '—');
+
+    if (row) renderBreakdown(row);
+
+    // 5) Scoring/Recent plays — throttle + cache to cut extra ESPN calls
+    const now = Date.now();
+    const hit = playsCache.get(id);
+    let scoring = hit && (now - hit.t) < PLAYS_TTL_MS ? hit.scoring : null;
+    let recent  = hit && (now - hit.t) < PLAYS_TTL_MS ? hit.recent  : null;
+
+    if (!scoring || !recent) {
+      // These helpers are already I/O-friendly (try summary first, avoid extra fetches)
+      scoring = await getScoringPlaysRobust(id, s);
+      recent  = await getRecentPlays(id, s);
+      playsCache.set(id, { t: now, scoring, recent });
+    }
+
+    const scoreBox  = document.getElementById('nhl-scoreList');
+    const recentBox = document.getElementById('nhl-recentList');
+
+    if (scoreBox){
+      scoreBox.innerHTML = scoring.length
+        ? scoring.slice(-20).reverse().map(sp =>
+            `<div class="play"><span class="dot goal"></span>
+               <div><div>${sp.text}</div><div class="when">[P${sp.per} ${sp.clk}]</div></div></div>`
+          ).join('')
+        : '<div class="small">No data yet.</div>';
+    }
+
+    if (recentBox){
+      recentBox.innerHTML = recent.length
+        ? recent.slice(-30).reverse().map(p =>
+            `<div class="play"><span class="dot other"></span>
+               <div><div>${p.text}</div><div class="when">[P${p.per} ${p.clk}]</div></div></div>`
+          ).join('')
+        : '<div class="small">No data yet.</div>';
+    }
+  } catch (e) {
+    // swallow errors to keep UI responsive
   }
+}
 
   async function loadWeek(){
     dom.note.textContent=`Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;
@@ -1767,6 +1813,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
