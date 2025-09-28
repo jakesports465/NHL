@@ -887,75 +887,12 @@ async function getRecentPlays(eventId, summaryJson){
 }
 
 /* ---------- League (NHL) UI ---------- */
-/* ---------- League (NHL) UI ---------- */
 function leagueFactory(){
   const st={ events:[], selected:null, poll:null, gameRows:[] };
+  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB') };
+  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
 
-  const dom={
-    gridCard:$('nhl-gridCard'),
-    note:$('nhl-note'),
-    grid:$('nhl-grid'),
-    top:$('nhl-top'),
-    back:$('nhl-back'),
-    add:$('nhl-addPick'),
-    live:$('nhl-liveHeader'),
-    teamSide:$('nhl-teamSide'),
-    fscore:$('nhl-fscore'),
-    bonus:$('nhl-bonuses'),
-    clock:$('nhl-clock'),
-    q:$('nhl-q'),
-    state:$('nhl-state'),
-    gameLB:$('nhl-gameLB')
-  };
-
-  // DO NOT CHANGE: URL builders stay identical (other code calls safeJson(api.*))
-  const api={
-    scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
-    summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`
-  };
-
-  // --- Optional I/O helpers (added; harmless unless you call them) ---
-  // Use st.fetchScoreboard(d) and st.fetchSummary(id) if you want caching.
-  // Otherwise, your existing safeJson(api.*) calls keep working the same.
-  const _SB_TTL = 5*60*1000;  // 5 min per date
-  const _SU_TTL = 60*1000;    // 60 sec per game
-  const _sbCache = new Map();  // date -> {v,t}
-  const _suCache = new Map();  // id   -> {v,t}
-  const _inflight = new Map(); // key  -> Promise (dedup concurrent fetches)
-
-  st.fetchScoreboard = async (d)=>{
-    const k=`sb:${String(d)}`;
-    const hit=_sbCache.get(k);
-    if(hit && (Date.now()-hit.t)<_SB_TTL) return hit.v;
-    if(_inflight.has(k)) return _inflight.get(k);
-
-    const p = safeJson(api.scoreboard(d))
-      .catch(()=>null)
-      .then(v=>{ if(v) _sbCache.set(k,{v,t:Date.now()}); _inflight.delete(k); return v; });
-    _inflight.set(k,p);
-    return p;
-  };
-
-  st.fetchSummary = async (id)=>{
-    const k=`su:${String(id)}`;
-    const hit=_suCache.get(k);
-    if(hit && (Date.now()-hit.t)<_SU_TTL) return hit.v;
-    if(_inflight.has(k)) return _inflight.get(k);
-
-    const p = safeJson(api.summary(id))
-      .catch(()=>null)
-      .then(v=>{ if(v) _suCache.set(k,{v,t:Date.now()}); _inflight.delete(k); return v; });
-    _inflight.set(k,p);
-    return p;
-  };
-  // --- end optional helpers ---
-
-  dom.back.addEventListener('click', ()=>{
-    dom.top.style.display='none';
-    dom.gridCard.style.display='block';
-    st.selected=null;
-  });
-
+  dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
   dom.add.addEventListener('click', async ()=>{
     if(!currentUser){ alert('Sign in first.'); return; }
     if(!st.selected) return;
@@ -975,11 +912,6 @@ function leagueFactory(){
       toast('Pick saved ✓');
     }
   });
-
-  // return what your original factory returns later in the file
-  return { /* loadWeek is defined later */ state: st };
-}
-
 
   function renderGrid(){
     dom.grid.innerHTML='';
@@ -1573,9 +1505,3 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
