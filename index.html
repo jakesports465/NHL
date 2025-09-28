@@ -726,13 +726,41 @@ const __gsCache = window.__gsCache || (window.__gsCache = new Map());
 const __HIT_TTL_MS  = 60000;  // cache real rows for 60s
 const __MISS_TTL_MS = 15000;  // cache misses/errors for 15s
 
+/* include stat fields for breakdown — I/O friendly cached, no redeclare */
 async function getGameScoreFromDB(gid){
+  // Safe, one-line init (won’t throw if already set elsewhere)
+  const _cache = (window.__gsCache ||= new Map());
+  const HIT_TTL  = 60000;  // 60s for real rows
+  const MISS_TTL = 15000;  // 15s for misses/errors
+
   const key = String(gid);
   const now = Date.now();
-  const cached = __gsCache.get(key);
-  if (cached && (now - cached.t) < (cached.ok ? __HIT_TTL_MS : __MISS_TTL_MS)) {
+
+  // Serve from cache if fresh
+  const cached = _cache.get(key);
+  if (cached && (now - cached.t) < (cached.ok ? HIT_TTL : MISS_TTL)) {
     return cached.row;
   }
+
+  // Fetch from DB
+  try{
+    const { data, error } = await supa
+      .from('game_scores')
+      .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,is_final,goals,ppg,shg,shots,saves,hits,blocks,pim')
+      .eq('league','NHL')
+      .eq('week_key', WEEK_KEY)
+      .eq('game_id', key)
+      .maybeSingle();
+
+    const row = error ? null : (data || null);
+    _cache.set(key, { row, t: now, ok: !!row && !error });
+    return row;
+  }catch(e){
+    _cache.set(key, { row: null, t: now, ok: false });
+    return null;
+  }
+}
+
 
   try{
     const { data, error } = await supa
@@ -1464,6 +1492,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
