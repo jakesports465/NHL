@@ -1153,46 +1153,144 @@ function leagueFactory(){
   }
 }
 
- function openGame(g){
-  // Select game and paint header/team sides (no network I/O here)
+// Faster detail polling (10s instead of 20s)
+function openGame(g){
   st.selected = g;
   $('nhl-top').setAttribute('data-show','true');
   dom.live.textContent = `${g.away.name} @ ${g.home.name}`;
   dom.teamSide.innerHTML =
     `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
        <div style="display:flex;gap:10px;align-items:center">
-         ${g.away.logo?`<img loading="lazy" src="${g.away.logo}" alt="">`:''}
+         ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
          <div style="font-weight:700">${g.away.name}</div>
        </div>
        <div id="NHL-awayScore" style="font-weight:800">—</div>
      </div>
      <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
        <div style="display:flex;gap:10px;align-items:center">
-         ${g.home.logo?`<img loading="lazy" src="${g.home.logo}" alt="">`:''}
+         ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
          <div style="font-weight:700">${g.home.name}</div>
        </div>
        <div id="NHL-homeScore" style="font-weight:800">—</div>
      </div>`;
 
-  dom.gridCard.style.display = 'none';
-  dom.top.style.display = 'block';
+  dom.gridCard.style.display='none';
+  dom.top.style.display='block';
 
-  // --- I/O-friendly polling: dedup + throttle + pause when hidden ---
-  // Immediate paint once (don’t wait for interval)
   updateGameOnce();
-
-  // Clear any old timer
   if (st.poll) clearInterval(st.poll);
+  st.poll = setInterval(updateGameOnce, 10000); // 10s
+  renderGameLB(); renderUserLB();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
-  // Adaptive gap based on network; floor at 20s to keep UI fresh
-  const conn = (navigator.connection || {});
-  const baseGap = ({
-    'slow-2g': 35000, '2g': 30000, '3g': 25000, '4g': 20000
-  }[conn.effectiveType]) || 20000;
+// Lightweight client-side fantasy fallback from ESPN summary boxscore
+function computeFantasyFromSummary(summary){
+  const teams = summary?.boxscore?.teams || [];
+  const sumStat = (keyNames) => teams.reduce((acc,t)=>{
+    const stats = t?.statistics || [];
+    let v = 0;
+    for (const k of keyNames){
+      const hit = stats.find(s => (s?.name||'').toLowerCase() === k);
+      if (hit) { v += Number(hit?.displayValue ?? hit?.value ?? 0); break; }
+    }
+    return acc + (isFinite(v) ? v : 0);
+  },0);
 
-  // Per-game guards so we don’t stack requests
-  st._lastTick = 0;
-  st._updating = false;
+  // map ESPN keys to our categories
+  const goals   = sumStat(['goals']);
+  const ppg     = sumStat(['powerplaygoals','powerplaygoalspergame','powerplaygoals']); // different feeds vary
+  const shg     = sumStat(['shorthandedgoals','shorthandedgoalspergame','shorthandedgoals']);
+  const sog     = sumStat(['shots','shotsongoal','shotsongoal']);
+  const saves   = sumStat(['saves']);
+  const hits    = sumStat(['hits']);
+  const blocks  = sumStat(['blockedshots','blocks']);
+  const pim     = sumStat(['pim','penaltyminutes']);
+
+  // same weights you show in the breakdown table
+  const points =
+      goals*4.0 +
+      ppg*1.5 +
+      shg*1.0 +
+      sog*0.10 +
+      saves*0.05 +
+      hits*0.05 +
+      blocks*0.05 +
+      pim*(-0.10);
+
+  return { total: points, // bonuses handled by DB; fallback shows 0 for bonuses
+           goals, ppg, shg, shots:sog, saves, hits, blocks, pim,
+           close_bonus:0, ot_bonus:0, so_bonus:0, is_final:false };
+}
+
+async function updateGameOnce(){
+  if (!st.selected) return;
+  const id = st.selected.id;
+
+  try{
+    // use cached summary getter if present
+    const getSummary = (typeof st.fetchSummary === 'function')
+      ? st.fetchSummary
+      : (eid)=>safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${eid}`);
+
+    const s = await getSummary(id);
+
+    // pull live scores from ESPN immediately
+    const comp = s?.header?.competitions?.[0] || {};
+    let homeC=null, awayC=null;
+    (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+    const status = comp.status || {};
+
+    // opportunistic write (still off unless you enable in your pushSummaryToSQL)
+    pushSummaryToSQL(id, s).catch(()=>{});
+
+    // try DB first
+    const row = await getGameScoreFromDB(id);
+
+    // numbers for UI (DB if present, else ESPN fallback calc)
+    const fallback = row ? null : computeFantasyFromSummary(s);
+
+    const homePts = Number(row?.home_pts ?? homeC?.score ?? 0);
+    const awayPts = Number(row?.away_pts ?? awayC?.score ?? 0);
+    const total   = Number((row?.total ?? fallback?.total ?? 0));
+
+    $('NHL-homeScore').textContent = String(homePts);
+    $('NHL-awayScore').textContent = String(awayPts);
+    $('nhl-clock').textContent     = status.displayClock || '—';
+    $('nhl-q').textContent         = String(status.period ?? '—');
+    $('nhl-state').textContent     = (status.type?.description || status.type?.shortDetail || '—');
+    $('nhl-fscore').textContent    = total.toFixed(2);
+
+    // render breakdown: DB row if available, else derived snapshot
+    if (row) {
+      renderBreakdown(row);
+    } else if (fallback) {
+      renderBreakdown(fallback); // shows live-ish numbers; bonuses 0 until DB catches up
+    }
+
+    // scoring/recent lists (unchanged)
+    const scoring = await getScoringPlaysRobust(id, s);
+    const scoreBox = document.getElementById('nhl-scoreList');
+    if (scoreBox){
+      scoreBox.innerHTML = scoring.length
+        ? scoring.slice(-20).reverse().map(sp =>
+            `<div class="play"><span class="dot goal"></span>
+              <div><div>${sp.text}</div><div class="when">[P${sp.per} ${sp.clk}]</div></div></div>`
+          ).join('')
+        : '<div class="small">No data yet.</div>';
+    }
+    const recent = await getRecentPlays(id, s);
+    const recentBox = document.getElementById('nhl-recentList');
+    if (recentBox){
+      recentBox.innerHTML = recent.length
+        ? recent.slice(-30).reverse().map(p =>
+            `<div class="play"><span class="dot other"></span>
+              <div><div>${p.text}</div><div class="when">[P${p.per} ${p.clk}]</div></div></div>`
+          ).join('')
+        : '<div class="small">No data yet.</div>';
+    }
+  }catch{/* ignore */}
+}
 
   async function tick(){
     // Skip work if tab not visible → saves ESPN/DB I/O
@@ -1993,5 +2091,6 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
