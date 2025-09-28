@@ -727,15 +727,23 @@ const __gsCache = window.__gsCache || (window.__gsCache = new Map());
 const __HIT_TTL_MS  = 60000;  // cache real rows for 60s
 const __MISS_TTL_MS = 15000;  // cache misses/errors for 15s
 
+/* include stat fields for breakdown — I/O friendly cached */
+const __gsCache = window.__gsCache || (window.__gsCache = new Map());
+const __HIT_TTL_MS  = 120000;  // 2 min cache for valid rows
+const __MISS_TTL_MS = 30000;   // 30s cache for misses/errors
+
 async function getGameScoreFromDB(gid){
   const key = String(gid);
   const now = Date.now();
+
+  // 1) Return cached value if still fresh
   const cached = __gsCache.get(key);
   if (cached && (now - cached.t) < (cached.ok ? __HIT_TTL_MS : __MISS_TTL_MS)) {
     return cached.row;
   }
 
-  try{
+  // 2) Query Supabase only if needed
+  try {
     const { data, error } = await supa
       .from('game_scores')
       .select('total,home_pts,away_pts,close_bonus,ot_bonus,so_bonus,is_final,goals,ppg,shg,shots,saves,hits,blocks,pim')
@@ -745,10 +753,13 @@ async function getGameScoreFromDB(gid){
       .maybeSingle();
 
     const row = error ? null : (data || null);
+
+    // cache hit
     __gsCache.set(key, { row, t: now, ok: !!row && !error });
     return row;
-  }catch{
-    __gsCache.set(key, { row: null, t: now, ok: false }); // short miss cache to avoid hammering
+  } catch {
+    // cache miss/error → short TTL
+    __gsCache.set(key, { row: null, t: now, ok: false });
     return null;
   }
 }
@@ -1465,6 +1476,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
