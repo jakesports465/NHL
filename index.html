@@ -914,82 +914,101 @@ function leagueFactory(){
   });
 
   function renderGrid(){
-    dom.grid.innerHTML='';
-    (st.events||[]).forEach(g=>{
-      const started = Date.now() >= new Date(g.start).getTime();
-      const card = document.createElement('div');
-      card.className = 'gameCard';
-      const puck = new Date(g.start).toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+  const evs = st.events || [];
+  const now = Date.now();
 
-      card.innerHTML = `
+  // Build all cards at once to minimize DOM I/O
+  dom.grid.innerHTML = evs.map(g=>{
+    const started = now >= new Date(g.start).getTime();
+    const puck = new Date(g.start).toLocaleString([], {
+      weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'
+    });
+    const gid = String(g.id);
+
+    return `
+      <div class="gameCard" data-gid="${gid}">
         <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
         <div class="gameBody">
           <div class="teamsRow">
             <div class="team">
-              ${g.away.logo ? `<img src="${g.away.logo}" alt="">` : ``}
+              ${g.away.logo ? `<img loading="lazy" src="${g.away.logo}" alt="">` : ``}
               <div class="name">${g.away.name}</div>
-              <span class="scoreTag" id="NHL-a-${g.id}">0</span>
+              <span class="scoreTag" id="NHL-a-${gid}">0</span>
             </div>
             <div class="small" style="opacity:.8">@</div>
             <div class="team" style="justify-content:flex-end">
-              ${g.home.logo ? `<img src="${g.home.logo}" alt="">` : ``}
+              ${g.home.logo ? `<img loading="lazy" src="${g.home.logo}" alt="">` : ``}
               <div class="name">${g.home.name}</div>
-              <span class="scoreTag" id="NHL-h-${g.id}">0</span>
+              <span class="scoreTag" id="NHL-h-${gid}">0</span>
             </div>
           </div>
 
           <div class="small" style="margin-top:6px;opacity:.9">
-            Score: <span id="NHL-scr-${g.id}">—</span> ·
-            <span id="NHL-st-${g.id}">pre</span> ·
+            Score: <span id="NHL-scr-${gid}">—</span> ·
+            <span id="NHL-st-${gid}">pre</span> ·
             Puck drop: ${puck}
           </div>
 
           <div class="small" style="margin-top:8px">
-            <span id="NHL-fant-${g.id}-wrap"
+            <span id="NHL-fant-${gid}-wrap"
                   style="display:inline-flex;align-items:center;gap:8px;
                          background:#0e1a14;border:1px solid #2e5e3f;color:#9be7b0;
                          padding:6px 12px;border-radius:999px;font-weight:800;
                          letter-spacing:.2px;">
               <span style="opacity:.9">Fantasy</span>
-              <span id="NHL-fant-${g.id}" style="font-variant-numeric:tabular-nums">—</span>
+              <span id="NHL-fant-${gid}" style="font-variant-numeric:tabular-nums">—</span>
             </span>
           </div>
 
           <div class="lockRow">
-            <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
-            <button class="btn pickBtn" data-gid="${g.id}" ${started ? 'style="display:none"' : ''}>Add to my picks</button>
-            <button class="btn small viewBtn">Open</button>
+            <span class="pickedTag" style="display:none" id="picked-${gid}">✓ Picked</span>
+            <button class="btn pickBtn" data-gid="${gid}" ${started ? 'style="display:none"' : ''}>Add to my picks</button>
+            <button class="btn small viewBtn" data-gid="${gid}">Open</button>
           </div>
 
           ${started ? '<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
-        </div>`;
+        </div>
+      </div>`;
+  }).join('');
 
-      card.querySelector('.viewBtn').addEventListener('click', ()=>openGame(g));
-
-      const pickBtn = card.querySelector('.pickBtn');
-      if(pickBtn){
-        pickBtn.addEventListener('click', async ()=>{
-          if(!currentUser){ alert('Sign in first.'); return; }
-          if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
-          const myList = await picksForUser(currentUser.id);
-          const gid = String(g.id);
-          if(myList.includes(gid)){ alert('Already picked.'); return; }
-          if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-          const ok = await setPick(currentUser.id, gid);
-          if(ok){
-            updatePicksLeft();
-            renderWeeklyBoards();
-            renderMyPicks();
-            const tag = $(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
-            pickBtn.style.display='none';
-            toast('Pick saved ✓');
-          }
-        });
+  // Event delegation (attach once) → fewer listeners, less DOM I/O
+  if (!dom.grid._wired) {
+    dom.grid.addEventListener('click', async (e)=>{
+      const viewBtn = e.target.closest('.viewBtn');
+      if (viewBtn) {
+        const gid = viewBtn.getAttribute('data-gid');
+        const g = (st.events||[]).find(x => String(x.id) === String(gid));
+        if (g) openGame(g);
+        return;
       }
 
-      dom.grid.appendChild(card);
+      const pickBtn = e.target.closest('.pickBtn');
+      if (pickBtn) {
+        if (!currentUser) { alert('Sign in first.'); return; }
+        const gid = pickBtn.getAttribute('data-gid');
+        const g = (st.events||[]).find(x => String(x.id) === String(gid));
+        if (!g) return;
+
+        if (Date.now() >= new Date(g.start).getTime()) { alert('Locked (already started)'); return; }
+
+        const myList = await picksForUser(currentUser.id);
+        if (myList.includes(gid)) { alert('Already picked.'); return; }
+        if (myList.length >= MAX_PICKS) { alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
+
+        const ok = await setPick(currentUser.id, gid);
+        if (ok) {
+          updatePicksLeft();
+          renderWeeklyBoards();
+          renderMyPicks();
+          const tag = $(`picked-${gid}`); if (tag) tag.style.display='inline-flex';
+          pickBtn.style.display='none';
+          toast('Pick saved ✓');
+        }
+      }
     });
+    dom.grid._wired = true;
   }
+}
 
   async function refreshGridScores(){
     const evs = st.events || []; if(!evs.length) return;
@@ -1505,3 +1524,4 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
