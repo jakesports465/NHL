@@ -1095,139 +1095,37 @@ async function renderPickList(containerId, gidList){
   el.innerHTML=rows.join('');
   return total;
 }
-/* ---- tiny shared caches (if not already defined above) ---- */
-const NameCache = { map: new Map(), ts: 0, ttlMs: 10 * 60 * 1000 }; // 10 min for display names
-const AllPicksCache = { data: null, ts: 0, ttlMs: 15000, inflight: null }; // 15s; dedupe concurrent
-if (typeof LAST_ALL_IDS_JSON === 'undefined') { var LAST_ALL_IDS_JSON = ''; }
-
-/* getUserPicks comes from the earlier cache block; if you didn’t add it, fall back */
-async function getUserPicksOrDirect(userId){
-  if (typeof getUserPicks === 'function') return getUserPicks(userId, { maxAgeMs: 0 });
-  return picksForUser(userId);
-}
-
-/* Fetch everyone’s picks with short TTL + de-dupe */
-async function getAllPicksThisWeekCached() {
-  const now = Date.now();
-  if (AllPicksCache.data && (now - AllPicksCache.ts) < AllPicksCache.ttlMs) {
-    return AllPicksCache.data;
-  }
-  if (!AllPicksCache.inflight) {
-    AllPicksCache.inflight = (async () => {
-      const rows = await allPicksThisWeek();
-      AllPicksCache.data = rows || [];
-      AllPicksCache.ts = Date.now();
-      return AllPicksCache.data;
-    })().finally(() => { AllPicksCache.inflight = null; });
-  }
-  return AllPicksCache.inflight;
-}
-
-/* Only fetch names we don't already have; keep a simple TTL */
-async function getDisplayNamesCached(userIds) {
-  const missing = [];
-  const out = {};
-  const now = Date.now();
-
-  // expire entire cache if stale (simple + effective)
-  if ((now - NameCache.ts) > NameCache.ttlMs) {
-    NameCache.map.clear();
-    NameCache.ts = now;
-  }
-
-  userIds.forEach(uid => {
-    if (NameCache.map.has(uid)) {
-      out[uid] = NameCache.map.get(uid);
-    } else {
-      missing.push(uid);
-    }
-  });
-
-  if (missing.length) {
-    const fresh = await getDisplayNames(missing); // your existing function
-    Object.keys(fresh || {}).forEach(uid => {
-      NameCache.map.set(uid, fresh[uid]);
-      out[uid] = fresh[uid];
-    });
-    NameCache.ts = Date.now();
-  }
-
-  return out;
-}
-
-/* ---------- My Picks (IO-optimized) ---------- */
 async function renderMyPicks(){
   if(!currentUser){
     $('myNHL').innerHTML='<div class="small">Sign in to see your picks.</div>';
     $('allPicks').innerHTML='<div class="small">Sign in to see everyone.</div>';
     return;
   }
-
-  // 1) YOUR PICKS — reuse cached version if available (no extra read)
-  const myList = await getUserPicksOrDirect(currentUser.id);
+  const myList = await picksForUser(currentUser.id);
   const tot = await renderPickList('myNHL', myList);
   $('myNHLTotal').textContent = Number(tot||0).toFixed(2);
 
-  // 2) EVERYONE'S PICKS — short TTL + in-flight de-dup → fewer reads on tab spam
-  const rows = await getAllPicksThisWeekCached();
+  const box=$('allPicks');
+  const rows = await allPicksThisWeek();
+  const byUser=new Map(); rows.forEach(r=>{ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); });
+  const ids=[...byUser.keys()];
+  if(!ids.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
 
-  const box = $('allPicks');
-  const byUser = new Map();
-  for (const r of rows) {
-    const a = byUser.get(r.user_id) || [];
-    a.push(String(r.game_id));
-    byUser.set(r.user_id, a);
-  }
-  const ids = [...byUser.keys()];
-  if(!ids.length){
-    box.innerHTML = '<div class="small">No picks yet.</div>';
-    LAST_ALL_IDS_JSON = '[]'; // keep consistent
-    return;
-  }
-
-  // 3) Only rebuild container if the set of IDs changed
   const idsJson = JSON.stringify(ids.slice().sort());
-  if (idsJson !== LAST_ALL_IDS_JSON) {
+  if(idsJson !== LAST_ALL_IDS_JSON){
     LAST_ALL_IDS_JSON = idsJson;
-
-    // Fetch ONLY the names we don't have
-    const names = await getDisplayNamesCached(ids);
-
-    const frags = [];
-    ids.forEach(uid=>{
-      frags.push(
-        `<div class="panel" style="margin-bottom:10px">
-           <div style="display:flex;justify-content:space-between;align-items:center">
-             <strong>${names[uid] || uid.slice(0,6)}</strong>
-             <span class="small" id="sum-${uid}">NHL —</span>
-           </div>
-           <div class="sep"></div>
-           <div id="p-${uid}-nhl"></div>
-         </div>`
-      );
+    const names=await getDisplayNames(ids);
+    const frags=[]; ids.forEach(uid=>{
+      frags.push(`<div class="panel" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${names[uid]||uid.slice(0,6)}</strong><span class="small" id="sum-${uid}">NHL —</span></div><div class="sep"></div><div id="p-${uid}-nhl"></div></div>`);
     });
-    box.innerHTML = frags.join('');
+    box.innerHTML=frags.join('');
   }
 
-  // 4) Render each user’s list (cap concurrency = 6, as you had)
   await pLimitAll(ids, 6, async (uid)=>{
-    const unique = uniqLimit(byUser.get(uid) || []);
-    const t = await renderPickList(`p-${uid}-nhl`, unique);
-    const sumEl = $(`sum-${uid}`);
-    if (sumEl) sumEl.textContent = `NHL ${Number(t||0).toFixed(2)}`;
+    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
+    const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${Number(t||0).toFixed(2)}`;
   });
 }
-
-/* ---- invalidation hooks you should call after a mutation ---- */
-// When the current user adds/removes a pick:
-function _invalidateMyPicksCaches() {
-  if (typeof invalidatePicksCache === 'function') {
-    invalidatePicksCache(currentUser.id);
-  }
-  AllPicksCache.data = null; // ensures everyone’s list refreshes next time
-  AllPicksCache.ts = 0;
-}
-
 
 /* ---------- Badges UI (IO-optimized) ---------- */
 const BadgesCache = {
@@ -1644,8 +1542,6 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
-
 
 
 
