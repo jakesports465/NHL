@@ -1548,28 +1548,53 @@ async function gameMeta(gid){
 }
 
 async function renderPickList(containerId, gidList){
-  const el=$(containerId);
+  const el = $(containerId);
   const myTicket = nextTicket(containerId);
-  const clean=uniqLimit(gidList||[]);
-  el.innerHTML='';
-  if(clean.length===0){
-    if(isCurrent(containerId,myTicket)) el.innerHTML='<div class="small">No picks yet.</div>';
+  const clean = uniqLimit(gidList || []).map(String);
+
+  el.innerHTML = '';
+  if (clean.length === 0){
+    if (isCurrent(containerId, myTicket)) el.innerHTML = '<div class="small">No picks yet.</div>';
     return 0;
   }
-  const results = await pLimitAll(clean, 6, async (gid)=>{
-    try{
-      const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
-      await pushSummaryToSQL(gid, s);
-    }catch{}
-    const [meta,row] = await Promise.all([gameMeta(gid), getGameScoreFromDB(gid)]);
-    return {meta,score:row?.total||0};
+
+  // ---- 1) ONE bulk DB read for all game totals ----
+  let scoreMap = new Map();
+  try{
+    const { data, error } = await supa
+      .from('game_scores')
+      .select('game_id,total')
+      .eq('league','NHL')
+      .eq('week_key', WEEK_KEY)
+      .in('game_id', clean);
+
+    if (!error && Array.isArray(data)){
+      scoreMap = new Map(data.map(r => [String(r.game_id), Number(r.total || 0)]));
+    }
+  }catch{ /* fall through; we'll treat as 0s */ }
+
+  // ---- 2) Meta for each game (cached/schedule-first; no DB/ESPN writes) ----
+  const metas = await pLimitAll(clean, 3, async (gid) => {
+    try { return await gameMeta(gid); }
+    catch { return { awayName:'Away', homeName:'Home', awayLogo:null, homeLogo:null }; }
   });
-  if(!isCurrent(containerId,myTicket)) return 0;
-  let total=0; const rows=[];
-  for(const r of results){ total+=r.score; rows.push(`<div class="lbRow">${gameRowHTML(r.meta,r.score)}</div>`); }
-  el.innerHTML=rows.join('');
+
+  if (!isCurrent(containerId, myTicket)) return 0;
+
+  // ---- 3) Build rows + total (batch DOM write) ----
+  let total = 0;
+  const rows = [];
+  for (let i = 0; i < clean.length; i++){
+    const gid = clean[i];
+    const meta = metas[i] || { awayName:'Away', homeName:'Home', awayLogo:null, homeLogo:null };
+    const score = scoreMap.get(gid) || 0;
+    total += score;
+    rows.push(`<div class="lbRow">${gameRowHTML(meta, score)}</div>`);
+  }
+  el.innerHTML = rows.join('');
   return total;
 }
+
 async function renderMyPicks(){
   if(!currentUser){
     $('myNHL').innerHTML='<div class="small">Sign in to see your picks.</div>';
@@ -1838,6 +1863,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
