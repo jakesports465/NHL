@@ -1127,21 +1127,83 @@ async function renderMyPicks(){
   });
 }
 
-/* ---------- Badges UI ---------- */
-async function refreshBadgesUI(){
+/* ---------- Badges UI (IO-optimized) ---------- */
+const BadgesCache = {
+  byUser: new Map(),  // userId -> { set: Set<string>, ts: number }
+  inflight: null,     // Promise for ongoing fetch
+  ttlMs: 120000       // 2 minutes; tweak as you like
+};
+
+function applyBadgesToGrid(setOfIds){
+  const grid = $('badgeGrid'); if(!grid) return;
+  // Only toggle when needed
+  grid.querySelectorAll('.bTile').forEach(el=>{
+    const id = el.getAttribute('data-badge');
+    if (!id) return;
+    const shouldUnlock = setOfIds.has(id);
+    const hasClass = el.classList.contains('unlocked');
+    if (shouldUnlock && !hasClass) el.classList.add('unlocked');
+    if (!shouldUnlock && hasClass) el.classList.remove('unlocked');
+  });
+}
+
+async function fetchBadgesFromDB(userId){
+  const { data, error } = await supa
+    .from('badge_events')
+    .select('badge_id')
+    .eq('user_id', userId)
+    .order('badge_id', { ascending: true }); // stable order for cheap diff
+  if (error || !data) return new Set();
+  return new Set(data.map(r => r.badge_id));
+}
+
+/**
+ * refreshBadgesUI({ force: boolean }?)
+ * - Uses cache if fresh; otherwise fetches once and updates cache.
+ * - If called repeatedly (tabs/auth), concurrent calls share one fetch.
+ */
+async function refreshBadgesUI(opts = {}){
   try{
     const grid = $('badgeGrid'); if(!grid) return;
-    grid.querySelectorAll('.bTile').forEach(el=>el.classList.remove('unlocked'));
-    if(!currentUser) return;
-    const { data, error } = await supa.from('badge_events').select('badge_id').eq('user_id', currentUser.id);
-    if(error || !data) return;
-    const got = new Set(data.map(r=>r.badge_id));
-    grid.querySelectorAll('.bTile').forEach(el=>{
-      const id = el.getAttribute('data-badge');
-      if(id && got.has(id)) el.classList.add('unlocked');
-    });
-  }catch(e){ /* ignore */ }
+
+    // Signed-out: clear unlocks without hitting DB
+    if (!currentUser){
+      applyBadgesToGrid(new Set());
+      return;
+    }
+
+    const userId = currentUser.id;
+    const cached = BadgesCache.byUser.get(userId);
+    const now = Date.now();
+    const fresh = cached && (now - cached.ts) < BadgesCache.ttlMs;
+
+    // 1) Fast path: fresh cache → instant UI, zero I/O
+    if (fresh && !opts.force){
+      applyBadgesToGrid(cached.set);
+      return;
+    }
+
+    // 2) De-dupe: share a single in-flight fetch
+    if (!BadgesCache.inflight){
+      BadgesCache.inflight = (async () => {
+        const set = await fetchBadgesFromDB(userId);
+        BadgesCache.byUser.set(userId, { set, ts: Date.now() });
+        return set;
+      })().finally(() => { BadgesCache.inflight = null; });
+    }
+
+    const set = await BadgesCache.inflight;
+    applyBadgesToGrid(set);
+  }catch(_e){
+    // On error, keep current UI; no noisy logs needed for users
+  }
 }
+
+/* Helpers to invalidate when something changes server-side */
+function invalidateBadgesCacheFor(userId){
+  BadgesCache.byUser.delete(userId);
+}
+
 
 /* ---------- Mini cache + guards ---------- */
 const Cache = {
@@ -1480,6 +1542,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
