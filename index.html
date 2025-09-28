@@ -1435,9 +1435,55 @@ function gameRowHTML(meta,score){
 }
 // I/O-friendly drop-in: caches success for 24h, failures briefly, dedups concurrent fetches,
 // and prefers already-loaded event data over hitting ESPN.
+// ---------- Game metadata (names + logos) ----------
 async function gameMeta(gid){
   const key = String(gid);
   const ck  = `meta:${key}`;
+
+  // 1) Fast cache path
+  const cached = getCache(ck);
+  if (cached) return cached;
+
+  // 2) Use in-memory events first (no network)
+  const ev = NHL.state.events.find(e => String(e.id) === key);
+  if (ev){
+    const m = {
+      awayName: ev.away.name,
+      homeName: ev.home.name,
+      awayLogo: ev.away.logo,
+      homeLogo: ev.home.logo
+    };
+    setCache(ck, m, 24*60*60*1000); // 24h TTL
+    return m;
+  }
+
+  // 3) Fallback to ESPN summary (cached 1h)
+  const META_TTL = 60*60*1000; 
+  try {
+    const s = await safeJson(
+      `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${key}`
+    );
+    const comp = s?.header?.competitions?.[0] || {};
+    let home=null, away=null;
+    (comp.competitors||[]).forEach(x=>{
+      if (x.homeAway==='home') home=x;
+      if (x.homeAway==='away') away=x;
+    });
+
+    const m = {
+      awayName: away?.team ? (away.team.shortDisplayName||away.team.displayName) : 'Away',
+      homeName: home?.team ? (home.team.shortDisplayName||home.team.displayName) : 'Home',
+      awayLogo: cdnNHL(away?.team||null),
+      homeLogo: cdnNHL(home?.team||null)
+    };
+    setCache(ck, m, META_TTL);
+    return m;
+  } catch {
+    // 4) Absolute fallback
+    return { awayName:'Away', homeName:'Home', awayLogo:null, homeLogo:null };
+  }
+}
+
 
   // in-memory memo + inflight dedup
   const memo      = (window.__metaMemo ||= new Map());       // gid -> {v,t,ok}
@@ -1813,6 +1859,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
