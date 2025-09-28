@@ -1,8 +1,6 @@
 <!doctype html>
 <html lang="en">
 <head>
-<link rel="icon" type="image/png" sizes="32x32" href="logo.png">
-<link rel="icon" type="image/png" sizes="192x192" href="logo.png">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>NHL Puck'Em</title>
@@ -214,8 +212,6 @@
 </head>
 <body>
 <header>
-  <img src="logo.png" alt="QuickPucks Logo" style="height:40px;">
-
   <h1>NHL Puck'Em <span class="sub">Every Monday→Sunday · 5 picks</span></h1>
   <span id="picksLeft" class="pill">Sign in to play</span>
   <span class="small" style="margin-left:auto">Week: <b id="weekLabel">—</b></span>
@@ -673,60 +669,55 @@ async function getDisplayNames(userIds){
 }
 
 
-/* ---------- push summaries into SQL; and read game score/box (IO-friendly) ---------- */
-
-// Write from a small cohort of clients (~10%) so the DB gets fresh totals.
+/* ---------- NEW: push summaries into SQL; read game score/box ---------- */
 async function pushSummaryToSQL(gameId, summaryJson){
-  // decide once per browser if this client is a writer
-  const IS_WRITER = (()=>{
-    const k='qp_writer';
-    let v = localStorage.getItem(k);
-    if (v == null){ v = Math.random() < 0.10 ? '1' : '0'; localStorage.setItem(k, v); }
-    return v === '1';
-  })();
-  if (!IS_WRITER) return; // most clients skip to save I/O
+  // 0) HARD SWITCH: browsers don't write to DB (flip to true only if you must)
+  const CLIENT_WRITES = false;
+  if (!CLIENT_WRITES) return;
 
-  const gid = String(gameId);
-  const now = Date.now();
+  // 1) Per-game caches (safe globals on window)
   const _H = (window.__SUM_HASH ||= new Map()); // last signature written
   const _T = (window.__SUM_TIME ||= new Map()); // last write time
+  const gid = String(gameId);
+  const now = Date.now();
 
-  // tiny signature of only things that matter
+  // 2) Build a tiny "signature" of only fields that affect scoring/status
   const comp = summaryJson?.header?.competitions?.[0] || {};
-  const st   = comp?.status?.type || {};
+  const stType = comp?.status?.type || {};
+  const state  = String(stType.state || stType.name || '').toLowerCase();
   let home=null, away=null;
-  (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') home=c; if(c.homeAway==='away') away=c; });
-  const a = Number(away?.score||0), h = Number(home?.score||0);
-  const sig = JSON.stringify({ a, h, sid: st.id||st.shortDetail||st.name||'' });
+  (comp.competitors || []).forEach(c => {
+    if (c.homeAway === 'home') home = c;
+    if (c.homeAway === 'away') away = c;
+  });
+  const a = Number(away?.score || 0);
+  const h = Number(home?.score || 0);
+  const sig = JSON.stringify({ a, h, sid: stType.id || stType.shortDetail || '' });
 
-  // only after start / when scores exist
-  const state = String(st.state||st.name||'').toLowerCase();
-  const started = state !== 'pre' || (a + h) > 0;
+  // 3) Only write once game is underway (or finished), never pregame
+  const started = (state && state !== 'pre') || (a + h) > 0;
   if (!started) return;
 
-  // debounce to ~15s while live
-  const MIN_INTERVAL_MS = 15_000;
-  if ((now - (_T.get(gid)||0)) < MIN_INTERVAL_MS) return;
+  // 4) Debounce: max one write per 60s per game
+  const MIN_INTERVAL_MS = 60_000;
+  if ((now - (_T.get(gid) || 0)) < MIN_INTERVAL_MS) return;
+
+  // 5) Skip if nothing changed since last write
   if (_H.get(gid) === sig) return;
 
+  // 6) Perform the upsert; on failure, roll back the memoized hash so we can retry later
   _T.set(gid, now);
   _H.set(gid, sig);
-
   const { error } = await supa.rpc('upsert_nhl_game_from_summary', {
     p_week_key: WEEK_KEY,
     p_game_id: gid,
     p_summary: summaryJson
   });
   if (error){
-    console.error('upsert_nhl_game_from_summary:', error.message);
-    _H.delete(gid); // allow retry next tick
+    console.error('upsert_nhl_game_from_summary failed:', error.message);
+    _H.delete(gid); // allow a retry on next tick
   }
 }
-
-/* include stat fields — low I/O + responsive */
-const __gsCache     = window.__gsCache     || (window.__gsCache = new Map()); // key -> {row,t,ttl}
-const __gsInflight  = window.__gsInflight  || (window.__gsInflight = new Map());
-const __DB_TIMEOUT  = 2500;   // soft timeout so UI never stalls
 
 
 /* include stat fields for breakdown */
@@ -757,78 +748,29 @@ function isRealGoal(pRaw){
   return hasGoalWord && !isNeg;
 }
 async function getScoringPlaysRobust(eventId, summaryJson){
-  // 1) Try summary first (free — already fetched)
   let list = (summaryJson?.scoringPlays || []).map(mapPlay);
-  if (!list.length) {
+  if(!list.length){
+    const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}&_=${Date.now()}`;
+    const pbp = await safeJson(pbpUrl).catch(()=>null);
+    const fromPbp = (pbp?.allPlays || pbp?.plays || []).filter(isRealGoal).map(mapPlay);
+    list = fromPbp;
+  }
+  if(!list.length){
     const alt = (summaryJson?.allPlays || summaryJson?.plays || []).filter(isRealGoal).map(mapPlay);
     list = alt;
-    if (list.length) {
-      // de-dupe and return without any extra network I/O
-      const seen = new Set(), out = [];
-      for (const p of list){ const k=`${p.per}|${p.clk}|${p.text}`; if(!seen.has(k)){ seen.add(k); out.push(p); } }
-      return out;
-    }
   }
-
-  // 2) If summary had scoring plays, just return them (no extra fetch)
-  if (list.length) {
-    const seen = new Set(), out = [];
-    for (const p of list){ const k=`${p.per}|${p.clk}|${p.text}`; if(!seen.has(k)){ seen.add(k); out.push(p); } }
-    return out;
-  }
-
-  // 3) Cache play-by-play so we don't refetch constantly
-  const CK = `pbp:${eventId}`;
-  const cached = getCache(CK);
-  if (cached) return cached;
-
-  // 4) Fetch play-by-play (no cache-buster in URL; safeJson/dedup handles inflight)
-  const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}`;
-  let out = [];
-  try {
-    const pbp = await safeJson(pbpUrl).catch(()=>null);
-    const fromPbp = (pbp?.allPlays || pbp?.plays || [])
-      .filter(isRealGoal)
-      .map(mapPlay);
-
-    // de-dupe
-    const seen = new Set();
-    for (const p of fromPbp){
-      const k = `${p.per}|${p.clk}|${p.text}`;
-      if (!seen.has(k)){ seen.add(k); out.push(p); }
-    }
-  } catch {
-    out = [];
-  }
-
-  // 5) Cache result: longer if we have data, short if empty to avoid hammering
-  setCache(CK, out, out.length ? 120000 : 30000); // 2m if data, else 30s
+  const seen=new Set(); const out=[];
+  for(const p of list){ const key=`${p.per}|${p.clk}|${p.text}`; if(!seen.has(key)){ seen.add(key); out.push(p); } }
   return out;
 }
-
 async function getRecentPlays(eventId, summaryJson){
-  // 1) Start with summaryJson if it has plays (free)
   let arr = (summaryJson?.allPlays || summaryJson?.plays || []);
-  if (arr.length) return arr.map(mapPlay);
-
-  // 2) Check local cache before hitting ESPN
-  const CK = `recent:${eventId}`;
-  const cached = getCache(CK);
-  if (cached) return cached;
-
-  // 3) Fetch play-by-play only if needed (no Date.now() busting)
-  const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}`;
-  let plays = [];
-  try {
+  if(!arr.length){
+    const pbpUrl = `https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/playbyplay?event=${eventId}&_=${Date.now()}`;
     const pbp = await safeJson(pbpUrl).catch(()=>null);
-    plays = (pbp?.allPlays || pbp?.plays || []).map(mapPlay);
-  } catch {
-    plays = [];
+    arr = (pbp?.allPlays || pbp?.plays || []);
   }
-
-  // 4) Cache: keep data longer if we got some, shorter if empty
-  setCache(CK, plays, plays.length ? 120000 : 30000); // 2m if data, 30s if empty
-  return plays;
+  return arr.map(mapPlay);
 }
 
 /* ---------- League (NHL) UI ---------- */
@@ -859,320 +801,197 @@ function leagueFactory(){
   });
 
   function renderGrid(){
-  const evs = st.events || [];
-  const now = Date.now();
+    dom.grid.innerHTML='';
+    (st.events||[]).forEach(g=>{
+      const started = Date.now() >= new Date(g.start).getTime();
+      const card = document.createElement('div');
+      card.className = 'gameCard';
+      const puck = new Date(g.start).toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
 
-  // Build all cards at once to minimize DOM I/O
-  dom.grid.innerHTML = evs.map(g=>{
-    const started = now >= new Date(g.start).getTime();
-    const puck = new Date(g.start).toLocaleString([], {
-      weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'
-    });
-    const gid = String(g.id);
-
-    return `
-      <div class="gameCard" data-gid="${gid}">
+      card.innerHTML = `
         <div class="band" style="background:linear-gradient(90deg, ${g.away.color?('#'+g.away.color):'#1a232d'} 0%, ${g.home.color?('#'+g.home.color):'#26313c'} 100%)"></div>
         <div class="gameBody">
           <div class="teamsRow">
             <div class="team">
-              ${g.away.logo ? `<img loading="lazy" src="${g.away.logo}" alt="">` : ``}
+              ${g.away.logo ? `<img src="${g.away.logo}" alt="">` : ``}
               <div class="name">${g.away.name}</div>
-              <span class="scoreTag" id="NHL-a-${gid}">0</span>
+              <span class="scoreTag" id="NHL-a-${g.id}">0</span>
             </div>
             <div class="small" style="opacity:.8">@</div>
             <div class="team" style="justify-content:flex-end">
-              ${g.home.logo ? `<img loading="lazy" src="${g.home.logo}" alt="">` : ``}
+              ${g.home.logo ? `<img src="${g.home.logo}" alt="">` : ``}
               <div class="name">${g.home.name}</div>
-              <span class="scoreTag" id="NHL-h-${gid}">0</span>
+              <span class="scoreTag" id="NHL-h-${g.id}">0</span>
             </div>
           </div>
 
           <div class="small" style="margin-top:6px;opacity:.9">
-            Score: <span id="NHL-scr-${gid}">—</span> ·
-            <span id="NHL-st-${gid}">pre</span> ·
+            Score: <span id="NHL-scr-${g.id}">—</span> ·
+            <span id="NHL-st-${g.id}">pre</span> ·
             Puck drop: ${puck}
           </div>
 
           <div class="small" style="margin-top:8px">
-            <span id="NHL-fant-${gid}-wrap"
+            <span id="NHL-fant-${g.id}-wrap"
                   style="display:inline-flex;align-items:center;gap:8px;
                          background:#0e1a14;border:1px solid #2e5e3f;color:#9be7b0;
                          padding:6px 12px;border-radius:999px;font-weight:800;
                          letter-spacing:.2px;">
               <span style="opacity:.9">Fantasy</span>
-              <span id="NHL-fant-${gid}" style="font-variant-numeric:tabular-nums">—</span>
+              <span id="NHL-fant-${g.id}" style="font-variant-numeric:tabular-nums">—</span>
             </span>
           </div>
 
           <div class="lockRow">
-            <span class="pickedTag" style="display:none" id="picked-${gid}">✓ Picked</span>
-            <button class="btn pickBtn" data-gid="${gid}" ${started ? 'style="display:none"' : ''}>Add to my picks</button>
-            <button class="btn small viewBtn" data-gid="${gid}">Open</button>
+            <span class="pickedTag" style="display:none" id="picked-${g.id}">✓ Picked</span>
+            <button class="btn pickBtn" data-gid="${g.id}" ${started ? 'style="display:none"' : ''}>Add to my picks</button>
+            <button class="btn small viewBtn">Open</button>
           </div>
 
           ${started ? '<div class="small" style="color:#c78;margin-top:6px">Locked (already started)</div>' : ''}
-        </div>
-      </div>`;
-  }).join('');
+        </div>`;
 
-  // Event delegation (attach once) → fewer listeners, less DOM I/O
-  if (!dom.grid._wired) {
-    dom.grid.addEventListener('click', async (e)=>{
-      const viewBtn = e.target.closest('.viewBtn');
-      if (viewBtn) {
-        const gid = viewBtn.getAttribute('data-gid');
-        const g = (st.events||[]).find(x => String(x.id) === String(gid));
-        if (g) openGame(g);
-        return;
+      card.querySelector('.viewBtn').addEventListener('click', ()=>openGame(g));
+
+      const pickBtn = card.querySelector('.pickBtn');
+      if(pickBtn){
+        pickBtn.addEventListener('click', async ()=>{
+          if(!currentUser){ alert('Sign in first.'); return; }
+          if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
+          const myList = await picksForUser(currentUser.id);
+          const gid = String(g.id);
+          if(myList.includes(gid)){ alert('Already picked.'); return; }
+          if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
+          const ok = await setPick(currentUser.id, gid);
+          if(ok){
+            updatePicksLeft();
+            renderWeeklyBoards();
+            renderMyPicks();
+            const tag = $(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
+            pickBtn.style.display='none';
+            toast('Pick saved ✓');
+          }
+        });
       }
 
-      const pickBtn = e.target.closest('.pickBtn');
-      if (pickBtn) {
-        if (!currentUser) { alert('Sign in first.'); return; }
-        const gid = pickBtn.getAttribute('data-gid');
-        const g = (st.events||[]).find(x => String(x.id) === String(gid));
-        if (!g) return;
-
-        if (Date.now() >= new Date(g.start).getTime()) { alert('Locked (already started)'); return; }
-
-        const myList = await picksForUser(currentUser.id);
-        if (myList.includes(gid)) { alert('Already picked.'); return; }
-        if (myList.length >= MAX_PICKS) { alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-
-        const ok = await setPick(currentUser.id, gid);
-        if (ok) {
-          updatePicksLeft();
-          renderWeeklyBoards();
-          renderMyPicks();
-          const tag = $(`picked-${gid}`); if (tag) tag.style.display='inline-flex';
-          pickBtn.style.display='none';
-          toast('Pick saved ✓');
-        }
-      }
+      dom.grid.appendChild(card);
     });
-    dom.grid._wired = true;
   }
-}
 
   async function refreshGridScores(){
-  const evs = st.events || [];
-  if (!evs.length) return;
+    const evs = st.events || []; if(!evs.length) return;
 
-  // ---- 0) helpers ----
-  const getSummary = (id) => (typeof st.fetchSummary === 'function'
-    ? st.fetchSummary(id)
-    : safeJson(api.summary(id)));
+    const rows = await pLimitAll(evs, 6, async (g)=>{
+      try{
+        const s = await safeJson(api.summary(g.id));
+        await pushSummaryToSQL(g.id, s);
+        const row = await getGameScoreFromDB(g.id);
+        const comp=s?.header?.competitions?.[0] || {};
+        let homeC=null, awayC=null;
+        (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+        return {
+          id:g.id,
+          awayPts: row?.away_pts ?? Number(awayC?.score ?? 0),
+          homePts: row?.home_pts ?? Number(homeC?.score ?? 0),
+          score: row?.total ?? 0,
+          status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
+        };
+      }catch{ return null; }
+    });
 
-  // ---- 1) FAST PATH: get ESPN first and paint scores immediately ----
-  const espnArr = await pLimitAll(evs, 4, async (g) => {
-    try {
-      const s = await getSummary(g.id);
-      const comp = s?.header?.competitions?.[0] || {};
-      let homeC = null, awayC = null;
-      (comp.competitors || []).forEach(c => {
-        if (c.homeAway === 'home') homeC = c;
-        if (c.homeAway === 'away') awayC = c;
-      });
+    const valid = rows.filter(Boolean);
+    for(const r of valid){
+      const scEl = $(`NHL-scr-${r.id}`);
+      const stEl = $(`NHL-st-${r.id}`);
+      const aEl  = $(`NHL-a-${r.id}`);
+      const hEl  = $(`NHL-h-${r.id}`);
+      const fEl  = $(`NHL-fant-${r.id}`);
+
+      if(scEl) scEl.textContent = `${r.awayPts}–${r.homePts}`;
+      if(stEl) stEl.textContent = r.status || '—';
+      if(aEl)  aEl.textContent  = r.awayPts;
+      if(hEl)  hEl.textContent  = r.homePts;
+      if(fEl)  fEl.textContent  = Number(r.score || 0).toFixed(2);
+    }
+
+    st.gameRows = evs.map(g=>{
+      const r = valid.find(x => x && String(x.id)===String(g.id));
+      if(!r) return null;
       return {
-        id: String(g.id),
-        a: Number(awayC?.score ?? 0),
-        h: Number(homeC?.score ?? 0),
-        st: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
+        id: g.id, awayName: g.away.name, homeName: g.home.name,
+        awayLogo: g.away.logo, homeLogo: g.home.logo,
+        score: r.score, status: r.status
       };
-    } catch {
-      return { id:String(g.id), a:0, h:0, st:'—' };
-    }
-  });
+    }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
-  // Paint ESPN scores/status right away so UI feels instant
-  for (const r of espnArr){
-    const scEl = $(`NHL-scr-${r.id}`); if (scEl) scEl.textContent = `${r.a}–${r.h}`;
-    const stEl = $(`NHL-st-${r.id}`);  if (stEl) stEl.textContent = r.st;
-    const aEl  = $(`NHL-a-${r.id}`);   if (aEl)  aEl.textContent  = r.a;
-    const hEl  = $(`NHL-h-${r.id}`);   if (hEl)  hEl.textContent  = r.h;
+    renderGameLB(); renderUserLB();
   }
-
-  // ---- 2) SLOW PATH: one bulk DB read for fantasy totals (and canonical pts) ----
-  const ids = evs.map(g => String(g.id));
-  let scoreMap = new Map();
-  try {
-    const { data, error } = await supa
-      .from('game_scores')
-      .select('game_id, away_pts, home_pts, total')
-      .eq('league','NHL')
-      .eq('week_key', WEEK_KEY)
-      .in('game_id', ids);
-
-    if (!error && Array.isArray(data)) {
-      scoreMap = new Map(data.map(r => [String(r.game_id), r]));
-    }
-  } catch {
-    // ignore; we already painted ESPN numbers
-  }
-
-  // ---- 3) Merge ESPN + DB → final rows ----
-  const espnMap = new Map(espnArr.map(r => [r.id, r]));
-  const rows = ids.map(id => {
-    const e  = espnMap.get(id) || { a:0, h:0, st:'—' };
-    const db = scoreMap.get(id);
-    return {
-      id,
-      awayPts: (db?.away_pts ?? e.a),
-      homePts: (db?.home_pts ?? e.h),
-      score:   (db?.total ?? 0),
-      status:  e.st
-    };
-  });
-
-  // ---- 4) Paint fantasy totals (score) only now; keep earlier score/status text ----
-  for (const r of rows){
-    const fEl = $(`NHL-fant-${r.id}`);
-    if (fEl) fEl.textContent = Number(r.score || 0).toFixed(2);
-  }
-
-  // ---- 5) Build leaderboard rows (unchanged shape) ----
-  st.gameRows = evs.map(g=>{
-    const r = rows.find(x => x.id === String(g.id));
-    if(!r) return null;
-    return {
-      id: g.id,
-      awayName: g.away.name, homeName: g.home.name,
-      awayLogo: g.away.logo, homeLogo: g.home.logo,
-      score: r.score, status: r.status
-    };
-  }).filter(Boolean).sort((a,b)=>b.score-a.score);
-
-  renderGameLB();
-  renderUserLB();
-}
-
 
   function renderGameLB(){
-  if (!st.gameRows) return;
-  const tgt = $('nhl-gameLB'); if (!tgt) return;
+    if(!st.gameRows) return;
+    const tgt = $('nhl-gameLB'); if(!tgt) return;
 
-  const FORCE_MS = 10_000; // force repaint at least this often
-  const now = Date.now();
-  const mustForce = !tgt._lastPaintAt || (now - tgt._lastPaintAt) >= FORCE_MS;
-
-  const html = (st.gameRows || []).map(r => {
-    const pts = Number(r.score || 0).toFixed(2);
-    const aImg = r.awayLogo ? `<img loading="lazy" src="${r.awayLogo}" alt="">` : '';
-    const hImg = r.homeLogo ? `<img loading="lazy" src="${r.homeLogo}" alt="" style="margin-left:6px">` : '';
-    return `
+    tgt.innerHTML = st.gameRows.map(r => `
       <div class="lbRow" data-gid="${r.id}" style="cursor:pointer" role="button" tabindex="0" aria-label="Open ${r.awayName} at ${r.homeName}">
         <div class="lbTeam">
-          ${aImg}
+          ${r.awayLogo?`<img src="${r.awayLogo}" alt="">`:''}
           <span class="lbName" style="max-width:280px">${r.awayName} @ ${r.homeName}</span>
-          ${hImg}
+          ${r.homeLogo?`<img src="${r.homeLogo}" alt="" style="margin-left:6px">`:''}
         </div>
-        <div class="lbPts">${pts}</div>
-        <div class="small">${r.status || ''}</div>
-      </div>`;
-  }).join('');
+        <div class="lbPts">${Number(r.score||0).toFixed(2)}</div>
+        <div class="small">${r.status||''}</div>
+      </div>
+    `).join('');
 
-  // Only skip DOM write if content is identical AND we’re inside the force window
-  if (tgt._lastHTML !== html || mustForce){
-    (window.requestAnimationFrame || function(fn){ return setTimeout(fn,0); })(() => {
-      tgt.innerHTML = html;
-      tgt._lastHTML = html;
-      tgt._lastPaintAt = now;
-    });
-  }
-
-  // Event delegation (attach once)
-  if (!tgt._wired){
-    tgt.addEventListener('click', (e)=>{
-      const row = e.target.closest('.lbRow[data-gid]'); if(!row) return;
-      const id = row.getAttribute('data-gid');
-      const g = (NHL && NHL.state && NHL.state.events || []).find(x => String(x.id) === String(id));
-      if (g) openGame(g);
-    });
-    tgt.addEventListener('keydown', (e)=>{
-      if(e.key === 'Enter' || e.key === ' '){
+    if(!tgt._wired){
+      tgt.addEventListener('click', (e)=>{
         const row = e.target.closest('.lbRow[data-gid]'); if(!row) return;
         const id = row.getAttribute('data-gid');
-        const g = (NHL && NHL.state && NHL.state.events || []).find(x => String(x.id) === String(id));
-        if (g){ e.preventDefault(); openGame(g); }
-      }
-    });
-    tgt._wired = true;
-  }
-}
-
- function openGame(g){
-  // Select game and paint header/team sides (no network I/O here)
-  st.selected = g;
-  $('nhl-top').setAttribute('data-show','true');
-  dom.live.textContent = `${g.away.name} @ ${g.home.name}`;
-  dom.teamSide.innerHTML =
-    `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
-       <div style="display:flex;gap:10px;align-items:center">
-         ${g.away.logo?`<img loading="lazy" src="${g.away.logo}" alt="">`:''}
-         <div style="font-weight:700">${g.away.name}</div>
-       </div>
-       <div id="NHL-awayScore" style="font-weight:800">—</div>
-     </div>
-     <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
-       <div style="display:flex;gap:10px;align-items:center">
-         ${g.home.logo?`<img loading="lazy" src="${g.home.logo}" alt="">`:''}
-         <div style="font-weight:700">${g.home.name}</div>
-       </div>
-       <div id="NHL-homeScore" style="font-weight:800">—</div>
-     </div>`;
-
-  dom.gridCard.style.display = 'none';
-  dom.top.style.display = 'block';
-
-  // --- I/O-friendly polling: dedup + throttle + pause when hidden ---
-  // Immediate paint once (don’t wait for interval)
-  updateGameOnce();
-
-  // Clear any old timer
-  if (st.poll) clearInterval(st.poll);
-
-  // Adaptive gap based on network; floor at 20s to keep UI fresh
-  const conn = (navigator.connection || {});
-  const baseGap = ({
-    'slow-2g': 35000, '2g': 30000, '3g': 25000, '4g': 20000
-  }[conn.effectiveType]) || 20000;
-
-  // Per-game guards so we don’t stack requests
-  st._lastTick = 0;
-  st._updating = false;
-
-  async function tick(){
-    // Skip work if tab not visible → saves ESPN/DB I/O
-    if (document.hidden) return;
-
-    const now = Date.now();
-    if (now - st._lastTick < baseGap) return;
-    if (st._updating) return;
-    st._updating = true;
-    try{
-      await updateGameOnce();
-      st._lastTick = now;
-    } finally {
-      st._updating = false;
+        const g = NHL.state.events.find(x => String(x.id) === String(id));
+        if(g) openGame(g);
+      });
+      tgt.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter' || e.key === ' '){
+          const row = e.target.closest('.lbRow[data-gid]'); if(!row) return;
+          const id = row.getAttribute('data-gid');
+          const g = NHL.state.events.find(x => String(x.id) === String(id));
+          if(g){ e.preventDefault(); openGame(g); }
+        }
+      });
+      tgt._wired = true;
     }
   }
 
-  // Poller: lightweight; tick itself decides whether to actually fetch
-  st.poll = setInterval(tick, 2000); // cheap heartbeat; real gap enforced in tick()
+  function openGame(g){
+    st.selected = g;
+    $('nhl-top').setAttribute('data-show','true');
+    dom.live.textContent=`${g.away.name} @ ${g.home.name}`;
+    dom.teamSide.innerHTML=
+      `<div class="teamline" style="border-left:6px solid ${g.away.color?('#'+g.away.color):'#2a3643'}">
+         <div style="display:flex;gap:10px;align-items:center">
+           ${g.away.logo?`<img src="${g.away.logo}" alt="">`:''}
+           <div style="font-weight:700">${g.away.name}</div>
+         </div>
+         <div id="NHL-awayScore" style="font-weight:800">—</div>
+       </div>
+       <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
+         <div style="display:flex;gap:10px;align-items:center">
+           ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
+           <div style="font-weight:700">${g.home.name}</div>
+         </div>
+         <div id="NHL-homeScore" style="font-weight:800">—</div>
+       </div>`;
 
-  // When user returns to tab, refresh immediately (no extra intervals)
-  if (!st._visHooked){
-    document.addEventListener('visibilitychange', ()=>{
-      if (!document.hidden) { st._lastTick = 0; tick(); }
-    });
-    st._visHooked = true;
+    dom.gridCard.style.display='none'; 
+    dom.top.style.display='block';
+
+    updateGameOnce(); 
+    if(st.poll) clearInterval(st.poll); 
+    st.poll = setInterval(updateGameOnce, 20000);
+
+    renderGameLB(); renderUserLB();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-
-  renderGameLB();
-  renderUserLB();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
 
   function renderBreakdown(row){
     const W = { goal:4, ppg:1.5, shg:1.0, sog:0.1, sv:0.05, hit:0.05, block:0.05, pim:-0.1, close:4, ot:2, so:2 };
@@ -1212,96 +1031,50 @@ function leagueFactory(){
   }
 
   async function updateGameOnce(){
-  if (!st.selected) return;
-  const id = String(st.selected.id);
+    if(!st.selected) return; const id=st.selected.id;
+    try{
+      const s=await safeJson(api.summary(id));
+      const comp=s?.header?.competitions||[];
+      const c0=(comp[0]||{}); const status=c0.status||{};
+      let homeC=null,awayC=null; (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
 
-  // --- tiny per-tab caches (safe globals) ---
-  const SUM_TTL_MS   = 60_000;  // cache ESPN summary 60s
-  const PLAYS_TTL_MS = 30_000;  // cache plays lists 30s
+      await pushSummaryToSQL(id, s);
+      const row = await getGameScoreFromDB(id);
 
-  const sumCache   = (window.__sumCache   ||= new Map()); // id -> {t,s}
-  const playsCache = (window.__playsCache ||= new Map()); // id -> {t,scoring,recent}
+      $('NHL-homeScore').textContent=String(row?.home_pts ?? homeC?.score ?? 0);
+      $('NHL-awayScore').textContent=String(row?.away_pts ?? awayC?.score ?? 0);
+      $('nhl-clock').textContent=status.displayClock||'—';
+      $('nhl-q').textContent=String(status.period??'—');
+      $('nhl-state').textContent=(status.type?.description||status.type?.shortDetail||'—');
+      $('nhl-fscore').textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
 
-  // helper: get summary with cache (prefer st.fetchSummary if present)
-  const getSummary = async (gid) => {
-    const now = Date.now();
-    const hit = sumCache.get(gid);
-    if (hit && (now - hit.t) < SUM_TTL_MS) return hit.s;
+      if(row) renderBreakdown(row);
 
-    const p = (typeof st.fetchSummary === 'function'
-      ? st.fetchSummary(gid)
-      : safeJson(api.summary(gid)));
+      // ----- NEW: fill Scoring Plays & Recent Plays -----
+      const scoring = await getScoringPlaysRobust(id, s);
+      const scoreBox = document.getElementById('nhl-scoreList');
+      if(scoreBox){
+        scoreBox.innerHTML = scoring.length
+          ? scoring.slice(-20).reverse().map(sp =>
+              `<div class="play"><span class="dot goal"></span>
+                <div><div>${sp.text}</div><div class="when">[P${sp.per} ${sp.clk}]</div></div></div>`
+            ).join('')
+          : '<div class="small">No data yet.</div>';
+      }
+      const recent = await getRecentPlays(id, s);
+      const recentBox = document.getElementById('nhl-recentList');
+      if(recentBox){
+        recentBox.innerHTML = recent.length
+          ? recent.slice(-30).reverse().map(p =>
+              `<div class="play"><span class="dot other"></span>
+                <div><div>${p.text}</div><div class="when">[P${p.per} ${p.clk}]</div></div></div>`
+            ).join('')
+          : '<div class="small">No data yet.</div>';
+      }
+      // -----------------------------------------------
 
-    const s = await p.catch(() => null);
-    if (s) sumCache.set(gid, { t: now, s });
-    return s;
-  };
-
-  try {
-    // 1) ESPN summary (fast path)
-    const s = await getSummary(id);
-    const comp = s?.header?.competitions || [];
-    const c0 = (comp[0] || {});
-    const status = c0.status || {};
-    let homeC = null, awayC = null;
-    (c0.competitors || []).forEach(c => {
-      if (c.homeAway === 'home') homeC = c;
-      if (c.homeAway === 'away') awayC = c;
-    });
-
-    // 2) (no-op if CLIENT_WRITES=false) – safe to keep call
-    await pushSummaryToSQL(id, s);
-
-    // 3) DB totals (soft-timeout handled inside getGameScoreFromDB in your code)
-    const row = await getGameScoreFromDB(id);
-
-    // 4) Paint scores / clock / status right away (fallback to ESPN if DB missing)
-    $('NHL-homeScore').textContent = String(row?.home_pts ?? homeC?.score ?? 0);
-    $('NHL-awayScore').textContent = String(row?.away_pts ?? awayC?.score ?? 0);
-    $('nhl-clock').textContent     = status.displayClock || '—';
-    $('nhl-q').textContent         = String(status.period ?? '—');
-    $('nhl-state').textContent     = (status.type?.description || status.type?.shortDetail || '—');
-    $('nhl-fscore').textContent    = (row?.total != null ? Number(row.total).toFixed(2) : '—');
-
-    if (row) renderBreakdown(row);
-
-    // 5) Scoring/Recent plays — throttle + cache to cut extra ESPN calls
-    const now = Date.now();
-    const hit = playsCache.get(id);
-    let scoring = hit && (now - hit.t) < PLAYS_TTL_MS ? hit.scoring : null;
-    let recent  = hit && (now - hit.t) < PLAYS_TTL_MS ? hit.recent  : null;
-
-    if (!scoring || !recent) {
-      // These helpers are already I/O-friendly (try summary first, avoid extra fetches)
-      scoring = await getScoringPlaysRobust(id, s);
-      recent  = await getRecentPlays(id, s);
-      playsCache.set(id, { t: now, scoring, recent });
-    }
-
-    const scoreBox  = document.getElementById('nhl-scoreList');
-    const recentBox = document.getElementById('nhl-recentList');
-
-    if (scoreBox){
-      scoreBox.innerHTML = scoring.length
-        ? scoring.slice(-20).reverse().map(sp =>
-            `<div class="play"><span class="dot goal"></span>
-               <div><div>${sp.text}</div><div class="when">[P${sp.per} ${sp.clk}]</div></div></div>`
-          ).join('')
-        : '<div class="small">No data yet.</div>';
-    }
-
-    if (recentBox){
-      recentBox.innerHTML = recent.length
-        ? recent.slice(-30).reverse().map(p =>
-            `<div class="play"><span class="dot other"></span>
-               <div><div>${p.text}</div><div class="when">[P${p.per} ${p.clk}]</div></div></div>`
-          ).join('')
-        : '<div class="small">No data yet.</div>';
-    }
-  } catch (e) {
-    // swallow errors to keep UI responsive
+    }catch(e){ /* ignore */ }
   }
-}
 
   async function loadWeek(){
     dom.note.textContent=`Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;
@@ -1381,168 +1154,47 @@ let LAST_ALL_IDS_JSON = '';
 function gameRowHTML(meta,score){
   return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${Number(score||0).toFixed(2)}</div><div class="small">Game</div>`;
 }
-// I/O-friendly drop-in: caches success for 24h, failures briefly, dedups concurrent fetches,
-// and prefers already-loaded event data over hitting ESPN.
 async function gameMeta(gid){
-  const key = String(gid);
-  const ck  = `meta:${key}`;
-
-  // global memos (safe on window)
-  const memo        = (window.__metaMemo        ||= new Map()); // game_id -> {v,t,ok}
-  const inflight    = (window.__metaInflight    ||= new Map()); // game_id -> Promise
-  const teamMemo    = (window.__teamMetaMemo    ||= new Map()); // teamKey -> {v,t}
-  const now         = Date.now();
-
-  // TTLs
-  const HIT_TTL   = 24*60*60*1000;  // 24h for good game meta
-  const MISS_TTL  = 10*60*1000;     // 10m for misses
-  const TEAM_TTL  = 7*24*60*60*1000; // 7d for team name/logo (rarely change)
-
-  // --- 1) fresh in-memory game cache?
-  const mHit = memo.get(key);
-  if (mHit && (now - mHit.t) < (mHit.ok ? HIT_TTL : MISS_TTL)) return mHit.v;
-
-  // --- 2) localStorage game cache?
-  const ls = getCache(ck);
-  if (ls) {
-    memo.set(key, { v: ls, t: now, ok: !!(ls.awayLogo || ls.homeLogo) });
-    return ls;
+  const ck=`meta:${gid}`;
+  const c=getCache(ck);
+  if(c) return c;
+  const ev=NHL.state.events.find(e=>String(e.id)===String(gid));
+  if(ev){
+    const m={awayName:ev.away.name,homeName:ev.home.name,awayLogo:ev.away.logo,homeLogo:ev.home.logo};
+    setCache(ck,m,24*60*60*1000);
+    return m;
   }
-
-  // helper: build team object using per-team memo (cuts repeated work across games)
-  function teamKey(t){
-    // prefer stable ids; fall back to abbreviation/name
-    return t?.id ? `id:${t.id}` : (t?.abbreviation ? `abbr:${t.abbreviation}` : (t?.name ? `nm:${t.name}` : ''));
-  }
-  function teamMeta(t){
-    if (!t) return { name:'', logo:null };
-    const tk = teamKey(t) || '';
-    if (tk){
-      const thit = teamMemo.get(tk);
-      if (thit && (now - thit.t) < TEAM_TTL) return thit.v;
-    }
-    const v = {
-      name: (t.shortDisplayName || t.displayName || t.name || '').trim() || '',
-      logo: cdnNHL(t) || null
-    };
-    if (teamKey(t)) teamMemo.set(teamKey(t), { v, t: now });
-    return v;
-  }
-
-  // --- 3) from already loaded schedule (free)
   try{
-    const ev = (window.NHL && NHL.state && Array.isArray(NHL.state.events))
-      ? NHL.state.events.find(e => String(e.id) === key)
-      : (typeof st !== 'undefined' && st && Array.isArray(st.events) ? st.events.find(e => String(e.id) === key) : null);
-
-    if (ev){
-      const v = {
-        awayName: ev.away?.name || '',
-        homeName: ev.home?.name || '',
-        awayLogo: ev.away?.logo || null,
-        homeLogo: ev.home?.logo || null
-      };
-      memo.set(key, { v, t: now, ok: !!(v.awayLogo || v.homeLogo) });
-      setCache(ck, v, HIT_TTL);
-      return v;
-    }
-  }catch{ /* ignore */ }
-
-  // --- 4) piggyback if another fetch is in-flight
-  if (inflight.has(key)) {
-    try { return await inflight.get(key); } catch { /* fall through */ }
-  }
-
-  // --- 5) ESPN summary only if needed (uses st.fetchSummary if provided)
-  const fetchSummary = (typeof st?.fetchSummary === 'function')
-    ? st.fetchSummary
-    : (id)=>safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`);
-
-  const p = (async ()=>{
-    try{
-      const s = await fetchSummary(key).catch(()=>null);
-      const comp = s?.header?.competitions?.[0] || {};
-      let home=null, away=null;
-      (comp.competitors || []).forEach(x => {
-        if (x.homeAway === 'home') home = x;
-        if (x.homeAway === 'away') away = x;
-      });
-
-      const a = teamMeta(away?.team || null);
-      const h = teamMeta(home?.team || null);
-
-      const v = {
-        awayName: a.name || 'Away',
-        homeName: h.name || 'Home',
-        awayLogo: a.logo,
-        homeLogo: h.logo
-      };
-
-      const ok = !!(v.awayLogo || v.homeLogo);
-      memo.set(key, { v, t: now, ok });
-      setCache(ck, v, ok ? HIT_TTL : MISS_TTL);
-      return v;
-    }catch{
-      const v = { awayName:'Away', homeName:'Home', awayLogo:null, homeLogo:null };
-      memo.set(key, { v, t: now, ok:false });
-      setCache(ck, v, MISS_TTL);
-      return v;
-    }
-  })();
-
-  inflight.set(key, p);
-  try { return await p; }
-  finally { inflight.delete(key); }
+    const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
+    const comp=s?.header?.competitions?.[0]||{}; let home=null,away=null; (comp.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
+    const m={ awayName:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', homeName:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', awayLogo:cdnNHL(away?.team||null), homeLogo:cdnNHL(home?.team||null) };
+    setCache(ck,m,24*60*60*1000);
+    return m;
+  }catch{ return {awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null}; }
 }
-
 async function renderPickList(containerId, gidList){
-  const el = $(containerId);
+  const el=$(containerId);
   const myTicket = nextTicket(containerId);
-  const clean = uniqLimit(gidList || []).map(String);
-
-  el.innerHTML = '';
-  if (clean.length === 0){
-    if (isCurrent(containerId, myTicket)) el.innerHTML = '<div class="small">No picks yet.</div>';
+  const clean=uniqLimit(gidList||[]);
+  el.innerHTML='';
+  if(clean.length===0){
+    if(isCurrent(containerId,myTicket)) el.innerHTML='<div class="small">No picks yet.</div>';
     return 0;
   }
-
-  // ---- 1) ONE bulk DB read for all game totals ----
-  let scoreMap = new Map();
-  try{
-    const { data, error } = await supa
-      .from('game_scores')
-      .select('game_id,total')
-      .eq('league','NHL')
-      .eq('week_key', WEEK_KEY)
-      .in('game_id', clean);
-
-    if (!error && Array.isArray(data)){
-      scoreMap = new Map(data.map(r => [String(r.game_id), Number(r.total || 0)]));
-    }
-  }catch{ /* fall through; we'll treat as 0s */ }
-
-  // ---- 2) Meta for each game (cached/schedule-first; no DB/ESPN writes) ----
-  const metas = await pLimitAll(clean, 3, async (gid) => {
-    try { return await gameMeta(gid); }
-    catch { return { awayName:'Away', homeName:'Home', awayLogo:null, homeLogo:null }; }
+  const results = await pLimitAll(clean, 6, async (gid)=>{
+    try{
+      const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
+      await pushSummaryToSQL(gid, s);
+    }catch{}
+    const [meta,row] = await Promise.all([gameMeta(gid), getGameScoreFromDB(gid)]);
+    return {meta,score:row?.total||0};
   });
-
-  if (!isCurrent(containerId, myTicket)) return 0;
-
-  // ---- 3) Build rows + total (batch DOM write) ----
-  let total = 0;
-  const rows = [];
-  for (let i = 0; i < clean.length; i++){
-    const gid = clean[i];
-    const meta = metas[i] || { awayName:'Away', homeName:'Home', awayLogo:null, homeLogo:null };
-    const score = scoreMap.get(gid) || 0;
-    total += score;
-    rows.push(`<div class="lbRow">${gameRowHTML(meta, score)}</div>`);
-  }
-  el.innerHTML = rows.join('');
+  if(!isCurrent(containerId,myTicket)) return 0;
+  let total=0; const rows=[];
+  for(const r of results){ total+=r.score; rows.push(`<div class="lbRow">${gameRowHTML(r.meta,r.score)}</div>`); }
+  el.innerHTML=rows.join('');
   return total;
 }
-
 async function renderMyPicks(){
   if(!currentUser){
     $('myNHL').innerHTML='<div class="small">Sign in to see your picks.</div>';
@@ -1575,285 +1227,84 @@ async function renderMyPicks(){
   });
 }
 
-/* ---------- Badges UI (I/O-friendly, drop-in) ---------- */
+/* ---------- Badges UI ---------- */
 async function refreshBadgesUI(){
   try{
-    const grid = $('badgeGrid'); 
-    if (!grid) return;
-    if (!currentUser) return;
-
-    const uid = currentUser.id;
-    const CK  = `badges:${uid}`;
-    const now = Date.now();
-
-    // in-memory memo + inflight dedup
-    const memo     = (window.__badgesMemo ||= new Map()); // uid -> {ids:Set,t}
-    const inflight = (window.__badgesInflight ||= new Map());
-    const TTL_MS   = 2 * 60 * 1000; // 2 minutes (badges don't change often)
-
-    // helper to paint DOM with minimal work
-    function paint(idsSet){
-      const wanted = Array.from(idsSet).sort().join(',');
-      if (grid._lastBadges === wanted) return; // no DOM work needed
-
-      // Only touch elements that need changes
-      const tiles = grid.querySelectorAll('.bTile');
-      tiles.forEach(el=>{
-        const id = el.getAttribute('data-badge');
-        const shouldUnlock = id && idsSet.has(id);
-        const hasClass = el.classList.contains('unlocked');
-        if (shouldUnlock && !hasClass) el.classList.add('unlocked');
-        else if (!shouldUnlock && hasClass) el.classList.remove('unlocked');
-      });
-
-      grid._lastBadges = wanted;
-    }
-
-    // 1) Fresh memo?
-    const m = memo.get(uid);
-    if (m && (now - m.t) < TTL_MS){
-      paint(m.ids);
-      return;
-    }
-
-    // 2) localStorage cache?
-    const cached = getCache(CK); // expecting array of badge_ids
-    if (cached && Array.isArray(cached)){
-      const idsSet = new Set(cached.map(String));
-      memo.set(uid, { ids: idsSet, t: now });
-      paint(idsSet);
-      // continue to step 3 only if you want to revalidate in background. We won't: saves I/O.
-      return;
-    }
-
-    // 3) Dedup concurrent fetches
-    if (inflight.has(uid)){
-      const idsSet = await inflight.get(uid).catch(()=>null);
-      if (idsSet) paint(idsSet);
-      return;
-    }
-
-    // 4) Fetch once from Supabase
-    const p = (async ()=>{
-      const { data, error } = await supa
-        .from('badge_events')
-        .select('badge_id')
-        .eq('user_id', uid);
-
-      if (error || !data){
-        // If we had an older memo, at least paint that; else do nothing.
-        if (m) paint(m.ids);
-        return null;
-      }
-
-      const idsArr = (data || []).map(r=>String(r.badge_id));
-      const idsSet = new Set(idsArr);
-      memo.set(uid, { ids: idsSet, t: now });
-      setCache(CK, idsArr, TTL_MS);
-      return idsSet;
-    })();
-
-    inflight.set(uid, p);
-    const idsSet = await p;
-    inflight.delete(uid);
-    if (idsSet) paint(idsSet);
-
+    const grid = $('badgeGrid'); if(!grid) return;
+    grid.querySelectorAll('.bTile').forEach(el=>el.classList.remove('unlocked'));
+    if(!currentUser) return;
+    const { data, error } = await supa.from('badge_events').select('badge_id').eq('user_id', currentUser.id);
+    if(error || !data) return;
+    const got = new Set(data.map(r=>r.badge_id));
+    grid.querySelectorAll('.bTile').forEach(el=>{
+      const id = el.getAttribute('data-badge');
+      if(id && got.has(id)) el.classList.add('unlocked');
+    });
   }catch(e){ /* ignore */ }
 }
 
-
-/* ---------- Picks-left badge (I/O friendly) ---------- */
+/* ---------- Picks-left badge ---------- */
 async function updatePicksLeft(){
-  const el = $('picksLeft');
-  if (!el) return;
-
-  if (!currentUser) {
-    el.textContent = 'Sign in to play';
-    return;
-  }
-
-  // tiny memo to avoid re-fetching within a minute + inflight dedup
-  const memo     = (window.__picksLeftMemo ||= new Map()); // uid -> {t,n,inf}
-  const TTL_MS   = 60_000;
-  const uid      = currentUser.id;
-  const now      = Date.now();
-  const hit      = memo.get(uid);
-
-  // 1) Use cached value immediately if fresh
-  if (hit && (now - hit.t) < TTL_MS) {
-    el.textContent = `NHL ${Math.max(MAX_PICKS - hit.n, 0)} left`;
-    return;
-  }
-
-  // 2) Show last known (stale) while we refresh
-  if (hit) {
-    el.textContent = `NHL ${Math.max(MAX_PICKS - hit.n, 0)} left`;
-  } else {
-    el.textContent = 'NHL — left';
-  }
-
-  // 3) If a fetch is already running, piggyback
-  if (hit && hit.inf) {
-    try {
-      const n = await hit.inf;
-      el.textContent = `NHL ${Math.max(MAX_PICKS - n, 0)} left`;
-    } catch {}
-    return;
-  }
-
-  // 4) Fetch (uses picksForUser which has a 3 min TTL), then memoize
-  const p = (async ()=>{
-    try {
-      const n = (await picksForUser(uid)).length;
-      memo.set(uid, { t: Date.now(), n });
-      return n;
-    } catch {
-      return hit ? hit.n : 0;
-    }
-  })();
-  memo.set(uid, { ...(hit||{}), inf: p });
-
-  try {
-    const n = await p;
-    el.textContent = `NHL ${Math.max(MAX_PICKS - n, 0)} left`;
-  } finally {
-    const cur = memo.get(uid);
-    if (cur) memo.set(uid, { t: cur.t || Date.now(), n: cur.n }); // clear inf
-  }
+  if(!currentUser){ $('picksLeft').textContent='Sign in to play'; return; }
+  const n=(await picksForUser(currentUser.id)).length;
+  $('picksLeft').textContent=`NHL ${Math.max(MAX_PICKS-n,0)} left`;
 }
 
-/* ---------- Tabs (render-on-activate, throttled) ---------- */
-const tabs = {
-  nhl:   { tab: $('tab-nhl'),    sec: $('sec-nhl')    },
-  mine:  { tab: $('tab-mine'),   sec: $('sec-mine')   },
-  lb:    { tab: $('tab-lb'),     sec: $('sec-lb')     },
-  badges:{ tab: $('tab-badges'), sec: $('sec-badges') },
-  rules: { tab: $('tab-rules'),  sec: $('sec-rules')  }
-};
+/* ---------- Tabs ---------- */
+const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); } if(k==='badges'){ refreshBadgesUI(); }}));
 
-// throttle expensive renders to at most once per 60s per tab
-const __tabLast = new Map();
-const TAB_TTL_MS = 60_000;
-
-function activateTab(k){
-  Object.keys(tabs).forEach(x=>{
-    const t = tabs[x]; if (!t.tab || !t.sec) return;
-    t.tab.setAttribute('aria-selected', x===k ? 'true' : 'false');
-    t.sec.classList.toggle('active', x===k);
-  });
-
-  const now = Date.now();
-  const last = __tabLast.get(k) || 0;
-  const fresh = (now - last) < TAB_TTL_MS;
-
-  if (k === 'mine') {
-    if (!fresh) { renderMyPicks(); __tabLast.set(k, now); }
-  } else if (k === 'lb') {
-    if (!fresh) { renderWeeklyBoards(); renderSeasonBoards(); __tabLast.set(k, now); }
-  } else if (k === 'badges') {
-    if (!fresh) { refreshBadgesUI(); __tabLast.set(k, now); }
-  }
-}
-
-// wire once, with null checks
-Object.keys(tabs).forEach(k=>{
-  const t = tabs[k];
-  if (t.tab) t.tab.addEventListener('click', ()=>activateTab(k));
-});
-
+/* ---------- Boot ---------- */
 (async ()=>{
   const { data:{ session:ses } } = await supa.auth.getSession();
-  session = ses; 
-  currentUser = session?.user || null;
+  session=ses; currentUser = session?.user || null;
 
   function showAuthUI(){
-    const login   = document.getElementById('loginPwForm');
-    const userBox = document.getElementById('userBox');
-    const signupLink = document.querySelector('a[href="signup.html"]');
+  const login   = document.getElementById('loginPwForm');
+  const userBox = document.getElementById('userBox');
+  const signupLink = document.querySelector('a[href="signup.html"]');
 
-    if (currentUser){
-      if (login)      login.style.display = 'none';
-      if (signupLink) signupLink.style.display = 'none';
-      if (userBox)    userBox.style.display = 'flex';
-      const who = document.getElementById('whoami');
-      if (who) who.textContent = currentUser.email || '(no email)';
-    } else {
-      if (login)      login.style.display = 'flex';
-      if (signupLink) signupLink.style.display = 'inline-flex';
-      if (userBox)    userBox.style.display = 'none';
-    }
+  if (currentUser){
+    if (login)      login.style.display = 'none';
+    if (signupLink) signupLink.style.display = 'none';
+    if (userBox)    userBox.style.display = 'flex';
+    const who = document.getElementById('whoami');
+    if (who) who.textContent = currentUser.email || '(no email)';
+  } else {
+    if (login)      login.style.display = 'flex';
+    if (signupLink) signupLink.style.display = 'inline-flex';
+    if (userBox)    userBox.style.display = 'none';
   }
+}
+
+
 
   showAuthUI();
 
-  if (currentUser) { 
-    // one light read on first auth
-    await loadOrCreatePlayer(); 
-  }
+  if(currentUser){ await loadOrCreatePlayer(); }
 
-  const league = NHL;
-  await league.loadWeek();
+  const league = NHL; await league.loadWeek();
+  await updatePicksLeft();
+  await renderWeeklyBoards();
+  await renderSeasonBoards();
+  await renderMyPicks();
+  await refreshBadgesUI();
 
-  // Run non-critical UI fills in parallel (fewer round trips perceived)
-  await Promise.allSettled([
-    updatePicksLeft(),
-    renderWeeklyBoards(),
-    renderSeasonBoards(),
-    currentUser ? renderMyPicks() : Promise.resolve(),
-    refreshBadgesUI()
-  ]);
-
-  // ---- background refresh for boards (visible tab only) ----
-  const BOARDS_MS = 180000; // 3 minutes
-  let boardsTimer = null;
-
-  function startBoardsTimer(){
-    if (boardsTimer) return;
-    boardsTimer = setInterval(()=>{
-      if (document.hidden) return; // skip when not visible
-      renderWeeklyBoards();
-      renderSeasonBoards();
-    }, BOARDS_MS);
-  }
-  function stopBoardsTimer(){
-    if (boardsTimer){ clearInterval(boardsTimer); boardsTimer = null; }
-  }
-  document.addEventListener('visibilitychange', ()=>{
-    if (document.hidden) stopBoardsTimer();
-    else startBoardsTimer();
+  supa.auth.onAuthStateChange(async (_event, sess)=>{
+    session=sess; currentUser=session?.user||null; showAuthUI();
+    if(currentUser){ await loadOrCreatePlayer(); }
+    await updatePicksLeft();
+    await renderMyPicks();
+    await renderWeeklyBoards();
+    if(currentUser && NHL?.state?.events){
+      const mine = await picksForUser(currentUser.id);
+      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
+    }
+    await refreshBadgesUI();
   });
-  startBoardsTimer();
 
-  // ---- auth changes (debounced to avoid double work) ----
-  let authDebounce = null;
-  supa.auth.onAuthStateChange((_event, sess)=>{
-    if (authDebounce) clearTimeout(authDebounce);
-    authDebounce = setTimeout(async ()=>{
-      session = sess; 
-      currentUser = session?.user || null;
-      showAuthUI();
-
-      if (currentUser){ await loadOrCreatePlayer(); }
-
-      await Promise.allSettled([
-        updatePicksLeft(),
-        renderMyPicks(),
-        renderWeeklyBoards(),
-        refreshBadgesUI()
-      ]);
-
-      // mark picked tags on the grid without extra reads
-      if (currentUser && NHL?.state?.events){
-        const mine = await picksForUser(currentUser.id);
-        mine.forEach(gid=>{
-          const tag = $(`picked-${gid}`); if(tag) tag.style.display='inline-flex';
-          const btn = document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
-        });
-      }
-    }, 150); // small debounce
-  });
+  setInterval(renderWeeklyBoards, 60000);
 })();
-
 // Clean up channels + timers on page unload
 window.addEventListener('beforeunload', () => {
   if (window.ST && Array.isArray(ST.chans)) {
@@ -1941,7 +1392,6 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
 
 
 
