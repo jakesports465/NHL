@@ -1531,21 +1531,92 @@ async function renderMyPicks(){
   });
 }
 
-/* ---------- Badges UI ---------- */
+/* ---------- Badges UI (I/O-friendly, drop-in) ---------- */
 async function refreshBadgesUI(){
   try{
-    const grid = $('badgeGrid'); if(!grid) return;
-    grid.querySelectorAll('.bTile').forEach(el=>el.classList.remove('unlocked'));
-    if(!currentUser) return;
-    const { data, error } = await supa.from('badge_events').select('badge_id').eq('user_id', currentUser.id);
-    if(error || !data) return;
-    const got = new Set(data.map(r=>r.badge_id));
-    grid.querySelectorAll('.bTile').forEach(el=>{
-      const id = el.getAttribute('data-badge');
-      if(id && got.has(id)) el.classList.add('unlocked');
-    });
+    const grid = $('badgeGrid'); 
+    if (!grid) return;
+    if (!currentUser) return;
+
+    const uid = currentUser.id;
+    const CK  = `badges:${uid}`;
+    const now = Date.now();
+
+    // in-memory memo + inflight dedup
+    const memo     = (window.__badgesMemo ||= new Map()); // uid -> {ids:Set,t}
+    const inflight = (window.__badgesInflight ||= new Map());
+    const TTL_MS   = 2 * 60 * 1000; // 2 minutes (badges don't change often)
+
+    // helper to paint DOM with minimal work
+    function paint(idsSet){
+      const wanted = Array.from(idsSet).sort().join(',');
+      if (grid._lastBadges === wanted) return; // no DOM work needed
+
+      // Only touch elements that need changes
+      const tiles = grid.querySelectorAll('.bTile');
+      tiles.forEach(el=>{
+        const id = el.getAttribute('data-badge');
+        const shouldUnlock = id && idsSet.has(id);
+        const hasClass = el.classList.contains('unlocked');
+        if (shouldUnlock && !hasClass) el.classList.add('unlocked');
+        else if (!shouldUnlock && hasClass) el.classList.remove('unlocked');
+      });
+
+      grid._lastBadges = wanted;
+    }
+
+    // 1) Fresh memo?
+    const m = memo.get(uid);
+    if (m && (now - m.t) < TTL_MS){
+      paint(m.ids);
+      return;
+    }
+
+    // 2) localStorage cache?
+    const cached = getCache(CK); // expecting array of badge_ids
+    if (cached && Array.isArray(cached)){
+      const idsSet = new Set(cached.map(String));
+      memo.set(uid, { ids: idsSet, t: now });
+      paint(idsSet);
+      // continue to step 3 only if you want to revalidate in background. We won't: saves I/O.
+      return;
+    }
+
+    // 3) Dedup concurrent fetches
+    if (inflight.has(uid)){
+      const idsSet = await inflight.get(uid).catch(()=>null);
+      if (idsSet) paint(idsSet);
+      return;
+    }
+
+    // 4) Fetch once from Supabase
+    const p = (async ()=>{
+      const { data, error } = await supa
+        .from('badge_events')
+        .select('badge_id')
+        .eq('user_id', uid);
+
+      if (error || !data){
+        // If we had an older memo, at least paint that; else do nothing.
+        if (m) paint(m.ids);
+        return null;
+      }
+
+      const idsArr = (data || []).map(r=>String(r.badge_id));
+      const idsSet = new Set(idsArr);
+      memo.set(uid, { ids: idsSet, t: now });
+      setCache(CK, idsArr, TTL_MS);
+      return idsSet;
+    })();
+
+    inflight.set(uid, p);
+    const idsSet = await p;
+    inflight.delete(uid);
+    if (idsSet) paint(idsSet);
+
   }catch(e){ /* ignore */ }
 }
+
 
 /* ---------- Picks-left badge ---------- */
 async function updatePicksLeft(){
@@ -1696,6 +1767,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
