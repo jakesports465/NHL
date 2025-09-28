@@ -1714,18 +1714,105 @@ async function refreshBadgesUI(){
 }
 
 
-/* ---------- Picks-left badge ---------- */
+/* ---------- Picks-left badge (I/O friendly) ---------- */
 async function updatePicksLeft(){
-  if(!currentUser){ $('picksLeft').textContent='Sign in to play'; return; }
-  const n=(await picksForUser(currentUser.id)).length;
-  $('picksLeft').textContent=`NHL ${Math.max(MAX_PICKS-n,0)} left`;
+  const el = $('picksLeft');
+  if (!el) return;
+
+  if (!currentUser) {
+    el.textContent = 'Sign in to play';
+    return;
+  }
+
+  // tiny memo to avoid re-fetching within a minute + inflight dedup
+  const memo     = (window.__picksLeftMemo ||= new Map()); // uid -> {t,n,inf}
+  const TTL_MS   = 60_000;
+  const uid      = currentUser.id;
+  const now      = Date.now();
+  const hit      = memo.get(uid);
+
+  // 1) Use cached value immediately if fresh
+  if (hit && (now - hit.t) < TTL_MS) {
+    el.textContent = `NHL ${Math.max(MAX_PICKS - hit.n, 0)} left`;
+    return;
+  }
+
+  // 2) Show last known (stale) while we refresh
+  if (hit) {
+    el.textContent = `NHL ${Math.max(MAX_PICKS - hit.n, 0)} left`;
+  } else {
+    el.textContent = 'NHL — left';
+  }
+
+  // 3) If a fetch is already running, piggyback
+  if (hit && hit.inf) {
+    try {
+      const n = await hit.inf;
+      el.textContent = `NHL ${Math.max(MAX_PICKS - n, 0)} left`;
+    } catch {}
+    return;
+  }
+
+  // 4) Fetch (uses picksForUser which has a 3 min TTL), then memoize
+  const p = (async ()=>{
+    try {
+      const n = (await picksForUser(uid)).length;
+      memo.set(uid, { t: Date.now(), n });
+      return n;
+    } catch {
+      return hit ? hit.n : 0;
+    }
+  })();
+  memo.set(uid, { ...(hit||{}), inf: p });
+
+  try {
+    const n = await p;
+    el.textContent = `NHL ${Math.max(MAX_PICKS - n, 0)} left`;
+  } finally {
+    const cur = memo.get(uid);
+    if (cur) memo.set(uid, { t: cur.t || Date.now(), n: cur.n }); // clear inf
+  }
 }
 
-/* ---------- Tabs ---------- */
-const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
-Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); } if(k==='badges'){ refreshBadgesUI(); }}));
+/* ---------- Tabs (render-on-activate, throttled) ---------- */
+const tabs = {
+  nhl:   { tab: $('tab-nhl'),    sec: $('sec-nhl')    },
+  mine:  { tab: $('tab-mine'),   sec: $('sec-mine')   },
+  lb:    { tab: $('tab-lb'),     sec: $('sec-lb')     },
+  badges:{ tab: $('tab-badges'), sec: $('sec-badges') },
+  rules: { tab: $('tab-rules'),  sec: $('sec-rules')  }
+};
 
-/* ---------- Boot ---------- */
+// throttle expensive renders to at most once per 60s per tab
+const __tabLast = new Map();
+const TAB_TTL_MS = 60_000;
+
+function activateTab(k){
+  Object.keys(tabs).forEach(x=>{
+    const t = tabs[x]; if (!t.tab || !t.sec) return;
+    t.tab.setAttribute('aria-selected', x===k ? 'true' : 'false');
+    t.sec.classList.toggle('active', x===k);
+  });
+
+  const now = Date.now();
+  const last = __tabLast.get(k) || 0;
+  const fresh = (now - last) < TAB_TTL_MS;
+
+  if (k === 'mine') {
+    if (!fresh) { renderMyPicks(); __tabLast.set(k, now); }
+  } else if (k === 'lb') {
+    if (!fresh) { renderWeeklyBoards(); renderSeasonBoards(); __tabLast.set(k, now); }
+  } else if (k === 'badges') {
+    if (!fresh) { refreshBadgesUI(); __tabLast.set(k, now); }
+  }
+}
+
+// wire once, with null checks
+Object.keys(tabs).forEach(k=>{
+  const t = tabs[k];
+  if (t.tab) t.tab.addEventListener('click', ()=>activateTab(k));
+});
+
 (async ()=>{
   const { data:{ session:ses } } = await supa.auth.getSession();
   session = ses; 
@@ -1906,13 +1993,3 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
