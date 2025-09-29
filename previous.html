@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>NHL Puck'Em — Previous Weeks</title>
+<style>
+  :root{ --bg:#0b0d10; --card:#12161b; --muted:#8ea0b3; --text:#e8eef4; --br:#1b232d }
+  *{scrollbar-width:thin; scrollbar-color:#334658 transparent}
+  *::-webkit-scrollbar{width:10px;height:10px}
+  *::-webkit-scrollbar-thumb{background:#334658;border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+  *::-webkit-scrollbar-track{background:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  *,*::before,*::after{box-sizing:border-box}
+  :focus-visible{outline:2px solid #3c82f6;outline-offset:2px;border-radius:8px}
+  header{padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top));border-bottom:1px solid var(--br);background:#0f1318;position:sticky;top:0;z-index:20;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  h1{margin:0;font-size:18px}
+  .sub{color:var(--muted);font-size:13px;margin-left:6px}
+  .pill{border:1px dashed #364353;border-radius:999px;padding:4px 10px;font-size:12px;white-space:nowrap}
+  main{max-width:1160px;margin:0 auto;padding:14px 14px 64px}
+  .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:12px}
+  .panel{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
+  .sep{height:1px;background:var(--br);margin:12px 0}
+  .small{font-size:12px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr;gap:12px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn{background:#14202b;border:1px solid #243241;color:var(--text);padding:10px 12px;border-radius:10px;cursor:pointer;font-size:14px;min-height:40px;text-decoration:none}
+  .wblock{background:#0f1318;border:1px solid #1c2430;border-radius:12px;padding:12px}
+  .whead{display:flex;align-items:center;gap:8px;justify-content:space-between}
+  .wtitle{font-weight:800}
+  .pill2{border:1px solid #243241;border-radius:999px;padding:4px 10px;font-size:12px;background:#111822}
+  .tableWrap{overflow:auto;border-radius:10px;border:1px solid #1c2430}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:#0f1318}
+  th,td{border-bottom:1px solid #1c2430;padding:8px;text-align:left;white-space:nowrap}
+  thead th{background:#101722;position:sticky;top:0}
+  tbody tr:nth-child(even){background:#0e141c}
+  .num{font-variant-numeric:tabular-nums}
+  .tight{opacity:.9}
+  .good{border-color:#2e5e3f;background:#0e1a14;color:#9be7b0}
+  .warn{border-color:#5e523f;background:#1a140e;color:#f3d39b}
+  .tip{border-color:#33506a;background:#0e1621;color:#cfe1ff}
+  .call{border:1px solid #2d3b4a;border-radius:10px;padding:10px}
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="QuickPucks Logo" style="height:40px;">
+  <h1>NHL Puck'Em <span class="sub">Previous Weeks</span></h1>
+  <span class="pill">How close was it?</span>
+  <a class="btn" href="./index.html" style="margin-left:auto">← Back to App</a>
+</header>
+
+<main>
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <div style="font-weight:800;margin-bottom:6px">Browse Previous Weeks</div>
+        <div class="small">Loads once per day at <b>8:00 AM CT</b> (uses cached data the rest of the day).</div>
+      </div>
+      <div class="row">
+        <label class="small" for="howMany">Weeks:</label>
+        <select id="howMany" class="btn" style="min-height:32px;padding:6px 8px">
+          <option value="4" selected>Last 4</option>
+          <option value="8">Last 8</option>
+          <option value="12">Last 12</option>
+          <option value="20">Last 20</option>
+        </select>
+        <button id="forceRefresh" class="btn" title="Fetch now, ignore cache">Refresh now</button>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div id="weeksContainer" class="grid"></div>
+    <div class="small" id="cacheNote" style="margin-top:8px;opacity:.85"></div>
+  </div>
+
+  <div class="sep"></div>
+  <div class="call tip">Tip: “Cutline to Top-10” shows the gap between 10th and 11th. “Tightest Gap” finds the smallest adjacent margin in Top-20.</div>
+</main>
+
+<!-- Supabase v2 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script>
+/* ---------- Supabase client + daily-cache logic ---------- */
+window.addEventListener('DOMContentLoaded', () => {
+  const SUPA_URL  = 'https://acmqdokxwnkkjmfgfyhh.supabase.co';
+  const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjbXFkb2t4d25ra2ptZmdmeWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzMDY4MDAsImV4cCI6MjA3Mzg4MjgwMH0.cHgUbNwXQvWZJnQNetxO5kr0kVPIR2XO9vVkIJZj_-w';
+  if (typeof supabase === 'undefined') {
+    alert('Supabase library failed to load. Check the CDN tag.');
+    return;
+  }
+  window.supa = supabase.createClient(SUPA_URL, SUPA_ANON, {
+    auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+  });
+
+  boot();
+});
+
+function boot(){
+  const $ = (id)=>document.getElementById(id);
+  const TZ = 'America/Chicago';
+
+  function nowCT(){ return new Date(new Date().toLocaleString('en-US',{timeZone:TZ})); }
+  function addDaysCT(d,days){ const n=new Date(d.getTime()); n.setDate(n.getDate()+days); return new Date(n.toLocaleString('en-US',{timeZone:TZ})); }
+  function parts(d,opts){ const p=new Intl.DateTimeFormat('en-US',opts).formatToParts(d); const o={}; p.forEach(x=>o[x.type]=x.value); return o; }
+  function dateKeyCT(d){ const p=parts(d,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}`; }
+  function isAfter8amCT(d){ return Number(parts(d,{hour:'2-digit',hour12:false}).hour) >= 8; }
+
+  function weekKeyFrom(d){
+    const wd=d.getDay(); const days=(wd-1+7)%7; const mon=addDaysCT(d,-days);
+    const p=parts(mon,{year:'numeric',month:'2-digit',day:'2-digit'}); return `${p.year}-${p.month}-${p.day}-Mon08CT`;
+  }
+  function listPreviousWeekKeys(n){
+    const now=nowCT(); const wd=now.getDay(); const days=(wd-1+7)%7; const mon=addDaysCT(now,-days);
+    const anchor = (isAfter8amCT(now) || days>0) ? mon : addDaysCT(mon,-7);
+    const keys=[]; for(let i=1;i<=n;i++){ const d=addDaysCT(anchor,-7*i); keys.push(weekKeyFrom(d)); }
+    return keys;
+  }
+
+  // Cache helpers
+  function cacheKey(howMany){ return `prevweeks:v1:${howMany}`; }
+  function readCache(howMany){
+    try{ return JSON.parse(localStorage.getItem(cacheKey(howMany))) || null; }catch{ return null; }
+  }
+  function writeCache(howMany, payload){
+    localStorage.setItem(cacheKey(howMany), JSON.stringify(payload));
+  }
+
+  // UI render helpers
+  function weekPrettyFromKey(k){
+    const y=+k.slice(0,4), m=+k.slice(5,7), d=+k.slice(8,10);
+    const s=new Date(Date.UTC(y,m-1,d)); const e=new Date(s); e.setDate(e.getDate()+6);
+    const mm=(x)=>String(x.getUTCMonth()+1).padStart(2,'0'), dd=(x)=>String(x.getUTCDate()).padStart(2,'0');
+    return `${mm(s)}/${dd(s)} → ${mm(e)}/${dd(e)}`;
+  }
+  function summarizeCloseness(rows){
+    if(!rows.length) return {top:null,podium:null,cut10:null,tightest:null};
+    const sorted=rows.slice().sort((a,b)=>(b.total||0)-(a.total||0));
+    const get=(r)=>Number(r?.total||0);
+    const top={score:get(sorted[0])};
+    const podium=(sorted.length>=3)?{gap12:get(sorted[0])-get(sorted[1]), gap23:get(sorted[1])-get(sorted[2])}:null;
+    const cutIdx=Math.min(9,sorted.length-1);
+    const cut10=sorted[cutIdx]?{cutScore:get(sorted[cutIdx]), gapTo11:(sorted[cutIdx]?.total||0)-(sorted[cutIdx+1]?.total||0)}:null;
+    let best={i:null,gap:Infinity}; const M=Math.min(20,sorted.length-1);
+    for(let i=0;i<M;i++){ const g=Math.abs(get(sorted[i])-get(sorted[i+1])); if(g<best.gap) best={i,gap:g}; }
+    const tightest=(best.i!=null)?{between:[best.i+1,best.i+2],gap:best.gap}:null;
+    return {top,podium,cut10,tightest};
+  }
+  function renderWeekBlock(weekKey, rows, names){
+    const el=document.createElement('section'); el.className='wblock';
+    const meta=summarizeCloseness(rows);
+    const head=`
+      <div class="whead">
+        <div class="wtitle">Week ${weekPrettyFromKey(weekKey)}</div>
+        <div class="row">
+          <span class="pill2">Entries: ${rows.length}</span>
+          ${meta.top?`<span class="pill2">Top Score: <span class="num">${(meta.top.score||0).toFixed(2)}</span></span>`:''}
+          ${meta.cut10&&isFinite(meta.cut10.gapTo11)?`<span class="pill2">Cutline to Top-10: <span class="num">${(meta.cut10.gapTo11||0).toFixed(2)}</span></span>`:''}
+          ${meta.tightest?`<span class="pill2">Tightest Gap: <span class="num">${(meta.tightest.gap||0).toFixed(2)}</span> (r${meta.tightest.between[0]}–r${meta.tightest.between[1]})</span>`:''}
+        </div>
+      </div>`;
+    const rowsHTML = rows.slice(0,100).map((r,i)=>{
+      const rank=r.rank ?? (i+1);
+      const nm=names[r.user_id] || r.user_id.slice(0,6);
+      return `<tr><td class="num">${rank}</td><td>${nm}</td><td class="num">${Number(r.total||0).toFixed(2)}</td><td class="num tight">${(r.points??0)}</td></tr>`;
+    }).join('');
+    const table=`
+      <div class="tableWrap" style="margin-top:10px">
+        <table>
+          <thead><tr><th>Rank</th><th>Player</th><th>Total</th><th>Season Pts</th></tr></thead>
+          <tbody>${rowsHTML||'<tr><td colspan="4" class="small">No results.</td></tr>'}</tbody>
+        </table>
+      </div>`;
+    el.innerHTML = head + table;
+    return el;
+  }
+
+  // Single-call fetch for all selected weeks
+  async function fetchAllWeeks(keys){
+    // 1) weekly_results for all keys in one call
+    const { data, error } = await window.supa
+      .from('weekly_results')
+      .select('user_id,total,rank,points,week_key')
+      .eq('league','NHL')
+      .in('week_key', keys)
+      .order('week_key', { ascending: false })
+      .order('total',    { ascending: false });
+    if (error) throw error;
+    const byWeek = new Map(); keys.forEach(k=>byWeek.set(k, []));
+    (data||[]).forEach(r=>{ if(byWeek.has(r.week_key)) byWeek.get(r.week_key).push(r); });
+
+    // 2) one name lookup for all unique user_ids
+    const ids = Array.from(new Set((data||[]).map(r=>r.user_id)));
+    let names = {};
+    if (ids.length){
+      // chunk by 100
+      for(let i=0;i<ids.length;i+=100){
+        const { data:rows } = await window.supa.from('players').select('id,display_name').in('id', ids.slice(i,i+100));
+        (rows||[]).forEach(x=>{ names[x.id]=x.display_name||x.id.slice(0,6); });
+      }
+    }
+    return { byWeek, names };
+  }
+
+  async function render(howMany, force=false){
+    const box = $('weeksContainer'); const note=$('cacheNote');
+    box.innerHTML = '<div class="panel">Loading…</div>'; note.textContent='';
+
+    const keys = listPreviousWeekKeys(howMany).sort().reverse(); // newest first for display
+    const todayKey = dateKeyCT(nowCT());
+    const after8   = isAfter8amCT(nowCT());
+    const ck       = cacheKey(howMany);
+    const cached   = readCache(howMany);
+
+    const cacheValid =
+      cached &&
+      cached.day === todayKey &&
+      Array.isArray(cached.keys) &&
+      cached.keys.join('|') === keys.join('|');
+
+    const canUseYesterday =
+      cached &&
+      cached.day !== todayKey &&
+      !after8; // before 8am, yesterday’s cache OK
+
+    let payload = null;
+    if (!force && (cacheValid || canUseYesterday)) {
+      payload = cached;
+      note.textContent = `Showing cached results from ${cached.day} (CT). Next automatic refresh at 8:00 AM CT.`;
+    } else {
+      const fetched = await fetchAllWeeks(keys);
+      payload = {
+        day: todayKey,
+        keys,
+        names: fetched.names,
+        weeks: Array.from(fetched.byWeek.entries()).map(([k,rows])=>({week_key:k, rows}))
+      };
+      writeCache(howMany, payload);
+      note.textContent = `Fetched ${todayKey} (CT) and cached until next 8:00 AM CT.`;
+    }
+
+    box.innerHTML = '';
+    // Render in newest→older order
+    payload.weeks.sort((a,b)=>a.week_key<b.week_key?1:-1).forEach(w=>{
+      box.appendChild( renderWeekBlock(w.week_key, w.rows, payload.names) );
+    });
+  }
+
+  $('howMany').addEventListener('change', ()=>render(Number($('howMany').value), false));
+  $('forceRefresh').addEventListener('click', ()=>render(Number($('howMany').value), true));
+
+  // First paint
+  render(Number($('howMany').value), false);
+}
+</script>
+</body>
+</html>
