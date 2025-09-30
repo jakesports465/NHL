@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -773,110 +772,35 @@ async function getRecentPlays(eventId, summaryJson){
   return arr.map(mapPlay);
 }
 
-/* ---------- League (NHL) UI — IO-optimized drop-in ---------- */
+/* ---------- League (NHL) UI ---------- */
 function leagueFactory(){
-  const st = { events:[], selected:null, poll:null, gameRows:[], lastHash:'' };
+  const st={ events:[], selected:null, poll:null, gameRows:[] };
+  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB') };
+  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
 
-  const dom = {
-    gridCard: $('nhl-gridCard'),
-    note:     $('nhl-note'),
-    grid:     $('nhl-grid'),
-    top:      $('nhl-top'),
-    back:     $('nhl-back'),
-    add:      $('nhl-addPick'),
-    live:     $('nhl-liveHeader'),
-    teamSide: $('nhl-teamSide'),
-    fscore:   $('nhl-fscore'),
-    bonus:    $('nhl-bonuses'),
-    clock:    $('nhl-clock'),
-    q:        $('nhl-q'),
-    state:    $('nhl-state'),
-    gameLB:   $('nhl-gameLB')
-  };
-
-  const api = {
-    scoreboard: (d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
-    summary:    (id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`
-  };
-
-  /* ---------- tiny caches (URL fetch + DB score) ---------- */
-  const FetchCache = new Map();   // url -> { data:any, ts:number, inflight:Promise }
-  const DbScoreCache = new Map(); // id  -> { row:any, ts:number, inflight:Promise }
-  const TTL = {
-    scoreboard:  5 * 60 * 1000,   // 5m; scoreboard per date barely changes after posted
-    summary:        15 * 1000,    // 15s; summaries update frequently
-    dbScore:        10 * 1000     // 10s; our own DB mirror updates quickly
-  };
-
-  function cacheOnce(map, key, ttl, producer){
-    const now = Date.now();
-    const hit = map.get(key);
-    if (hit) {
-      if (hit.inflight) return hit.inflight;   // share in-flight
-      if ((now - hit.ts) < ttl) return Promise.resolve(hit.data); // fresh
-    }
-    const p = (async ()=>producer())()
-      .then(data => { map.set(key, { data, ts: Date.now(), inflight:null }); return data; })
-      .catch(e  => { map.delete(key); throw e; })
-      .finally(()=>{ const k = map.get(key); if (k) k.inflight = null; });
-    map.set(key, { data:null, ts:0, inflight:p });
-    return p;
-  }
-
-  async function cachedJson(url, ttl){
-    return cacheOnce(FetchCache, url, ttl, async ()=> {
-      // safeJson() already handles fetch+json+errors in your codebase
-      return await safeJson(url);
-    });
-  }
-
-  async function getDbScoreCached(id){
-    return cacheOnce(DbScoreCache, String(id), TTL.dbScore, async ()=>{
-      return await getGameScoreFromDB(id); // your existing DB read
-    });
-  }
-
-  /* ---------- Nav + pick button wiring (unchanged UX) ---------- */
-  dom.back.addEventListener('click', ()=>{
-    dom.top.style.display = 'none';
-    dom.gridCard.style.display = 'block';
-    st.selected = null;
-  });
-
+  dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
   dom.add.addEventListener('click', async ()=>{
-    if (!currentUser){ alert('Sign in first.'); return; }
-    if (!st.selected) return;
-    const kick = new Date(st.selected.start).getTime();
-    if (Date.now() >= kick){ alert('Locked (already started)'); return; }
-
-    // reuse picks cache if present; fall back to live call
-    let myList;
-    if (typeof getUserPicks === 'function') {
-      myList = await getUserPicks(currentUser.id, { maxAgeMs: 0 });
-    } else {
-      myList = await picksForUser(currentUser.id);
-    }
-
-    const gid = String(st.selected.id);
-    if (myList.includes(gid)){ alert('Already picked.'); return; }
-    if (myList.length >= MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-
-    const ok = await setPick(currentUser.id, gid);
-    if (ok){
-      // local optimistic UI + targeted invalidations (no heavy board refetch unless needed elsewhere)
-      if (typeof invalidatePicksCache === 'function') invalidatePicksCache(currentUser.id);
+    if(!currentUser){ alert('Sign in first.'); return; }
+    if(!st.selected) return;
+    const kick=new Date(st.selected.start).getTime();
+    if(Date.now()>=kick){ alert('Locked (already started)'); return; }
+    const myList = await picksForUser(currentUser.id);
+    const gid=String(st.selected.id);
+    if(myList.includes(gid)){ alert('Already picked.'); return; }
+    if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
+    const ok = await setPick(currentUser.id,gid);
+    if(ok){
       updatePicksLeft();
-      renderMyPicks();      // keeps My Picks accurate
-      renderWeeklyBoards(); // your original behavior kept
-      const tag = $(`picked-${st.selected.id}`); if (tag) tag.style.display='inline-flex';
-      const btn = document.querySelector(`.pickBtn[data-gid="${gid}"]`); if (btn) btn.style.display='none';
+      renderWeeklyBoards();
+      renderMyPicks();
+      const tag=$(`picked-${st.selected.id}`); if(tag) tag.style.display='inline-flex';
+      const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
       toast('Pick saved ✓');
     }
   });
 
-  /* ---------- Grid (unchanged markup/UX) ---------- */
   function renderGrid(){
-    dom.grid.innerHTML = '';
+    dom.grid.innerHTML='';
     (st.events||[]).forEach(g=>{
       const started = Date.now() >= new Date(g.start).getTime();
       const card = document.createElement('div');
@@ -929,28 +853,19 @@ function leagueFactory(){
       card.querySelector('.viewBtn').addEventListener('click', ()=>openGame(g));
 
       const pickBtn = card.querySelector('.pickBtn');
-      if (pickBtn){
+      if(pickBtn){
         pickBtn.addEventListener('click', async ()=>{
           if(!currentUser){ alert('Sign in first.'); return; }
           if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
-
-          let myList;
-          if (typeof getUserPicks === 'function') {
-            myList = await getUserPicks(currentUser.id, { maxAgeMs: 0 });
-          } else {
-            myList = await picksForUser(currentUser.id);
-          }
-
+          const myList = await picksForUser(currentUser.id);
           const gid = String(g.id);
           if(myList.includes(gid)){ alert('Already picked.'); return; }
           if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-
           const ok = await setPick(currentUser.id, gid);
           if(ok){
-            if (typeof invalidatePicksCache === 'function') invalidatePicksCache(currentUser.id);
             updatePicksLeft();
-            renderMyPicks();
             renderWeeklyBoards();
+            renderMyPicks();
             const tag = $(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
             pickBtn.style.display='none';
             toast('Pick saved ✓');
@@ -962,37 +877,28 @@ function leagueFactory(){
     });
   }
 
-  /* ---------- Grid score refresh (change-aware + cached, same UI) ---------- */
   async function refreshGridScores(){
     const evs = st.events || []; if(!evs.length) return;
 
     const rows = await pLimitAll(evs, 6, async (g)=>{
       try{
-        // ESPN summary (cached ~15s, shared across callers)
-        const s = await cachedJson(api.summary(g.id), TTL.summary);
-
-        // Push to DB + read DB row (DB read cached ~10s)
+        const s = await safeJson(api.summary(g.id));
         await pushSummaryToSQL(g.id, s);
-        const row = await getDbScoreCached(g.id);
-
-        // Pull scores from DB if present, else fall back to ESPN live
-        const comp = s?.header?.competitions?.[0] || {};
+        const row = await getGameScoreFromDB(g.id);
+        const comp=s?.header?.competitions?.[0] || {};
         let homeC=null, awayC=null;
         (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-
         return {
-          id: g.id,
+          id:g.id,
           awayPts: row?.away_pts ?? Number(awayC?.score ?? 0),
           homePts: row?.home_pts ?? Number(homeC?.score ?? 0),
-          score:   row?.total    ?? 0,
+          score: row?.total ?? 0,
           status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
         };
-      } catch { return null; }
+      }catch{ return null; }
     });
 
     const valid = rows.filter(Boolean);
-
-    // Apply to DOM (unchanged UX)
     for(const r of valid){
       const scEl = $(`NHL-scr-${r.id}`);
       const stEl = $(`NHL-st-${r.id}`);
@@ -1007,7 +913,6 @@ function leagueFactory(){
       if(fEl)  fEl.textContent  = Number(r.score || 0).toFixed(2);
     }
 
-    // Build leaderboard rows (unchanged UI)
     st.gameRows = evs.map(g=>{
       const r = valid.find(x => x && String(x.id)===String(g.id));
       if(!r) return null;
@@ -1018,13 +923,7 @@ function leagueFactory(){
       };
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
-    renderGameLB();
-    renderUserLB();
-
-    // simple change hash for adaptive polling
-    const newHash = JSON.stringify(valid.map(v=>[v.id, v.awayPts, v.homePts, v.status, v.score]));
-    st.changed = (newHash !== st.lastHash);
-    st.lastHash = newHash;
+    renderGameLB(); renderUserLB();
   }
 
   function renderGameLB(){
@@ -1076,18 +975,18 @@ function leagueFactory(){
        </div>
        <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
          <div style="display:flex;gap:10px;align-items:center">
-           ${g.home.logo?`<img src="${g.home.logo}" alt="">`:""}
+           ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
            <div style="font-weight:700">${g.home.name}</div>
          </div>
          <div id="NHL-homeScore" style="font-weight:800">—</div>
        </div>`;
 
-    dom.gridCard.style.display='none';
+    dom.gridCard.style.display='none'; 
     dom.top.style.display='block';
 
-    updateGameOnce();
-    if(st.poll) clearInterval(st.poll);
-    st.poll = setInterval(updateGameOnce, 20000); // keep your 20s cadence for fast feel
+    updateGameOnce(); 
+    if(st.poll) clearInterval(st.poll); 
+    st.poll = setInterval(updateGameOnce, 20000);
 
     renderGameLB(); renderUserLB();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1097,14 +996,14 @@ function leagueFactory(){
     const W = { goal:4, ppg:1.5, shg:1.0, sog:0.1, sv:0.05, hit:0.05, block:0.05, pim:-0.1, close:4, ot:2, so:2 };
     const safe = n => Number(n||0);
     const items = [
-      { label:'Goals',            count:safe(row.goals),  per:W.goal,  pts:safe(row.goals)*W.goal },
+      { label:'Goals',         count:safe(row.goals),  per:W.goal,  pts:safe(row.goals)*W.goal },
       { label:'PowerPlay Goals',  count:safe(row.ppg),    per:W.ppg,   pts:safe(row.ppg)*W.ppg },
       { label:'Shorthanded Goals',count:safe(row.shg),    per:W.shg,   pts:safe(row.shg)*W.shg },
-      { label:'Shots on Goal',    count:safe(row.shots),  per:W.sog,   pts:safe(row.shots)*W.sog },
-      { label:'Saves',            count:safe(row.saves),  per:W.sv,    pts:safe(row.saves)*W.sv },
-      { label:'Hits',             count:safe(row.hits),   per:W.hit,   pts:safe(row.hits)*W.hit },
-      { label:'Blocked Shots',    count:safe(row.blocks), per:W.block, pts:safe(row.blocks)*W.block },
-      { label:'Penalty Minutes',  count:safe(row.pim),    per:W.pim,   pts:safe(row.pim)*W.pim },
+      { label:'Shots on Goal', count:safe(row.shots),  per:W.sog,   pts:safe(row.shots)*W.sog },
+      { label:'Saves',         count:safe(row.saves),  per:W.sv,    pts:safe(row.saves)*W.sv },
+      { label:'Hits',          count:safe(row.hits),   per:W.hit,   pts:safe(row.hits)*W.hit },
+      { label:'Blocked Shots', count:safe(row.blocks), per:W.block, pts:safe(row.blocks)*W.block },
+      { label:'Penalty Minutes',count:safe(row.pim),   per:W.pim,   pts:safe(row.pim)*W.pim },
     ];
     const tbody = document.querySelector('#nhl-breakdown tbody');
     if(!tbody) return;
@@ -1133,29 +1032,24 @@ function leagueFactory(){
   async function updateGameOnce(){
     if(!st.selected) return; const id=st.selected.id;
     try{
-      // ESPN summary (cached)
-      const s = await cachedJson(api.summary(id), TTL.summary);
+      const s=await safeJson(api.summary(id));
+      const comp=s?.header?.competitions||[];
+      const c0=(comp[0]||{}); const status=c0.status||{};
+      let homeC=null,awayC=null; (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
 
-      const comp = s?.header?.competitions || [];
-      const c0   = (comp[0]||{});
-      const status = c0.status || {};
-      let homeC=null, awayC=null;
-      (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
-
-      // Push + DB (cached)
       await pushSummaryToSQL(id, s);
-      const row = await getDbScoreCached(id);
+      const row = await getGameScoreFromDB(id);
 
-      $('NHL-homeScore').textContent = String(row?.home_pts ?? homeC?.score ?? 0);
-      $('NHL-awayScore').textContent = String(row?.away_pts ?? awayC?.score ?? 0);
-      $('nhl-clock').textContent     = status.displayClock || '—';
-      $('nhl-q').textContent         = String(status.period ?? '—');
-      $('nhl-state').textContent     = (status.type?.description || status.type?.shortDetail || '—');
-      $('nhl-fscore').textContent    = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
+      $('NHL-homeScore').textContent=String(row?.home_pts ?? homeC?.score ?? 0);
+      $('NHL-awayScore').textContent=String(row?.away_pts ?? awayC?.score ?? 0);
+      $('nhl-clock').textContent=status.displayClock||'—';
+      $('nhl-q').textContent=String(status.period??'—');
+      $('nhl-state').textContent=(status.type?.description||status.type?.shortDetail||'—');
+      $('nhl-fscore').textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
 
       if(row) renderBreakdown(row);
 
-      // Scoring/Recent plays (use provided summary when available to avoid refetch)
+      // ----- NEW: fill Scoring Plays & Recent Plays -----
       const scoring = await getScoringPlaysRobust(id, s);
       const scoreBox = document.getElementById('nhl-scoreList');
       if(scoreBox){
@@ -1176,92 +1070,45 @@ function leagueFactory(){
             ).join('')
           : '<div class="small">No data yet.</div>';
       }
-    }catch(e){ /* ignore to keep UX stable */ }
+      // -----------------------------------------------
+
+    }catch(e){ /* ignore */ }
   }
 
-  /* ---------- Week load (parallel dates + cached scoreboards) ---------- */
   async function loadWeek(){
-    dom.note.textContent = `Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;
-
-    // Fetch all dates in parallel (fewer seconds with same #calls)
-    const sbList = await Promise.allSettled(WEEK.list.map(d =>
-      cachedJson(api.scoreboard(d), TTL.scoreboard).catch(()=>null)
-    ));
-
-    const all = [];
-    for (let i=0;i<sbList.length;i++){
-      const sb = sbList[i].status === 'fulfilled' ? sbList[i].value : null;
-      const evs = sb?.events || [];
-      for (const ev of evs){
-        const c = ev.competitions?.[0] || {};
-        let home=null, away=null;
-        (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
+    dom.note.textContent=`Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;
+    const all=[];
+    for(const d of WEEK.list){
+      const sb=await safeJson(api.scoreboard(d)).catch(()=>null);
+      const evs=sb?.events||[];
+      for(const ev of evs){
+        const c=ev.competitions?.[0]||{};
+        let home=null,away=null; (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
         all.push({
-          id:    ev.id,
-          start: ev.date,
-          home:  { name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },
-          away:  { name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }
+          id:ev.id,
+          start:ev.date,
+          home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },
+          away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }
         });
       }
     }
-
     all.sort((a,b)=>new Date(a.start)-new Date(b.start));
-    st.events = all;
-    dom.note.textContent = `${all.length} games`;
+    st.events=all;
+    dom.note.textContent=`${all.length} games`;
     renderGrid();
-
-    if (currentUser){
-      // Reuse picks cache if available
-      let mine;
-      if (typeof getUserPicks === 'function') {
-        mine = await getUserPicks(currentUser.id, { maxAgeMs: 0 });
-      } else {
-        mine = await picksForUser(currentUser.id);
-      }
-      mine.forEach(gid=>{
-        const tag = $(`picked-${gid}`); if(tag) tag.style.display='inline-flex';
-        const btn = document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
-      });
+    if(currentUser){
+      const mine = await picksForUser(currentUser.id);
+      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
-
-    await refreshGridScores();  // initial fill
-
-    // Adaptive poll: fast when changing, slower when stable; pause when hidden
-    let intervalMs = 30000;            // base 30s (your original cadence)
-    const maxMs    = 60000;            // back off to 60s when no changes
-    let timer;
-
-    function schedule(){
-      clearTimeout(timer);
-      timer = setTimeout(async ()=>{
-        if (!document.hidden){          // no I/O if tab hidden
-          await refreshGridScores();
-          intervalMs = st.changed ? 30000 : Math.min(intervalMs + 10000, maxMs);
-        }
-        schedule();
-      }, intervalMs);
-    }
-
-    // visibility-aware
-    const visHandler = ()=>{
-      if (!document.hidden){
-        intervalMs = 20000; // quick catch-up on return
-        schedule();
-      } else {
-        clearTimeout(timer);
-      }
-    };
-    document.addEventListener('visibilitychange', visHandler);
-
-    schedule();
+    refreshGridScores();
+    setInterval(refreshGridScores,30000);
   }
 
-  function renderUserLB(){ /* minimal on this tab (unchanged) */ }
+  function renderUserLB(){ /* minimal on this tab */ }
 
-  return { loadWeek, state: st };
+  return { loadWeek, state:st };
 }
 const NHL = leagueFactory();
-
 
 /* ---------- DB-driven helpers for boards/picks ---------- */
 function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
@@ -1794,8 +1641,6 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
-
 
 
 
