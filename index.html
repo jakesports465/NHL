@@ -698,6 +698,52 @@ async function allPicksThisWeek(){
   return p;
 }
 
+async function removePick(uid, gameId){
+  const gid = String(gameId);
+
+  // Lock: don’t allow remove after puck drop
+  const ev = NHL?.state?.events?.find?.(e => String(e.id)===gid);
+  const started = ev ? (Date.now() >= new Date(ev.start).getTime()) : false;
+  if (started) { alert('Locked (already started)'); return false; }
+
+  // Minimal delete
+  const { error } = await supa
+    .from('picks')
+    .delete()
+    .eq('user_id', uid)
+    .eq('league', 'NHL')
+    .eq('week_key', WEEK_KEY)
+    .eq('game_id', gid);
+
+  if (error){ alert(error.message); return false; }
+
+  // Optimistic cache updates (mirror setPick)
+  const myKey = CK_MY(uid);
+  const cached = getCache(myKey);
+  if (Array.isArray(cached)) {
+    setCache(myKey, cached.filter(x => String(x)!==gid), 180000);
+  } else {
+    delCache(myKey);
+  }
+
+  const all = getCache(CK_ALL);
+  if (Array.isArray(all)) {
+    const i = all.findIndex(r => r.user_id===uid && String(r.game_id)===gid);
+    if (i>=0) { all.splice(i,1); setCache(CK_ALL, all, 20000); }
+  } else {
+    delCache(CK_ALL);
+  }
+
+  // UI refreshes
+  updatePicksLeft?.();
+  renderMyPicks?.();
+  renderWeeklyBoards?.(); // if you want the weekly board to reflect changes
+
+  toast('Pick removed ✓');
+  return true;
+}
+
+  
 async function getDisplayNames(userIds){
   const ids = [...new Set(userIds||[])].filter(Boolean); if(ids.length===0) return {};
   const need = ids.filter(id=>!NAME_MEMO.has(id));
@@ -1354,8 +1400,7 @@ async function getScoresForGames(gameIds){
   const map={}; gids.forEach(g=>map[g]=_scoreGet(g)||null); return map;
 }
 
-/* ---- Render one list (mine OR a specific user) using warmed score cache ---- */
-async function renderPickList(containerId, gidList){
+async function renderPickList(containerId, gidList, opts={allowRemove:false}){
   const el=$(containerId);
   const myTicket=nextTicket(containerId);
   const clean=uniqLimit(gidList||[]);
@@ -1366,24 +1411,49 @@ async function renderPickList(containerId, gidList){
     return 0;
   }
 
-  // ONE batched score read; no ESPN
+  // ONE batched score read; no ESPN calls here
   const scoreMap=await getScoresForGames(clean);
 
-  // Fetch metas (cached) + scores concurrently (bounded)
   const results = await pLimitAll(clean, 6, async (gid)=>{
     const meta = await gameMeta(gid);
     const row  = scoreMap[String(gid)];
-    return { meta, score:Number(row?.total||0) };
+    return { gid, meta, score:Number(row?.total||0) };
   });
 
   if(!isCurrent(containerId,myTicket)) return 0;
 
   let total=0; const rows=[];
-  for(const r of results){ total+=r.score; rows.push(`<div class="lbRow">${gameRowHTML(r.meta,r.score)}</div>`); }
-  el.innerHTML=rows.join('');
+  for(const r of results){
+    total += r.score;
+    const base = `<div class="lbRow" data-gid="${r.gid}">
+      ${gameRowHTML(r.meta,r.score)}
+      ${opts.allowRemove ? `<div class="right">
+          <button class="btn xs danger unpickBtn" data-gid="${r.gid}" type="button">Remove</button>
+        </div>` : ``}
+    </div>`;
+    rows.push(base);
+  }
+  el.innerHTML = rows.join('');
   return total;
 }
 
+// Delegated remove handler (only listens inside #myNHL)
+document.addEventListener('click', async (e)=>{
+  const btn = e.target.closest('.unpickBtn');
+  if(!btn) return;
+  const withinMine = btn.closest('#myNHL');
+  if(!withinMine) return; // don't allow removing other players' picks
+
+  if(!currentUser){ alert('Sign in first.'); return; }
+  const gid = btn.getAttribute('data-gid');
+  // Optional confirm
+  // if(!confirm('Remove this pick?')) return;
+
+  // Call the helper
+  await removePick(currentUser.id, gid);
+});
+
+  
 /* ---- Main entry: My picks + Everyone (with one batched warm) ---- */
 async function renderMyPicks(){
   if(!currentUser){
@@ -1394,7 +1464,7 @@ async function renderMyPicks(){
 
   // ---- Mine ----
   const myList = await picksForUser(currentUser.id);        // cached 3m in your code
-  const myTot  = await renderPickList('myNHL', myList);
+  const myTot  = await renderPickList('myNHL', myList, { allowRemove: true }); // <-- enable Remove
   $('myNHLTotal').textContent = Number(myTot||0).toFixed(2);
 
   // ---- Everyone (single DB read already done in allPicksThisWeek, cached 20s) ----
@@ -1440,6 +1510,7 @@ async function renderMyPicks(){
     const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${Number(t||0).toFixed(2)}`;
   });
 }
+
 
 
 /* ---------- Badges UI (IO-optimized) ---------- */
@@ -1857,6 +1928,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
