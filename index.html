@@ -578,34 +578,55 @@ $('saveDisplayName').addEventListener('click', async ()=>{
   await _saveDN_inflight;
 });
 
-/* ---------- Auth actions (unchanged behavior) ---------- */
-$('logoutBtn').addEventListener('click', async ()=>{
-  await supa.auth.signOut();
-  // Faster than full reload; clears UI and cache safely
-  PlayerCache.loaded = false;
-  PlayerCache.displayName = '';
-  localStorage.removeItem(_lsKey(currentUser?.id || ''));
-  location.reload();
-});
+// === Remove button handler (place this once, near the bottom) ===
+document.addEventListener('click', async (e)=>{
+  const btn = e.target.closest('.removePickBtn');
+  if (!btn) return;
 
-$('loginPwForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = $('liEmail').value.trim();
-  const password = $('liPass').value;
-  const { error } = await supa.auth.signInWithPassword({ email, password });
+  // Only allow removing from your own list (inside #myNHL)
+  if (!btn.closest('#myNHL')) return;
+
+  if (!currentUser) { alert('Sign in first.'); return; }
+
+  const gid = btn.getAttribute('data-gid');
+
+  // Lock check (same as in removePick)
+  const ev = NHL?.state?.events?.find?.(g => String(g.id) === String(gid));
+  const started = ev ? (Date.now() >= new Date(ev.start).getTime()) : false;
+  if (started) { alert('Locked (already started)'); return; }
+
+  // Delete from Supabase
+  const { error } = await supa
+    .from('picks')
+    .delete()
+    .eq('user_id', currentUser.id)
+    .eq('league', 'NHL')
+    .eq('week_key', WEEK_KEY)
+    .eq('game_id', String(gid));
+
   if (error) { alert(error.message); return; }
-  toast('Logged in ✓');
-});
 
-$('forgotLink').addEventListener('click', async (e) => {
-  e.preventDefault();
-  const email = prompt('Enter your account email:'); if (!email) return;
-  const redirectTo = location.origin + location.pathname.replace(/[^/]*$/, '') + 'reset.html';
-  const { error } = await supa.auth.resetPasswordForEmail(email, { redirectTo });
-  if (error) { alert(error.message); return; }
-  toast('Reset email sent.');
-});
+  // Refresh + caches
+  const myKey = CK_MY(currentUser.id);
+  const cached = getCache(myKey);
+  if (Array.isArray(cached)) {
+    setCache(myKey, cached.filter(x => String(x)!==String(gid)), 180000);
+  } else {
+    delCache(myKey);
+  }
+  const all = getCache(CK_ALL);
+  if (Array.isArray(all)) {
+    const i = all.findIndex(r => r.user_id===currentUser.id && String(r.game_id)===String(gid));
+    if (i>=0) { all.splice(i,1); setCache(CK_ALL, all, 20000); }
+  } else {
+    delCache(CK_ALL);
+  }
 
+  toast('Pick removed ✓');
+  renderMyPicks(); // re-render your list
+  updatePicksLeft?.();
+  renderWeeklyBoards?.();
+});
 
 /* ---------- Picks (Supabase) ---------- */
 function uniqLimit(arr){ const out=[]; const seen=new Set(); (arr||[]).forEach(x=>{ const id=String(x); if(!seen.has(id)){ seen.add(id); out.push(id); } }); return out.slice(0,MAX_PICKS); }
@@ -1400,117 +1421,111 @@ async function getScoresForGames(gameIds){
   const map={}; gids.forEach(g=>map[g]=_scoreGet(g)||null); return map;
 }
 
-async function renderPickList(containerId, gidList, opts={allowRemove:false}){
-  const el=$(containerId);
-  const myTicket=nextTicket(containerId);
-  const clean=uniqLimit(gidList||[]);
-  el.innerHTML='';
+async function renderPickList(containerId, gidList, opts={ allowRemove:false }){
+  const el = $(containerId);
+  const myTicket = nextTicket(containerId);
+  const clean = uniqLimit(gidList || []);
+  el.innerHTML = '';
 
-  if(clean.length===0){
-    if(isCurrent(containerId,myTicket)) el.innerHTML='<div class="small">No picks yet.</div>';
+  if (clean.length === 0) {
+    if (isCurrent(containerId, myTicket)) el.innerHTML = '<div class="small">No picks yet.</div>';
     return 0;
   }
 
-  // ONE batched score read; no ESPN calls here
-  const scoreMap=await getScoresForGames(clean);
+  // ONE batched score read (no ESPN here)
+  const scoreMap = await getScoresForGames(clean);
 
+  // Build rows
   const results = await pLimitAll(clean, 6, async (gid)=>{
     const meta = await gameMeta(gid);
     const row  = scoreMap[String(gid)];
-    return { gid, meta, score:Number(row?.total||0) };
+    return { gid, meta, score: Number(row?.total || 0) };
   });
 
-  if(!isCurrent(containerId,myTicket)) return 0;
+  if (!isCurrent(containerId, myTicket)) return 0;
 
-  let total=0; const rows=[];
-  for(const r of results){
+  let total = 0;
+  const rows = [];
+  for (const r of results) {
     total += r.score;
-    const base = `<div class="lbRow" data-gid="${r.gid}">
-      ${gameRowHTML(r.meta,r.score)}
-      ${opts.allowRemove ? `<div class="right">
-          <button class="btn xs danger unpickBtn" data-gid="${r.gid}" type="button">Remove</button>
-        </div>` : ``}
-    </div>`;
-    rows.push(base);
+
+    // check started for lock label vs remove button
+    const ev = NHL?.state?.events?.find?.(e => String(e.id) === String(r.gid));
+    const started = ev ? (Date.now() >= new Date(ev.start).getTime()) : false;
+
+    rows.push(`
+      <div class="lbRow" data-gid="${r.gid}">
+        ${gameRowHTML(r.meta, r.score)}
+        ${opts.allowRemove
+          ? `<div class="right" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+               ${started
+                 ? `<span class="small" aria-label="Locked">Locked</span>`
+                 : `<button type="button" class="btn xs danger removePickBtn" data-gid="${r.gid}">Remove</button>`
+               }
+             </div>`
+          : ``}
+      </div>
+    `);
   }
+
   el.innerHTML = rows.join('');
   return total;
 }
 
-// Delegated remove handler (only listens inside #myNHL)
-document.addEventListener('click', async (e)=>{
-  const btn = e.target.closest('.unpickBtn');
-  if(!btn) return;
-  const withinMine = btn.closest('#myNHL');
-  if(!withinMine) return; // don't allow removing other players' picks
-
-  if(!currentUser){ alert('Sign in first.'); return; }
-  const gid = btn.getAttribute('data-gid');
-  // Optional confirm
-  // if(!confirm('Remove this pick?')) return;
-
-  // Call the helper
-  await removePick(currentUser.id, gid);
-});
-
-  
-/* ---- Main entry: My picks + Everyone (with one batched warm) ---- */
 async function renderMyPicks(){
   if(!currentUser){
-    $('myNHL').innerHTML='<div class="small">Sign in to see your picks.</div>';
-    $('allPicks').innerHTML='<div class="small">Sign in to see everyone.</div>';
+    $('myNHL').innerHTML = '<div class="small">Sign in to see your picks.</div>';
+    $('allPicks').innerHTML = '<div class="small">Sign in to see everyone.</div>';
     return;
   }
 
-  // ---- Mine ----
-  const myList = await picksForUser(currentUser.id);        // cached 3m in your code
-  const myTot  = await renderPickList('myNHL', myList, { allowRemove: true }); // <-- enable Remove
-  $('myNHLTotal').textContent = Number(myTot||0).toFixed(2);
+  // Mine
+  const myList = await picksForUser(currentUser.id);
+  const myTot  = await renderPickList('myNHL', myList, { allowRemove: true }); // <-- IMPORTANT
+  $('myNHLTotal').textContent = Number(myTot || 0).toFixed(2);
 
-  // ---- Everyone (single DB read already done in allPicksThisWeek, cached 20s) ----
-  const box=$('allPicks');
-  const rows = await allPicksThisWeek();                    // returns [{user_id, game_id}...]
-  const byUser=new Map();
-  rows.forEach(r=>{
-    const a=byUser.get(r.user_id)||[];
+  // Everyone
+  const box = $('allPicks');
+  const rows = await allPicksThisWeek();
+  const byUser = new Map();
+  rows.forEach(r => {
+    const a = byUser.get(r.user_id) || [];
     a.push(String(r.game_id));
-    byUser.set(r.user_id,a);
+    byUser.set(r.user_id, a);
   });
 
-  const ids=[...byUser.keys()];
-  if(!ids.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
+  const ids = [...byUser.keys()];
+  if (!ids.length) { box.innerHTML = '<div class="small">No picks yet.</div>'; return; }
 
-  // Build user panels only if membership changed
-  const idsJson=JSON.stringify(ids.slice().sort());
-  if(idsJson !== LAST_ALL_IDS_JSON){
+  const idsJson = JSON.stringify(ids.slice().sort());
+  if (idsJson !== LAST_ALL_IDS_JSON) {
     LAST_ALL_IDS_JSON = idsJson;
-    const names=await getDisplayNames(ids); // memoized
-    const frags=[];
-    ids.forEach(uid=>{
+    const names = await getDisplayNames(ids);
+    const frags = [];
+    ids.forEach(uid => {
       frags.push(`
         <div class="panel" style="margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <strong>${names[uid]||uid.slice(0,6)}</strong>
+            <strong>${names[uid] || uid.slice(0,6)}</strong>
             <span class="small" id="sum-${uid}">NHL —</span>
           </div>
           <div class="sep"></div>
           <div id="p-${uid}-nhl"></div>
         </div>`);
     });
-    box.innerHTML=frags.join('');
+    box.innerHTML = frags.join('');
   }
 
-  // Warm score cache with ONE call for all unique game_ids across everyone
+  // Warm score cache once for all
   const allGids = [...new Set([].concat(...ids.map(uid => byUser.get(uid))))];
-  await getScoresForGames(allGids); // warms SCORE_CACHE
+  await getScoresForGames(allGids);
 
-  // Render each user’s list using warmed cache (no extra calls)
+  // Render each user's list (no remove for others)
   await pLimitAll(ids, 6, async (uid)=>{
-    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
-    const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${Number(t||0).toFixed(2)}`;
+    const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid) || []));
+    const sumEl = $(`sum-${uid}`); if (sumEl) sumEl.textContent = `NHL ${Number(t || 0).toFixed(2)}`;
   });
 }
-
 
 
 /* ---------- Badges UI (IO-optimized) ---------- */
@@ -1928,6 +1943,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
