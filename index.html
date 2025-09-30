@@ -1,8 +1,6 @@
 <!doctype html>
 <html lang="en">
 <head>
-<link rel="icon" type="image/png" sizes="32x32" href="logo.png">
-<link rel="icon" type="image/png" sizes="192x192" href="logo.png">
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>NHL Puck'Em</title>
@@ -1127,334 +1125,85 @@ async function renderMyPicks(){
   });
 }
 
-/* ---------- Badges UI (IO-optimized) ---------- */
-const BadgesCache = {
-  byUser: new Map(),  // userId -> { set: Set<string>, ts: number }
-  inflight: null,     // Promise for ongoing fetch
-  ttlMs: 120000       // 2 minutes; tweak as you like
-};
-
-function applyBadgesToGrid(setOfIds){
-  const grid = $('badgeGrid'); if(!grid) return;
-  // Only toggle when needed
-  grid.querySelectorAll('.bTile').forEach(el=>{
-    const id = el.getAttribute('data-badge');
-    if (!id) return;
-    const shouldUnlock = setOfIds.has(id);
-    const hasClass = el.classList.contains('unlocked');
-    if (shouldUnlock && !hasClass) el.classList.add('unlocked');
-    if (!shouldUnlock && hasClass) el.classList.remove('unlocked');
-  });
-}
-
-async function fetchBadgesFromDB(userId){
-  const { data, error } = await supa
-    .from('badge_events')
-    .select('badge_id')
-    .eq('user_id', userId)
-    .order('badge_id', { ascending: true }); // stable order for cheap diff
-  if (error || !data) return new Set();
-  return new Set(data.map(r => r.badge_id));
-}
-
-/**
- * refreshBadgesUI({ force: boolean }?)
- * - Uses cache if fresh; otherwise fetches once and updates cache.
- * - If called repeatedly (tabs/auth), concurrent calls share one fetch.
- */
-async function refreshBadgesUI(opts = {}){
+/* ---------- Badges UI ---------- */
+async function refreshBadgesUI(){
   try{
     const grid = $('badgeGrid'); if(!grid) return;
-
-    // Signed-out: clear unlocks without hitting DB
-    if (!currentUser){
-      applyBadgesToGrid(new Set());
-      return;
-    }
-
-    const userId = currentUser.id;
-    const cached = BadgesCache.byUser.get(userId);
-    const now = Date.now();
-    const fresh = cached && (now - cached.ts) < BadgesCache.ttlMs;
-
-    // 1) Fast path: fresh cache → instant UI, zero I/O
-    if (fresh && !opts.force){
-      applyBadgesToGrid(cached.set);
-      return;
-    }
-
-    // 2) De-dupe: share a single in-flight fetch
-    if (!BadgesCache.inflight){
-      BadgesCache.inflight = (async () => {
-        const set = await fetchBadgesFromDB(userId);
-        BadgesCache.byUser.set(userId, { set, ts: Date.now() });
-        return set;
-      })().finally(() => { BadgesCache.inflight = null; });
-    }
-
-    const set = await BadgesCache.inflight;
-    applyBadgesToGrid(set);
-  }catch(_e){
-    // On error, keep current UI; no noisy logs needed for users
-  }
+    grid.querySelectorAll('.bTile').forEach(el=>el.classList.remove('unlocked'));
+    if(!currentUser) return;
+    const { data, error } = await supa.from('badge_events').select('badge_id').eq('user_id', currentUser.id);
+    if(error || !data) return;
+    const got = new Set(data.map(r=>r.badge_id));
+    grid.querySelectorAll('.bTile').forEach(el=>{
+      const id = el.getAttribute('data-badge');
+      if(id && got.has(id)) el.classList.add('unlocked');
+    });
+  }catch(e){ /* ignore */ }
 }
 
-/* Helpers to invalidate when something changes server-side */
-function invalidateBadgesCacheFor(userId){
-  BadgesCache.byUser.delete(userId);
-}
-
-
-/* ---------- Mini cache + guards ---------- */
-const Cache = {
-  picksByUser: new Map(),      // userId -> { data: string[], ts: number }
-  inflight: new Map(),         // key -> Promise
-  stamps: {                    // last render time per section
-    myPicks: 0,
-    lbWeek: 0,
-    lbSeason: 0,
-    badges: 0,
-  },
-  // simple helper for dedupe
-  once(key, fn) {
-    if (this.inflight.has(key)) return this.inflight.get(key);
-    const p = (async ()=>{ try { return await fn(); } finally { this.inflight.delete(key); } })();
-    this.inflight.set(key, p);
-    return p;
-  }
-};
-
-// Invalidate cache after mutations (call these in your pick add/remove)
-function invalidatePicksCache(userId){
-  Cache.picksByUser.delete(userId);
-}
-
-/* ---------- Shared getter (with caching) ---------- */
-async function getUserPicks(userId, {maxAgeMs=30000} = {}) {
-  const key = `picks:${userId}`;
-  const cached = Cache.picksByUser.get(userId);
-  const now = Date.now();
-  if (cached && (now - cached.ts) < maxAgeMs) return cached.data;
-
-  // Dedupe concurrent callers (updatePicksLeft + renderMyPicks)
-  const data = await Cache.once(key, async () => {
-    const arr = await picksForUser(userId);
-    Cache.picksByUser.set(userId, { data: arr, ts: Date.now() });
-    return arr;
-  });
-
-  return data;
-}
-
-/* ---------- Picks-left badge (no extra fetch if possible) ---------- */
+/* ---------- Picks-left badge ---------- */
 async function updatePicksLeft(){
   if(!currentUser){ $('picksLeft').textContent='Sign in to play'; return; }
-  // Reuse cached picks (30s freshness is plenty for a badge)
-  const picks = await getUserPicks(currentUser.id, { maxAgeMs: 30000 });
-  $('picksLeft').textContent = `NHL ${Math.max(MAX_PICKS - picks.length, 0)} left`;
+  const n=(await picksForUser(currentUser.id)).length;
+  $('picksLeft').textContent=`NHL ${Math.max(MAX_PICKS-n,0)} left`;
 }
 
-/* ---------- Tabs (lazy + stale-only refresh, deduped) ---------- */
-const tabs = {
-  nhl:    { tab: $('tab-nhl'),    sec: $('sec-nhl') },
-  mine:   { tab: $('tab-mine'),   sec: $('sec-mine') },
-  lb:     { tab: $('tab-lb'),     sec: $('sec-lb') },
-  badges: { tab: $('tab-badges'), sec: $('sec-badges') },
-  rules:  { tab: $('tab-rules'),  sec: $('sec-rules') }
-};
+/* ---------- Tabs ---------- */
+const tabs={ nhl:{tab:$('tab-nhl'),sec:$('sec-nhl')}, mine:{tab:$('tab-mine'),sec:$('sec-mine')}, lb:{tab:$('tab-lb'),sec:$('sec-lb')}, badges:{tab:$('tab-badges'),sec:$('sec-badges')}, rules:{tab:$('tab-rules'),sec:$('sec-rules')} };
+Object.keys(tabs).forEach(k=>tabs[k].tab.addEventListener('click',()=>{ Object.keys(tabs).forEach(x=>{ tabs[x].tab.setAttribute('aria-selected', x===k?'true':'false'); tabs[x].sec.classList.toggle('active', x===k); }); if(k==='mine') renderMyPicks(); if(k==='lb'){ renderWeeklyBoards(); renderSeasonBoards(); } if(k==='badges'){ refreshBadgesUI(); }}));
 
-const STALE = { myPicks: 15000, lb: 60000, badges: 120000 }; // tweak as you like
-
-Object.keys(tabs).forEach(k => {
-  tabs[k].tab.addEventListener('click', async () => {
-    Object.keys(tabs).forEach(x => {
-      tabs[x].tab.setAttribute('aria-selected', x===k ? 'true' : 'false');
-      tabs[x].sec.classList.toggle('active', x===k);
-    });
-
-    // Only (re)render when stale; dedupe with Cache.once
-    const now = Date.now();
-
-    if (k === 'mine' && currentUser) {
-      if (now - Cache.stamps.myPicks > STALE.myPicks) {
-        await Cache.once('render:myPicks', async () => {
-          // Ensure badge + list share the same data
-          const picks = await getUserPicks(currentUser.id, { maxAgeMs: 0 }); // force fresh when opening tab
-          await renderMyPicks(picks);  // consider making renderMyPicks accept an array
-          Cache.stamps.myPicks = Date.now();
-          // badge can reuse cache; no extra I/O
-          $('picksLeft') && updatePicksLeft();
-        });
-      }
-    }
-
-    if (k === 'lb') {
-      if (now - Cache.stamps.lbWeek > STALE.lb) {
-        await Cache.once('render:lbWeek', async () => {
-          await renderWeeklyBoards();
-          Cache.stamps.lbWeek = Date.now();
-        });
-      }
-      if (now - Cache.stamps.lbSeason > STALE.lb) {
-        await Cache.once('render:lbSeason', async () => {
-          await renderSeasonBoards();
-          Cache.stamps.lbSeason = Date.now();
-        });
-      }
-    }
-
-    if (k === 'badges') {
-      if (now - Cache.stamps.badges > STALE.badges) {
-        await Cache.once('render:badges', async () => {
-          await refreshBadgesUI();
-          Cache.stamps.badges = Date.now();
-        });
-      }
-    }
-  });
-});
-
-/* ---------- Boot (IO-optimized) ---------- */
-(async () => {
-  // Grab session once; Supabase SDK already caches it.
-  const { data: { session: ses } } = await supa.auth.getSession();
-  let lastUserId = ses?.user?.id || null;
-  session = ses;
-  currentUser = ses?.user || null;
+/* ---------- Boot ---------- */
+(async ()=>{
+  const { data:{ session:ses } } = await supa.auth.getSession();
+  session=ses; currentUser = session?.user || null;
 
   function showAuthUI(){
-    const login = document.getElementById('loginPwForm');
-    const userBox = document.getElementById('userBox');
-    const signupLink = document.querySelector('a[href="signup.html"]');
-    if (currentUser){
-      if (login)      login.style.display = 'none';
-      if (signupLink) signupLink.style.display = 'none';
-      if (userBox)    userBox.style.display = 'flex';
-      const who = document.getElementById('whoami');
-      if (who) who.textContent = currentUser.email || '(no email)';
-    } else {
-      if (login)      login.style.display = 'flex';
-      if (signupLink) signupLink.style.display = 'inline-flex';
-      if (userBox)    userBox.style.display = 'none';
-    }
+  const login   = document.getElementById('loginPwForm');
+  const userBox = document.getElementById('userBox');
+  const signupLink = document.querySelector('a[href="signup.html"]');
+
+  if (currentUser){
+    if (login)      login.style.display = 'none';
+    if (signupLink) signupLink.style.display = 'none';
+    if (userBox)    userBox.style.display = 'flex';
+    const who = document.getElementById('whoami');
+    if (who) who.textContent = currentUser.email || '(no email)';
+  } else {
+    if (login)      login.style.display = 'flex';
+    if (signupLink) signupLink.style.display = 'inline-flex';
+    if (userBox)    userBox.style.display = 'none';
   }
+}
+
+
 
   showAuthUI();
 
-  // User-dependent boot work
-  if (currentUser) {
-    await loadOrCreatePlayer();        // required once to ensure profile
-  }
+  if(currentUser){ await loadOrCreatePlayer(); }
 
-  // League + static boards can load in parallel
-  const league = NHL;
-  await league.loadWeek();             // keep single call here
+  const league = NHL; await league.loadWeek();
+  await updatePicksLeft();
+  await renderWeeklyBoards();
+  await renderSeasonBoards();
+  await renderMyPicks();
+  await refreshBadgesUI();
 
-  // Run independent UI/population tasks in parallel to minimize open time.
-  await Promise.all([
-    updatePicksLeft(),                 // user-dependent, cheap
-    renderWeeklyBoards(),              // uses week data
-    renderSeasonBoards(),              // season aggregates
-    currentUser ? renderMyPicks() : Promise.resolve(),
-    refreshBadgesUI()
-  ]);
-
-  // ---- Auth changes: only re-do user-dependent work, not week/season ----
-  let authTick = 0; // de-dupe rapid events
-  supa.auth.onAuthStateChange(async (_event, sess) => {
-    const thisTick = ++authTick;
-    session = sess;
-    currentUser = session?.user || null;
-    showAuthUI();
-
-    // If user ID didn't change, don't refetch anything
-    const uid = currentUser?.id || null;
-    if (uid === lastUserId) return;
-
-    lastUserId = uid;
-
-    // Abort if a newer auth event fired
-    if (thisTick !== authTick) return;
-
-    if (currentUser) {
-      await loadOrCreatePlayer();
-      await Promise.all([
-        updatePicksLeft(),
-        renderMyPicks(),
-        refreshBadgesUI()
-      ]);
-
-      // Mark already-picked games in the grid without requerying boards
-      if (NHL?.state?.events) {
-        const mine = await picksForUser(currentUser.id);
-        mine.forEach(gid => {
-          const tag = $(`picked-${gid}`);
-          if (tag) tag.style.display = 'inline-flex';
-          const btn = document.querySelector(`.pickBtn[data-gid="${gid}"]`);
-          if (btn) btn.style.display = 'none';
-        });
-      }
-    } else {
-      // Signed out: just refresh the minimal UI
-      await Promise.all([
-        updatePicksLeft(),
-        refreshBadgesUI()
-      ]);
+  supa.auth.onAuthStateChange(async (_event, sess)=>{
+    session=sess; currentUser=session?.user||null; showAuthUI();
+    if(currentUser){ await loadOrCreatePlayer(); }
+    await updatePicksLeft();
+    await renderMyPicks();
+    await renderWeeklyBoards();
+    if(currentUser && NHL?.state?.events){
+      const mine = await picksForUser(currentUser.id);
+      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
     }
+    await refreshBadgesUI();
   });
 
-  // ---- Smart polling for weekly boards (visibility-aware, de-duped) ----
-  let wbInFlight = false;
-  let wbLastHash = '';
-  let wbIntervalMs = 60000; // start at 60s, back off up to 5 min on no-change
-  const wbMaxMs = 300000;
-
-  async function refreshWeeklyBoardsIfChanged() {
-    if (wbInFlight || document.hidden) return;
-    wbInFlight = true;
-    try {
-      // Ask renderWeeklyBoards to return a lightweight change token if you can;
-      // if not, compute one here from the data you already have.
-      const hash = await renderWeeklyBoards({ returnHash: true });
-      const changed = hash && hash !== wbLastHash;
-      if (changed) {
-        wbLastHash = hash;
-        wbIntervalMs = 60000; // reset to 60s when there’s change
-      } else {
-        // no change detected → back off up to 5 min
-        wbIntervalMs = Math.min(wbIntervalMs + 30000, wbMaxMs);
-      }
-    } catch (e) {
-      // transient errors → modest backoff
-      wbIntervalMs = Math.min(wbIntervalMs + 30000, wbMaxMs);
-    } finally {
-      wbInFlight = false;
-    }
-  }
-
-  let wbTimer;
-  function scheduleWB() {
-    clearTimeout(wbTimer);
-    wbTimer = setTimeout(async () => {
-      await refreshWeeklyBoardsIfChanged();
-      scheduleWB();
-    }, wbIntervalMs);
-  }
-
-  // Pause polling when tab hidden; resume quickly when visible.
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      clearTimeout(wbTimer);
-    } else {
-      wbIntervalMs = 10000; // quick catch-up after returning
-      scheduleWB();
-    }
-  });
-
-  scheduleWB(); // start the loop
+  setInterval(renderWeeklyBoards, 60000);
 })();
-
-// Clean up channels + timers on page unload (kept as-is)
+// Clean up channels + timers on page unload
 window.addEventListener('beforeunload', () => {
   if (window.ST && Array.isArray(ST.chans)) {
     ST.chans.forEach(({ ch, timer }) => {
@@ -1463,7 +1212,6 @@ window.addEventListener('beforeunload', () => {
     });
   }
 });
-
 
 // === PERFORMANCE & CLEANUP PATCH ===
 
@@ -1542,5 +1290,3 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
-
-
