@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -243,6 +244,7 @@
   <button class="tab" id="tab-rules" role="tab" aria-controls="sec-rules" aria-selected="false">Scoring</button>
   <a class="tab" href="./chat.html" role="tab" aria-selected="false">Chat Locker Room</a>
   <a class="tab" href="./playbook.html" role="tab" aria-selected="false">FAQ and Rules</a>
+  <a class="tab" href="./previous.html" role="tab" aria-selected="false">Previous Weeks</a>
 
 </nav>
 
@@ -494,29 +496,99 @@ function cdnNHL(t){ if(!t) return null; if(t.logos?.[0]?.href) return String(t.l
 let session=null, currentUser=null, displayName='';
 function toast(msg){ const t=document.createElement('div'); t.textContent=msg; Object.assign(t.style,{position:'fixed',right:'16px',bottom:'16px',background:'#0f1318',border:'1px solid #264',padding:'8px 10px',borderRadius:'10px',zIndex:50}); document.body.appendChild(t); setTimeout(()=>t.remove(),1600); }
 
+/* ---------- Player cache ---------- */
+const PlayerCache = {
+  uid: null,
+  displayName: '',
+  loaded: false,
+};
+
+function _lsKey(uid){ return `player:${uid}:display_name`; }
+
+/* ---------- loadOrCreatePlayer (IO-optimized) ---------- */
 async function loadOrCreatePlayer(){
-  if(!currentUser) return;
-  const uid=currentUser.id;
-  const { data, error } = await supa.from('players').select('*').eq('id',uid).maybeSingle();
-  if(error){ console.error(error); return; }
-  if(!data){
-    const def = (currentUser.email||'user').split('@')[0];
-    const { error:insErr } = await supa.from('players').insert({ id:uid, display_name:def });
-    if(insErr){ console.error(insErr); }
-    displayName=def;
-  }else{
-    displayName=data.display_name||'';
+  if (!currentUser) return;
+  const uid = currentUser.id;
+  PlayerCache.uid = uid;
+
+  // 1) Instant UI from localStorage if present (no I/O)
+  const cached = localStorage.getItem(_lsKey(uid));
+  if (cached) {
+    displayName = cached;
+    PlayerCache.displayName = cached;
+    PlayerCache.loaded = true;
+    const inp = $('displayNameInput'); if (inp) inp.value = displayName;
   }
-  $('displayNameInput').value=displayName||'';
+
+  // 2) If we already fetched this session, skip another read
+  if (PlayerCache.loaded) return;
+
+  // 3) Read only what's needed
+  const { data, error } = await supa
+    .from('players')
+    .select('display_name')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (error) { console.error(error); }
+
+  if (!data) {
+    // 4) Create default row once; ignore duplicate errors if it exists
+    const def = (currentUser.email || 'user').split('@')[0];
+    const { error: insErr } = await supa
+      .from('players')
+      .insert({ id: uid, display_name: def });
+    if (insErr && insErr.code !== '23505') { // ignore unique_violation
+      console.error(insErr);
+    }
+    displayName = def;
+  } else {
+    displayName = data.display_name || '';
+  }
+
+  PlayerCache.displayName = displayName;
+  PlayerCache.loaded = true;
+  localStorage.setItem(_lsKey(uid), displayName);
+
+  const inp = $('displayNameInput'); if (inp) inp.value = displayName || '';
 }
 
+/* ---------- Save display name (debounced, optimistic, no board reload) ---------- */
+let _saveDN_inflight = null;
 $('saveDisplayName').addEventListener('click', async ()=>{
   if(!currentUser) return;
-  const name = ($('displayNameInput').value||'').trim(); if(!name) return;
-  const { error } = await supa.from('players').upsert({ id: currentUser.id, display_name: name });
-  if(!error){ displayName=name; toast('Saved ✓'); renderWeeklyBoards(); renderSeasonBoards(); }
+  if (_saveDN_inflight) return; // de-dupe rapid clicks
+
+  const name = ($('displayNameInput').value||'').trim();
+  if(!name || name === displayName) return;
+
+  // Optimistic UI
+  displayName = name;
+  PlayerCache.displayName = name;
+  localStorage.setItem(_lsKey(currentUser.id), name);
+  toast('Saved ✓');
+
+  _saveDN_inflight = supa
+    .from('players')
+    .upsert({ id: currentUser.id, display_name: name })
+    .then(({ error })=>{
+      if (error) { console.error(error); toast('Save failed'); }
+    })
+    .finally(()=>{ _saveDN_inflight = null; });
+
+  await _saveDN_inflight;
 });
-$('logoutBtn').addEventListener('click', async ()=>{ await supa.auth.signOut(); location.reload(); });
+
+/* ---------- Auth actions (unchanged behavior) ---------- */
+$('logoutBtn').addEventListener('click', async ()=>{
+  await supa.auth.signOut();
+  // Faster than full reload; clears UI and cache safely
+  PlayerCache.loaded = false;
+  PlayerCache.displayName = '';
+  localStorage.removeItem(_lsKey(currentUser?.id || ''));
+  location.reload();
+});
+
 $('loginPwForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = $('liEmail').value.trim();
@@ -525,6 +597,7 @@ $('loginPwForm').addEventListener('submit', async (e) => {
   if (error) { alert(error.message); return; }
   toast('Logged in ✓');
 });
+
 $('forgotLink').addEventListener('click', async (e) => {
   e.preventDefault();
   const email = prompt('Enter your account email:'); if (!email) return;
@@ -533,6 +606,7 @@ $('forgotLink').addEventListener('click', async (e) => {
   if (error) { alert(error.message); return; }
   toast('Reset email sent.');
 });
+
 
 /* ---------- Picks (Supabase) ---------- */
 function uniqLimit(arr){ const out=[]; const seen=new Set(); (arr||[]).forEach(x=>{ const id=String(x); if(!seen.has(id)){ seen.add(id); out.push(id); } }); return out.slice(0,MAX_PICKS); }
@@ -592,12 +666,39 @@ async function setPick(uid, gameId){
   return true;
 }
 
+// shared bag for in-flight promises (if you don't already have one)
+const _inflight = new Map();
+
 async function allPicksThisWeek(){
-  const cached = getCache(CK_ALL); if(cached) return cached;
-  const { data, error } = await supa.from('picks').select('user_id, game_id').eq('league','NHL').eq('week_key',WEEK_KEY);
-  const rows = error ? [] : (data||[]);
-  setCache(CK_ALL, rows, 20000); return rows;
+  const key = `${CK_ALL}:${WEEK_KEY}`;
+  const cached = getCache(key);
+  if (cached) return cached;
+
+  // If the page is in the background and we have no urgent need, avoid DB hits
+  if (typeof document !== 'undefined' && document.hidden) {
+    const fallback = getCache(key); // recheck (if someone warmed it)
+    if (fallback) return fallback;
+  }
+
+  // De-dupe concurrent callers
+  if (_inflight.has(key)) return _inflight.get(key);
+
+  const p = (async () => {
+    const { data, error } = await supa
+      .from('picks')
+      .select('user_id, game_id')         // minimal columns
+      .eq('league', 'NHL')
+      .eq('week_key', WEEK_KEY);
+
+    const rows = error ? [] : (data || []);
+    setCache(key, rows, 20000);           // same TTL (20s)
+    return rows;
+  })().finally(() => _inflight.delete(key));
+
+  _inflight.set(key, p);
+  return p;
 }
+
 async function getDisplayNames(userIds){
   const ids = [...new Set(userIds||[])].filter(Boolean); if(ids.length===0) return {};
   const need = ids.filter(id=>!NAME_MEMO.has(id));
@@ -673,35 +774,110 @@ async function getRecentPlays(eventId, summaryJson){
   return arr.map(mapPlay);
 }
 
-/* ---------- League (NHL) UI ---------- */
+/* ---------- League (NHL) UI — IO-optimized drop-in ---------- */
 function leagueFactory(){
-  const st={ events:[], selected:null, poll:null, gameRows:[] };
-  const dom={ gridCard:$('nhl-gridCard'), note:$('nhl-note'), grid:$('nhl-grid'), top:$('nhl-top'), back:$('nhl-back'), add:$('nhl-addPick'), live:$('nhl-liveHeader'), teamSide:$('nhl-teamSide'), fscore:$('nhl-fscore'), bonus:$('nhl-bonuses'), clock:$('nhl-clock'), q:$('nhl-q'), state:$('nhl-state'), gameLB:$('nhl-gameLB') };
-  const api={ scoreboard:(d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`, summary:(id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}` };
+  const st = { events:[], selected:null, poll:null, gameRows:[], lastHash:'' };
 
-  dom.back.addEventListener('click', ()=>{ dom.top.style.display='none'; dom.gridCard.style.display='block'; st.selected=null; });
+  const dom = {
+    gridCard: $('nhl-gridCard'),
+    note:     $('nhl-note'),
+    grid:     $('nhl-grid'),
+    top:      $('nhl-top'),
+    back:     $('nhl-back'),
+    add:      $('nhl-addPick'),
+    live:     $('nhl-liveHeader'),
+    teamSide: $('nhl-teamSide'),
+    fscore:   $('nhl-fscore'),
+    bonus:    $('nhl-bonuses'),
+    clock:    $('nhl-clock'),
+    q:        $('nhl-q'),
+    state:    $('nhl-state'),
+    gameLB:   $('nhl-gameLB')
+  };
+
+  const api = {
+    scoreboard: (d)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=${d.replace(/-/g,'')}`,
+    summary:    (id)=>`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${id}`
+  };
+
+  /* ---------- tiny caches (URL fetch + DB score) ---------- */
+  const FetchCache = new Map();   // url -> { data:any, ts:number, inflight:Promise }
+  const DbScoreCache = new Map(); // id  -> { row:any, ts:number, inflight:Promise }
+  const TTL = {
+    scoreboard:  5 * 60 * 1000,   // 5m; scoreboard per date barely changes after posted
+    summary:        15 * 1000,    // 15s; summaries update frequently
+    dbScore:        10 * 1000     // 10s; our own DB mirror updates quickly
+  };
+
+  function cacheOnce(map, key, ttl, producer){
+    const now = Date.now();
+    const hit = map.get(key);
+    if (hit) {
+      if (hit.inflight) return hit.inflight;   // share in-flight
+      if ((now - hit.ts) < ttl) return Promise.resolve(hit.data); // fresh
+    }
+    const p = (async ()=>producer())()
+      .then(data => { map.set(key, { data, ts: Date.now(), inflight:null }); return data; })
+      .catch(e  => { map.delete(key); throw e; })
+      .finally(()=>{ const k = map.get(key); if (k) k.inflight = null; });
+    map.set(key, { data:null, ts:0, inflight:p });
+    return p;
+  }
+
+  async function cachedJson(url, ttl){
+    return cacheOnce(FetchCache, url, ttl, async ()=> {
+      // safeJson() already handles fetch+json+errors in your codebase
+      return await safeJson(url);
+    });
+  }
+
+  async function getDbScoreCached(id){
+    return cacheOnce(DbScoreCache, String(id), TTL.dbScore, async ()=>{
+      return await getGameScoreFromDB(id); // your existing DB read
+    });
+  }
+
+  /* ---------- Nav + pick button wiring (unchanged UX) ---------- */
+  dom.back.addEventListener('click', ()=>{
+    dom.top.style.display = 'none';
+    dom.gridCard.style.display = 'block';
+    st.selected = null;
+  });
+
   dom.add.addEventListener('click', async ()=>{
-    if(!currentUser){ alert('Sign in first.'); return; }
-    if(!st.selected) return;
-    const kick=new Date(st.selected.start).getTime();
-    if(Date.now()>=kick){ alert('Locked (already started)'); return; }
-    const myList = await picksForUser(currentUser.id);
-    const gid=String(st.selected.id);
-    if(myList.includes(gid)){ alert('Already picked.'); return; }
-    if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
-    const ok = await setPick(currentUser.id,gid);
-    if(ok){
+    if (!currentUser){ alert('Sign in first.'); return; }
+    if (!st.selected) return;
+    const kick = new Date(st.selected.start).getTime();
+    if (Date.now() >= kick){ alert('Locked (already started)'); return; }
+
+    // reuse picks cache if present; fall back to live call
+    let myList;
+    if (typeof getUserPicks === 'function') {
+      myList = await getUserPicks(currentUser.id, { maxAgeMs: 0 });
+    } else {
+      myList = await picksForUser(currentUser.id);
+    }
+
+    const gid = String(st.selected.id);
+    if (myList.includes(gid)){ alert('Already picked.'); return; }
+    if (myList.length >= MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
+
+    const ok = await setPick(currentUser.id, gid);
+    if (ok){
+      // local optimistic UI + targeted invalidations (no heavy board refetch unless needed elsewhere)
+      if (typeof invalidatePicksCache === 'function') invalidatePicksCache(currentUser.id);
       updatePicksLeft();
-      renderWeeklyBoards();
-      renderMyPicks();
-      const tag=$(`picked-${st.selected.id}`); if(tag) tag.style.display='inline-flex';
-      const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
+      renderMyPicks();      // keeps My Picks accurate
+      renderWeeklyBoards(); // your original behavior kept
+      const tag = $(`picked-${st.selected.id}`); if (tag) tag.style.display='inline-flex';
+      const btn = document.querySelector(`.pickBtn[data-gid="${gid}"]`); if (btn) btn.style.display='none';
       toast('Pick saved ✓');
     }
   });
 
+  /* ---------- Grid (unchanged markup/UX) ---------- */
   function renderGrid(){
-    dom.grid.innerHTML='';
+    dom.grid.innerHTML = '';
     (st.events||[]).forEach(g=>{
       const started = Date.now() >= new Date(g.start).getTime();
       const card = document.createElement('div');
@@ -754,19 +930,28 @@ function leagueFactory(){
       card.querySelector('.viewBtn').addEventListener('click', ()=>openGame(g));
 
       const pickBtn = card.querySelector('.pickBtn');
-      if(pickBtn){
+      if (pickBtn){
         pickBtn.addEventListener('click', async ()=>{
           if(!currentUser){ alert('Sign in first.'); return; }
           if(Date.now()>=new Date(g.start).getTime()){ alert('Locked (already started)'); return; }
-          const myList = await picksForUser(currentUser.id);
+
+          let myList;
+          if (typeof getUserPicks === 'function') {
+            myList = await getUserPicks(currentUser.id, { maxAgeMs: 0 });
+          } else {
+            myList = await picksForUser(currentUser.id);
+          }
+
           const gid = String(g.id);
           if(myList.includes(gid)){ alert('Already picked.'); return; }
           if(myList.length>=MAX_PICKS){ alert(`You already have ${MAX_PICKS} picks in NHL.`); return; }
+
           const ok = await setPick(currentUser.id, gid);
           if(ok){
+            if (typeof invalidatePicksCache === 'function') invalidatePicksCache(currentUser.id);
             updatePicksLeft();
-            renderWeeklyBoards();
             renderMyPicks();
+            renderWeeklyBoards();
             const tag = $(`picked-${g.id}`); if(tag) tag.style.display='inline-flex';
             pickBtn.style.display='none';
             toast('Pick saved ✓');
@@ -778,28 +963,37 @@ function leagueFactory(){
     });
   }
 
+  /* ---------- Grid score refresh (change-aware + cached, same UI) ---------- */
   async function refreshGridScores(){
     const evs = st.events || []; if(!evs.length) return;
 
     const rows = await pLimitAll(evs, 6, async (g)=>{
       try{
-        const s = await safeJson(api.summary(g.id));
+        // ESPN summary (cached ~15s, shared across callers)
+        const s = await cachedJson(api.summary(g.id), TTL.summary);
+
+        // Push to DB + read DB row (DB read cached ~10s)
         await pushSummaryToSQL(g.id, s);
-        const row = await getGameScoreFromDB(g.id);
-        const comp=s?.header?.competitions?.[0] || {};
+        const row = await getDbScoreCached(g.id);
+
+        // Pull scores from DB if present, else fall back to ESPN live
+        const comp = s?.header?.competitions?.[0] || {};
         let homeC=null, awayC=null;
         (comp.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+
         return {
-          id:g.id,
+          id: g.id,
           awayPts: row?.away_pts ?? Number(awayC?.score ?? 0),
           homePts: row?.home_pts ?? Number(homeC?.score ?? 0),
-          score: row?.total ?? 0,
+          score:   row?.total    ?? 0,
           status: (comp.status?.type?.shortDetail || comp.status?.type?.description || '—')
         };
-      }catch{ return null; }
+      } catch { return null; }
     });
 
     const valid = rows.filter(Boolean);
+
+    // Apply to DOM (unchanged UX)
     for(const r of valid){
       const scEl = $(`NHL-scr-${r.id}`);
       const stEl = $(`NHL-st-${r.id}`);
@@ -814,6 +1008,7 @@ function leagueFactory(){
       if(fEl)  fEl.textContent  = Number(r.score || 0).toFixed(2);
     }
 
+    // Build leaderboard rows (unchanged UI)
     st.gameRows = evs.map(g=>{
       const r = valid.find(x => x && String(x.id)===String(g.id));
       if(!r) return null;
@@ -824,7 +1019,13 @@ function leagueFactory(){
       };
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
-    renderGameLB(); renderUserLB();
+    renderGameLB();
+    renderUserLB();
+
+    // simple change hash for adaptive polling
+    const newHash = JSON.stringify(valid.map(v=>[v.id, v.awayPts, v.homePts, v.status, v.score]));
+    st.changed = (newHash !== st.lastHash);
+    st.lastHash = newHash;
   }
 
   function renderGameLB(){
@@ -876,18 +1077,18 @@ function leagueFactory(){
        </div>
        <div class="teamline" style="border-left:6px solid ${g.home.color?('#'+g.home.color):'#2a3643'}">
          <div style="display:flex;gap:10px;align-items:center">
-           ${g.home.logo?`<img src="${g.home.logo}" alt="">`:''}
+           ${g.home.logo?`<img src="${g.home.logo}" alt="">`:""}
            <div style="font-weight:700">${g.home.name}</div>
          </div>
          <div id="NHL-homeScore" style="font-weight:800">—</div>
        </div>`;
 
-    dom.gridCard.style.display='none'; 
+    dom.gridCard.style.display='none';
     dom.top.style.display='block';
 
-    updateGameOnce(); 
-    if(st.poll) clearInterval(st.poll); 
-    st.poll = setInterval(updateGameOnce, 20000);
+    updateGameOnce();
+    if(st.poll) clearInterval(st.poll);
+    st.poll = setInterval(updateGameOnce, 20000); // keep your 20s cadence for fast feel
 
     renderGameLB(); renderUserLB();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -897,14 +1098,14 @@ function leagueFactory(){
     const W = { goal:4, ppg:1.5, shg:1.0, sog:0.1, sv:0.05, hit:0.05, block:0.05, pim:-0.1, close:4, ot:2, so:2 };
     const safe = n => Number(n||0);
     const items = [
-      { label:'Goals',         count:safe(row.goals),  per:W.goal,  pts:safe(row.goals)*W.goal },
+      { label:'Goals',            count:safe(row.goals),  per:W.goal,  pts:safe(row.goals)*W.goal },
       { label:'PowerPlay Goals',  count:safe(row.ppg),    per:W.ppg,   pts:safe(row.ppg)*W.ppg },
       { label:'Shorthanded Goals',count:safe(row.shg),    per:W.shg,   pts:safe(row.shg)*W.shg },
-      { label:'Shots on Goal', count:safe(row.shots),  per:W.sog,   pts:safe(row.shots)*W.sog },
-      { label:'Saves',         count:safe(row.saves),  per:W.sv,    pts:safe(row.saves)*W.sv },
-      { label:'Hits',          count:safe(row.hits),   per:W.hit,   pts:safe(row.hits)*W.hit },
-      { label:'Blocked Shots', count:safe(row.blocks), per:W.block, pts:safe(row.blocks)*W.block },
-      { label:'Penalty Minutes',count:safe(row.pim),   per:W.pim,   pts:safe(row.pim)*W.pim },
+      { label:'Shots on Goal',    count:safe(row.shots),  per:W.sog,   pts:safe(row.shots)*W.sog },
+      { label:'Saves',            count:safe(row.saves),  per:W.sv,    pts:safe(row.saves)*W.sv },
+      { label:'Hits',             count:safe(row.hits),   per:W.hit,   pts:safe(row.hits)*W.hit },
+      { label:'Blocked Shots',    count:safe(row.blocks), per:W.block, pts:safe(row.blocks)*W.block },
+      { label:'Penalty Minutes',  count:safe(row.pim),    per:W.pim,   pts:safe(row.pim)*W.pim },
     ];
     const tbody = document.querySelector('#nhl-breakdown tbody');
     if(!tbody) return;
@@ -933,24 +1134,29 @@ function leagueFactory(){
   async function updateGameOnce(){
     if(!st.selected) return; const id=st.selected.id;
     try{
-      const s=await safeJson(api.summary(id));
-      const comp=s?.header?.competitions||[];
-      const c0=(comp[0]||{}); const status=c0.status||{};
-      let homeC=null,awayC=null; (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+      // ESPN summary (cached)
+      const s = await cachedJson(api.summary(id), TTL.summary);
 
+      const comp = s?.header?.competitions || [];
+      const c0   = (comp[0]||{});
+      const status = c0.status || {};
+      let homeC=null, awayC=null;
+      (c0.competitors||[]).forEach(c=>{ if(c.homeAway==='home') homeC=c; if(c.homeAway==='away') awayC=c; });
+
+      // Push + DB (cached)
       await pushSummaryToSQL(id, s);
-      const row = await getGameScoreFromDB(id);
+      const row = await getDbScoreCached(id);
 
-      $('NHL-homeScore').textContent=String(row?.home_pts ?? homeC?.score ?? 0);
-      $('NHL-awayScore').textContent=String(row?.away_pts ?? awayC?.score ?? 0);
-      $('nhl-clock').textContent=status.displayClock||'—';
-      $('nhl-q').textContent=String(status.period??'—');
-      $('nhl-state').textContent=(status.type?.description||status.type?.shortDetail||'—');
-      $('nhl-fscore').textContent = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
+      $('NHL-homeScore').textContent = String(row?.home_pts ?? homeC?.score ?? 0);
+      $('NHL-awayScore').textContent = String(row?.away_pts ?? awayC?.score ?? 0);
+      $('nhl-clock').textContent     = status.displayClock || '—';
+      $('nhl-q').textContent         = String(status.period ?? '—');
+      $('nhl-state').textContent     = (status.type?.description || status.type?.shortDetail || '—');
+      $('nhl-fscore').textContent    = (row?.total!=null ? Number(row.total).toFixed(2) : '—');
 
       if(row) renderBreakdown(row);
 
-      // ----- NEW: fill Scoring Plays & Recent Plays -----
+      // Scoring/Recent plays (use provided summary when available to avoid refetch)
       const scoring = await getScoringPlaysRobust(id, s);
       const scoreBox = document.getElementById('nhl-scoreList');
       if(scoreBox){
@@ -971,45 +1177,92 @@ function leagueFactory(){
             ).join('')
           : '<div class="small">No data yet.</div>';
       }
-      // -----------------------------------------------
-
-    }catch(e){ /* ignore */ }
+    }catch(e){ /* ignore to keep UX stable */ }
   }
 
+  /* ---------- Week load (parallel dates + cached scoreboards) ---------- */
   async function loadWeek(){
-    dom.note.textContent=`Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;
-    const all=[];
-    for(const d of WEEK.list){
-      const sb=await safeJson(api.scoreboard(d)).catch(()=>null);
-      const evs=sb?.events||[];
-      for(const ev of evs){
-        const c=ev.competitions?.[0]||{};
-        let home=null,away=null; (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
+    dom.note.textContent = `Loading NHL games for ${WEEK.start} → ${WEEK.end} …`;
+
+    // Fetch all dates in parallel (fewer seconds with same #calls)
+    const sbList = await Promise.allSettled(WEEK.list.map(d =>
+      cachedJson(api.scoreboard(d), TTL.scoreboard).catch(()=>null)
+    ));
+
+    const all = [];
+    for (let i=0;i<sbList.length;i++){
+      const sb = sbList[i].status === 'fulfilled' ? sbList[i].value : null;
+      const evs = sb?.events || [];
+      for (const ev of evs){
+        const c = ev.competitions?.[0] || {};
+        let home=null, away=null;
+        (c.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
         all.push({
-          id:ev.id,
-          start:ev.date,
-          home:{ name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },
-          away:{ name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }
+          id:    ev.id,
+          start: ev.date,
+          home:  { name:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', color:home?.team?.color||null, logo:cdnNHL(home?.team||null) },
+          away:  { name:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', color:away?.team?.color||null, logo:cdnNHL(away?.team||null) }
         });
       }
     }
+
     all.sort((a,b)=>new Date(a.start)-new Date(b.start));
-    st.events=all;
-    dom.note.textContent=`${all.length} games`;
+    st.events = all;
+    dom.note.textContent = `${all.length} games`;
     renderGrid();
-    if(currentUser){
-      const mine = await picksForUser(currentUser.id);
-      mine.forEach(gid=>{ const tag=$(`picked-${gid}`); if(tag) tag.style.display='inline-flex'; const btn=document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none'; });
+
+    if (currentUser){
+      // Reuse picks cache if available
+      let mine;
+      if (typeof getUserPicks === 'function') {
+        mine = await getUserPicks(currentUser.id, { maxAgeMs: 0 });
+      } else {
+        mine = await picksForUser(currentUser.id);
+      }
+      mine.forEach(gid=>{
+        const tag = $(`picked-${gid}`); if(tag) tag.style.display='inline-flex';
+        const btn = document.querySelector(`.pickBtn[data-gid="${gid}"]`); if(btn) btn.style.display='none';
+      });
     }
-    refreshGridScores();
-    setInterval(refreshGridScores,30000);
+
+    await refreshGridScores();  // initial fill
+
+    // Adaptive poll: fast when changing, slower when stable; pause when hidden
+    let intervalMs = 30000;            // base 30s (your original cadence)
+    const maxMs    = 60000;            // back off to 60s when no changes
+    let timer;
+
+    function schedule(){
+      clearTimeout(timer);
+      timer = setTimeout(async ()=>{
+        if (!document.hidden){          // no I/O if tab hidden
+          await refreshGridScores();
+          intervalMs = st.changed ? 30000 : Math.min(intervalMs + 10000, maxMs);
+        }
+        schedule();
+      }, intervalMs);
+    }
+
+    // visibility-aware
+    const visHandler = ()=>{
+      if (!document.hidden){
+        intervalMs = 20000; // quick catch-up on return
+        schedule();
+      } else {
+        clearTimeout(timer);
+      }
+    };
+    document.addEventListener('visibilitychange', visHandler);
+
+    schedule();
   }
 
-  function renderUserLB(){ /* minimal on this tab */ }
+  function renderUserLB(){ /* minimal on this tab (unchanged) */ }
 
-  return { loadWeek, state:st };
+  return { loadWeek, state: st };
 }
 const NHL = leagueFactory();
+
 
 /* ---------- DB-driven helpers for boards/picks ---------- */
 function ordinal(n){ const s=["th","st","nd","rd"], v=n%100; return n+ (s[(v-20)%10]||s[v]||s[0]); }
@@ -1045,87 +1298,150 @@ async function renderSeasonBoards(){
   });
 }
 
-/* ---------- My Picks ---------- */
+/* ---------- My Picks (optimized: batched DB read, cached scores, no ESPN here) ---------- */
 const RENDER_TICKETS = new Map();
 function nextTicket(key){ const n=(RENDER_TICKETS.get(key)||0)+1; RENDER_TICKETS.set(key,n); return n; }
 function isCurrent(key,t){ return RENDER_TICKETS.get(key)===t; }
 let LAST_ALL_IDS_JSON = '';
 
+/* ---- UI helpers (unchanged) ---- */
 function gameRowHTML(meta,score){
-  return `<div class="lbTeam">${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}<span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}</div><div class="lbPts">${Number(score||0).toFixed(2)}</div><div class="small">Game</div>`;
+  return `<div class="lbTeam">
+    ${meta.awayLogo?`<img src="${meta.awayLogo}" alt="">`:''}
+    <span class="lbName" style="max-width:280px">${meta.awayName} @ ${meta.homeName}</span>
+    ${meta.homeLogo?`<img src="${meta.homeLogo}" alt="" style="margin-left:6px">`:''}
+  </div>
+  <div class="lbPts">${Number(score||0).toFixed(2)}</div>
+  <div class="small">Game</div>`;
 }
+
+/* ---- Meta: use in-memory cache (24h) + NHL.state first ---- */
 async function gameMeta(gid){
   const ck=`meta:${gid}`;
-  const c=getCache(ck);
-  if(c) return c;
-  const ev=NHL.state.events.find(e=>String(e.id)===String(gid));
+  const cached=getCache(ck); if(cached) return cached;
+
+  const ev=NHL?.state?.events?.find?.(e=>String(e.id)===String(gid));
   if(ev){
     const m={awayName:ev.away.name,homeName:ev.home.name,awayLogo:ev.away.logo,homeLogo:ev.home.logo};
-    setCache(ck,m,24*60*60*1000);
-    return m;
+    setCache(ck,m,24*60*60*1000); return m;
   }
-  try{
-    const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
-    const comp=s?.header?.competitions?.[0]||{}; let home=null,away=null; (comp.competitors||[]).forEach(x=>{ if(x.homeAway==='home') home=x; if(x.homeAway==='away') away=x; });
-    const m={ awayName:away?.team?(away.team.shortDisplayName||away.team.displayName):'Away', homeName:home?.team?(home.team.shortDisplayName||home.team.displayName):'Home', awayLogo:cdnNHL(away?.team||null), homeLogo:cdnNHL(home?.team||null) };
-    setCache(ck,m,24*60*60*1000);
-    return m;
-  }catch{ return {awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null}; }
+
+  // Fallback if not in state: minimal placeholder (avoid ESPN here)
+  const m={awayName:'Away',homeName:'Home',awayLogo:null,homeLogo:null};
+  setCache(ck,m,10*60*1000); // 10m placeholder
+  return m;
 }
+
+/* ---- Scores: 60s in-memory cache + one batched select per render ---- */
+const SCORE_TTL_MS = 60000;
+const SCORE_CACHE = new Map(); // gid -> { ts, row }
+function _scoreGet(gid){
+  const v=SCORE_CACHE.get(String(gid)); if(!v) return null;
+  if(Date.now()-v.ts > SCORE_TTL_MS){ SCORE_CACHE.delete(String(gid)); return null; }
+  return v.row;
+}
+function _scorePut(gid,row){ SCORE_CACHE.set(String(gid),{ts:Date.now(),row}); }
+
+async function getScoresForGames(gameIds){
+  const gids=[...new Set((gameIds||[]).map(String))];
+  const need=gids.filter(g=>!_scoreGet(g));
+  if(need.length){
+    const { data, error } = await supa
+      .from('game_scores')
+      .select('game_id,total,updated_at,is_final')
+      .in('game_id', need);
+    if(!error && data){ data.forEach(r=>_scorePut(r.game_id,r)); }
+  }
+  const map={}; gids.forEach(g=>map[g]=_scoreGet(g)||null); return map;
+}
+
+/* ---- Render one list (mine OR a specific user) using warmed score cache ---- */
 async function renderPickList(containerId, gidList){
   const el=$(containerId);
-  const myTicket = nextTicket(containerId);
+  const myTicket=nextTicket(containerId);
   const clean=uniqLimit(gidList||[]);
   el.innerHTML='';
+
   if(clean.length===0){
     if(isCurrent(containerId,myTicket)) el.innerHTML='<div class="small">No picks yet.</div>';
     return 0;
   }
+
+  // ONE batched score read; no ESPN
+  const scoreMap=await getScoresForGames(clean);
+
+  // Fetch metas (cached) + scores concurrently (bounded)
   const results = await pLimitAll(clean, 6, async (gid)=>{
-    try{
-      const s=await safeJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=${gid}`);
-      await pushSummaryToSQL(gid, s);
-    }catch{}
-    const [meta,row] = await Promise.all([gameMeta(gid), getGameScoreFromDB(gid)]);
-    return {meta,score:row?.total||0};
+    const meta = await gameMeta(gid);
+    const row  = scoreMap[String(gid)];
+    return { meta, score:Number(row?.total||0) };
   });
+
   if(!isCurrent(containerId,myTicket)) return 0;
+
   let total=0; const rows=[];
   for(const r of results){ total+=r.score; rows.push(`<div class="lbRow">${gameRowHTML(r.meta,r.score)}</div>`); }
   el.innerHTML=rows.join('');
   return total;
 }
+
+/* ---- Main entry: My picks + Everyone (with one batched warm) ---- */
 async function renderMyPicks(){
   if(!currentUser){
     $('myNHL').innerHTML='<div class="small">Sign in to see your picks.</div>';
     $('allPicks').innerHTML='<div class="small">Sign in to see everyone.</div>';
     return;
   }
-  const myList = await picksForUser(currentUser.id);
-  const tot = await renderPickList('myNHL', myList);
-  $('myNHLTotal').textContent = Number(tot||0).toFixed(2);
 
+  // ---- Mine ----
+  const myList = await picksForUser(currentUser.id);        // cached 3m in your code
+  const myTot  = await renderPickList('myNHL', myList);
+  $('myNHLTotal').textContent = Number(myTot||0).toFixed(2);
+
+  // ---- Everyone (single DB read already done in allPicksThisWeek, cached 20s) ----
   const box=$('allPicks');
-  const rows = await allPicksThisWeek();
-  const byUser=new Map(); rows.forEach(r=>{ const a=byUser.get(r.user_id)||[]; a.push(String(r.game_id)); byUser.set(r.user_id,a); });
+  const rows = await allPicksThisWeek();                    // returns [{user_id, game_id}...]
+  const byUser=new Map();
+  rows.forEach(r=>{
+    const a=byUser.get(r.user_id)||[];
+    a.push(String(r.game_id));
+    byUser.set(r.user_id,a);
+  });
+
   const ids=[...byUser.keys()];
   if(!ids.length){ box.innerHTML='<div class="small">No picks yet.</div>'; return; }
 
-  const idsJson = JSON.stringify(ids.slice().sort());
+  // Build user panels only if membership changed
+  const idsJson=JSON.stringify(ids.slice().sort());
   if(idsJson !== LAST_ALL_IDS_JSON){
     LAST_ALL_IDS_JSON = idsJson;
-    const names=await getDisplayNames(ids);
-    const frags=[]; ids.forEach(uid=>{
-      frags.push(`<div class="panel" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${names[uid]||uid.slice(0,6)}</strong><span class="small" id="sum-${uid}">NHL —</span></div><div class="sep"></div><div id="p-${uid}-nhl"></div></div>`);
+    const names=await getDisplayNames(ids); // memoized
+    const frags=[];
+    ids.forEach(uid=>{
+      frags.push(`
+        <div class="panel" style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>${names[uid]||uid.slice(0,6)}</strong>
+            <span class="small" id="sum-${uid}">NHL —</span>
+          </div>
+          <div class="sep"></div>
+          <div id="p-${uid}-nhl"></div>
+        </div>`);
     });
     box.innerHTML=frags.join('');
   }
 
+  // Warm score cache with ONE call for all unique game_ids across everyone
+  const allGids = [...new Set([].concat(...ids.map(uid => byUser.get(uid))))];
+  await getScoresForGames(allGids); // warms SCORE_CACHE
+
+  // Render each user’s list using warmed cache (no extra calls)
   await pLimitAll(ids, 6, async (uid)=>{
     const t = await renderPickList(`p-${uid}-nhl`, uniqLimit(byUser.get(uid)||[]));
     const sumEl = $(`sum-${uid}`); if(sumEl) sumEl.textContent = `NHL ${Number(t||0).toFixed(2)}`;
   });
 }
+
 
 /* ---------- Badges UI (IO-optimized) ---------- */
 const BadgesCache = {
@@ -1542,5 +1858,10 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
