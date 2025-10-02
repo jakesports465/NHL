@@ -118,30 +118,33 @@
   .team{display:flex;align-items:center;gap:8px;min-width:0}
   .team img{width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0f1318}
   /* allow team names to wrap to 2 lines instead of ellipsis */
-/* === Override to show full team names nicely === */
+/* === Override: Team names clean + bold === */
 .team {
   flex: 1 1 auto;
-  min-width: 0;              /* prevents name from overflowing */
+  min-width: 0;
   display: flex;
-  align-items: flex-start;   /* aligns when wrapping */
-  gap: 6px;                  /* space between logo and name */
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .team .name {
-  white-space: normal;       /* allow wrapping */
+  white-space: normal;
   overflow: hidden;
   text-overflow: clip;
   display: -webkit-box;
-  -webkit-line-clamp: 2;     /* max 2 lines */
+  -webkit-line-clamp: 2;      /* up to 2 lines */
   -webkit-box-orient: vertical;
-  line-height: 1.15;
-  font-size: 0.95rem;        /* slightly smaller so long names fit */
+  line-height: 1.2;
+  
+  font-size: 1rem;            /* readable size */
+  font-weight: 600;           /* bold without being too chunky */
+  color: #f1f5f9;             /* softer white, looks nice on dark bg */
+  letter-spacing: 0.3px;      /* touch of spacing for clarity */
 }
 
 .teamsRow {
   align-items: flex-start;
 }
-ulti-line */
 
   .scoreTag{display:inline-block;margin-left:6px;padding:2px 6px;border:1px solid #26313c;border-radius:6px;font-weight:700;min-width:24px;text-align:center}
   .lockRow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
@@ -1883,6 +1886,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
