@@ -117,7 +117,19 @@
   .teamsRow{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .team{display:flex;align-items:center;gap:8px;min-width:0}
   .team img{width:22px;height:22px;border-radius:6px;border:1px solid #1e2732;background:#0f1318}
-  .team .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* allow team names to wrap to 2 lines instead of ellipsis */
+.team { flex: 1 1 auto; min-width: 0; } /* let text actually shrink/wrap */
+.team .name{
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;      /* <-- show up to 2 lines */
+  -webkit-box-orient: vertical;
+  line-height: 1.15;
+}
+.teamsRow{ align-items:flex-start; }       /* better with multi-line */
+
   .scoreTag{display:inline-block;margin-left:6px;padding:2px 6px;border:1px solid #26313c;border-radius:6px;font-weight:700;min-width:24px;text-align:center}
   .lockRow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
   .lockRow .btn{flex:1 1 140px}
@@ -1858,6 +1870,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
