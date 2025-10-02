@@ -181,7 +181,7 @@
   display:flex;
   gap:10px;
   align-items:center;
-  min-width:0; /* let name wrap */
+  min-width:0; /* let name flex + wrap */
 }
 .lbTeam img{
   width:20px;
@@ -192,15 +192,15 @@
   flex:0 0 auto;
 }
 .lbName{
-  /* full, pretty names */
-  white-space:normal;           /* allow wrapping */
-  overflow:hidden;              /* clean cutoff if too long */
+  /* show full names neatly */
+  white-space:normal;           /* wrap instead of truncate */
+  overflow:hidden;
   text-overflow:clip;
   min-width:0;                  /* critical for grid shrink */
-  overflow-wrap:break-word;     /* break only if absolutely needed */
-  word-break:normal;            /* don’t split every letter */
-  hyphens:auto;                 /* hyphenate long words */
-  
+  overflow-wrap:break-word;     /* break long tokens if needed */
+  word-break:normal;            /* no mid-letter breaks */
+  hyphens:auto;                 /* soft hyphenation */
+
   font-weight:600;
   font-size:0.98rem;
   line-height:1.25;
@@ -215,9 +215,13 @@
 
 /* Mobile tweaks */
 @media (max-width:720px){
-  /* collapse the whole page grid to one column */
-  .lbPageGrid{
-    grid-template-columns:1fr !important; 
+  /* collapse full leaderboard page to single column */
+  .lbPageGrid,
+  .twoCol,
+  .leaderboardsGrid {
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:16px !important;
   }
 
   .lbRow{
@@ -229,11 +233,14 @@
   .lbName{
     display:-webkit-box;
     -webkit-box-orient:vertical;
-    -webkit-line-clamp:2;      /* up to 2 lines on small screens */
+    -webkit-line-clamp:2;       /* max 2 lines on phones */
     font-size:0.95rem;
     line-height:1.25;
   }
-  .lbPts{ justify-self:end; font-weight:800; }
+  .lbPts{
+    justify-self:end;
+    font-weight:800;
+  }
 }
 
 /* optional: show full on hover (desktop) */
@@ -1951,6 +1958,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
