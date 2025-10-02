@@ -152,7 +152,36 @@
   .lbPos{width:42px;text-align:center;font-weight:900;border:1px solid #26313c;border-radius:8px;padding:4px 0;opacity:.95}
   .lbTeam{display:flex;gap:10px;align-items:center;min-width:0}
   .lbTeam img{width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto}
-  .lbName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* ===== Leaderboard: show full names on mobile ===== */
+.lbTeam{ min-width:0; align-items:flex-start; } /* let text wrap */
+.lbName{
+  white-space:normal;           /* allow wrapping */
+  overflow:hidden;
+  text-overflow:clip;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;         /* up to 2 lines on small screens */
+  line-height:1.2;
+  font-weight:600;              /* make names pop */
+  letter-spacing:.2px;
+  color:#eef3f8;
+}
+
+/* tighten the mobile grid so wrapped names don't collide */
+@media (max-width: 720px){
+  .lbRow{
+    grid-template-columns: auto 1fr auto;  /* pos | name | pts */
+    align-items:flex-start;
+    row-gap:6px;
+  }
+  .lbTeam{ min-width:0; }                   /* critical for wrapping */
+  .lbPts{ justify-self:end; font-weight:800; }  /* keep points aligned */
+  .lbName{ font-size:0.95rem; }             /* slight size tweak for long names */
+}
+
+/* optional: show full on hover (desktop) */
+.lbName[title]{}
+
   .lbPts{font-weight:800}
 
   .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px;margin-left:6px}
@@ -1858,6 +1887,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
