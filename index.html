@@ -148,38 +148,62 @@
 
 /* ===== Leaderboards ===== */
 .lbHeaderRow{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:8px;gap:10px;flex-wrap:wrap
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:8px;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
 /* Desktop / default layout */
 .lbRow{
   display:grid;
   grid-template-columns:auto 1fr auto; /* pos | name | points */
-  gap:10px;align-items:center;
-  padding:8px;border-radius:10px;
-  border:1px solid #1c2430;background:#0f1318;margin-bottom:8px
+  gap:10px;
+  align-items:center;
+  padding:8px;
+  border-radius:10px;
+  border:1px solid #1c2430;
+  background:#0f1318;
+  margin-bottom:8px;
 }
 .lbPos{
-  width:42px;text-align:center;font-weight:900;
-  border:1px solid #26313c;border-radius:8px;padding:4px 0;opacity:.95
+  width:42px;
+  text-align:center;
+  font-weight:900;
+  border:1px solid #26313c;
+  border-radius:8px;
+  padding:4px 0;
+  opacity:.95;
 }
 .lbTeam{
-  display:flex;gap:10px;align-items:center;min-width:0 /* let name wrap */;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  min-width:0; /* let name wrap */
 }
 .lbTeam img{
-  width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto
+  width:20px;
+  height:20px;
+  border-radius:4px;
+  border:1px solid #1c2330;
+  background:#0d1218;
+  flex:0 0 auto;
 }
 .lbName{
   /* full, pretty names */
   white-space:normal;           /* allow wrapping */
-  overflow:visible;             /* show text */
+  overflow:hidden;              /* clean cutoff if too long */
   text-overflow:clip;
   min-width:0;                  /* critical for grid shrink */
-  word-break:break-word;        /* last resort for super long words */
+  overflow-wrap:break-word;     /* break only if absolutely needed */
+  word-break:normal;            /* don’t split every letter */
+  hyphens:auto;                 /* hyphenate long words */
+  
   font-weight:600;
   font-size:0.98rem;
-  line-height:1.2;
+  line-height:1.25;
   letter-spacing:.2px;
   color:#eef3f8;
 }
@@ -191,6 +215,11 @@
 
 /* Mobile tweaks */
 @media (max-width:720px){
+  /* collapse the whole page grid to one column */
+  .lbPageGrid{
+    grid-template-columns:1fr !important; 
+  }
+
   .lbRow{
     grid-template-columns:auto 1fr auto; /* pos | name | points */
     align-items:flex-start;
@@ -202,17 +231,22 @@
     -webkit-box-orient:vertical;
     -webkit-line-clamp:2;      /* up to 2 lines on small screens */
     font-size:0.95rem;
+    line-height:1.25;
   }
   .lbPts{ justify-self:end; font-weight:800; }
 }
 
-
 /* optional: show full on hover (desktop) */
 .lbName[title]{}
 
-  .lbPts{font-weight:800}
-
-  .badge{display:inline-block;background:#101722;border:1px solid #253548;border-radius:8px;padding:2px 6px;margin-left:6px}
+.badge{
+  display:inline-block;
+  background:#101722;
+  border:1px solid #253548;
+  border-radius:8px;
+  padding:2px 6px;
+  margin-left:6px;
+}
 
   /* Rules */
   .rules{display:grid;gap:8px}
@@ -387,7 +421,9 @@
       <span class="small">Week: <b id="mineWeekLabel">—</b></span>
     </div>
     <div class="sep"></div>
-    <div class="twoCol" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+    <!-- NEW -->
+<div class="lbPageGrid">
+
       <section class="panel">
         <h3 style="margin:0 0 6px 0">My Picks <span id="myNHLTotal" class="badge">0.00</span></h3>
         <div id="myNHL"></div>
@@ -1915,6 +1951,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
