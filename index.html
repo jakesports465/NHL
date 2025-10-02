@@ -146,38 +146,66 @@
   .dot.goal{background:#20d07a}.dot.other{background:#6aa0ff}
   .when{color:var(--muted);font-size:12px}
 
-  /* Leaderboards */
-  .lbHeaderRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;flex-wrap:wrap}
-  .lbRow{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:8px;border-radius:10px;border:1px solid #1c2430;background:#0f1318;margin-bottom:8px}
-  .lbPos{width:42px;text-align:center;font-weight:900;border:1px solid #26313c;border-radius:8px;padding:4px 0;opacity:.95}
-  .lbTeam{display:flex;gap:10px;align-items:center;min-width:0}
-  .lbTeam img{width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto}
-  /* ===== Leaderboard: show full names on mobile ===== */
-.lbTeam{ min-width:0; align-items:flex-start; } /* let text wrap */
+/* ===== Leaderboards ===== */
+.lbHeaderRow{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:8px;gap:10px;flex-wrap:wrap
+}
+
+/* Desktop / default layout */
+.lbRow{
+  display:grid;
+  grid-template-columns:auto 1fr auto; /* pos | name | points */
+  gap:10px;align-items:center;
+  padding:8px;border-radius:10px;
+  border:1px solid #1c2430;background:#0f1318;margin-bottom:8px
+}
+.lbPos{
+  width:42px;text-align:center;font-weight:900;
+  border:1px solid #26313c;border-radius:8px;padding:4px 0;opacity:.95
+}
+.lbTeam{
+  display:flex;gap:10px;align-items:center;min-width:0 /* let name wrap */;
+}
+.lbTeam img{
+  width:20px;height:20px;border-radius:4px;border:1px solid #1c2330;background:#0d1218;flex:0 0 auto
+}
 .lbName{
+  /* full, pretty names */
   white-space:normal;           /* allow wrapping */
-  overflow:hidden;
+  overflow:visible;             /* show text */
   text-overflow:clip;
-  display:-webkit-box;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:2;         /* up to 2 lines on small screens */
+  min-width:0;                  /* critical for grid shrink */
+  word-break:break-word;        /* last resort for super long words */
+  font-weight:600;
+  font-size:0.98rem;
   line-height:1.2;
-  font-weight:600;              /* make names pop */
   letter-spacing:.2px;
   color:#eef3f8;
 }
+.lbPts{
+  justify-self:end;
+  font-weight:800;
+  white-space:nowrap;
+}
 
-/* tighten the mobile grid so wrapped names don't collide */
-@media (max-width: 720px){
+/* Mobile tweaks */
+@media (max-width:720px){
   .lbRow{
-    grid-template-columns: auto 1fr auto;  /* pos | name | pts */
+    grid-template-columns:auto 1fr auto; /* pos | name | points */
     align-items:flex-start;
     row-gap:6px;
   }
-  .lbTeam{ min-width:0; }                   /* critical for wrapping */
-  .lbPts{ justify-self:end; font-weight:800; }  /* keep points aligned */
-  .lbName{ font-size:0.95rem; }             /* slight size tweak for long names */
+  .lbTeam{ align-items:flex-start; }
+  .lbName{
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;      /* up to 2 lines on small screens */
+    font-size:0.95rem;
+  }
+  .lbPts{ justify-self:end; font-weight:800; }
 }
+
 
 /* optional: show full on hover (desktop) */
 .lbName[title]{}
@@ -1887,6 +1915,7 @@ window.addEventListener('beforeunload', () => {
 </script>
 </body>
 </html>
+
 
 
 
