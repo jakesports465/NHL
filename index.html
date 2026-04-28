@@ -2066,13 +2066,20 @@ function adminSetListFilter(value) {
 
 function exportResourceLibrary() {
   try {
+    if (adminFormDraft) {
+      const keepGoing = confirm('You may have unsaved edits. Click Save before exporting if you want those included. Continue exporting the saved library anyway?');
+      if (!keepGoing) return;
+    }
     const blob = new Blob([JSON.stringify(resourceItems, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'hawaii-resource-library.json';
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 500);
   } catch (e) {
     alert('Export failed: ' + e.message);
   }
@@ -2083,15 +2090,98 @@ function importResourceLibrary() {
   if (input) input.click();
 }
 
+function resetResourceFilterState() {
+  resourceFilters = { island: 'all', category: 'all', priority: 'all', effort: 'all', search: '' };
+}
+
+function refreshResourceViewsAfterImport(message) {
+  resetResourceFilterState();
+  adminListFilter = '';
+  adminEditingId = null;
+  adminFormDraft = null;
+  if (isAdminMode()) {
+    renderAdmin();
+    flashAdminMessage(message || `Import successful. ${resourceItems.length} resource items are now loaded.`);
+  }
+}
+
+function viewDeepDiveFromAdmin() {
+  if (window.location.hash === '#admin') {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+  resetResourceFilterState();
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const deep = document.querySelector('[data-section="deepdive"]');
+  if (deep) deep.classList.add('active');
+  renderDeepDive();
+  updateAll();
+}
+
+function reloadResourceLibraryFromStorage() {
+  loadResourceLibrary();
+  resetResourceFilterState();
+  adminListFilter = '';
+  adminEditingId = null;
+  adminFormDraft = null;
+  renderAdmin();
+  flashAdminMessage('Reloaded from browser storage.');
+}
+
+function showResourceImportDialog(count, currentCount) {
+  return new Promise(resolve => {
+    const existing = document.getElementById('resource-import-choice-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'resource-import-choice-overlay';
+    overlay.className = 'dd-modal-overlay open';
+    overlay.innerHTML = `
+      <div class="dd-modal" style="max-width:560px;">
+        <button class="dd-modal-close" type="button" data-import-choice="cancel">×</button>
+        <div class="dd-modal-header">
+          <div class="dd-modal-meta">Resource Library Import</div>
+          <h2 class="dd-modal-title" style="font-size:1.8rem;">Import Resource Library</h2>
+          <p class="dd-modal-subtitle">Found ${count} valid resources in the file.</p>
+        </div>
+        <div class="dd-modal-section">
+          <p class="dd-modal-prose">Choose how to load this backup into your current library of ${currentCount} items.</p>
+          <div style="display:grid; gap:0.75rem; margin-top:1.25rem;">
+            <button class="btn btn-primary" type="button" data-import-choice="replace">Replace All</button>
+            <div class="dd-modal-prose" style="font-size:0.82rem; margin-top:-0.35rem;">Completely overwrite the current Resource Library with this file.</div>
+            <button class="btn" type="button" data-import-choice="merge">Merge</button>
+            <div class="dd-modal-prose" style="font-size:0.82rem; margin-top:-0.35rem;">Combine with the current library and update matching IDs.</div>
+            <button class="btn btn-danger" type="button" data-import-choice="cancel">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+    overlay.querySelectorAll('[data-import-choice]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const choice = btn.getAttribute('data-import-choice');
+        overlay.remove();
+        document.body.style.overflow = '';
+        resolve(choice);
+      });
+    });
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) {
+        overlay.remove();
+        document.body.style.overflow = '';
+        resolve('cancel');
+      }
+    });
+  });
+}
+
 function handleResourceImport(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const parsed = JSON.parse(e.target.result);
       if (!Array.isArray(parsed)) {
-        alert('Invalid JSON: expected an array of resource items.');
+        alert('This does not look like a Resource Library export. It may be a Trip Plan JSON file. Resource Library imports must be an array of Deep Dive resource items.');
         return;
       }
       const validated = parsed.map(r => normalizeResourceItem(r)).filter(Boolean);
@@ -2099,27 +2189,28 @@ function handleResourceImport(event) {
         alert('No valid resource items found in the file.');
         return;
       }
-      const choice = prompt(`Found ${validated.length} valid resources in the file.\n\nType:\n  REPLACE — overwrite current ${resourceItems.length} items\n  MERGE — combine, updating items with matching IDs\n  CANCEL — do nothing\n\n(REPLACE / MERGE / CANCEL)`);
-      if (!choice) return;
-      const action = choice.trim().toUpperCase();
-      if (action === 'REPLACE') {
+      const action = await showResourceImportDialog(validated.length, resourceItems.length);
+      if (action === 'replace') {
         resourceItems = validated;
-      } else if (action === 'MERGE') {
+      } else if (action === 'merge') {
         const byId = new Map(resourceItems.map(r => [r.id, r]));
         validated.forEach(r => byId.set(r.id, r));
         resourceItems = Array.from(byId.values());
       } else {
-        return;  // cancelled
+        return;
       }
-      saveResourceLibrary();
-      adminEditingId = null;
-      adminFormDraft = null;
-      renderAdmin();
-      flashAdminMessage(`Imported. ${resourceItems.length} items now in library.`);
+      const saved = saveResourceLibrary();
+      console.log('Imported resourceItems:', resourceItems.length);
+      console.log('Saved localStorage hawaiiResourceLibrary:', localStorage.getItem('hawaiiResourceLibrary'));
+      if (!saved) {
+        alert('Import loaded but could not save to browser storage.');
+      } else {
+        alert(`Import successful. ${resourceItems.length} resource items are now loaded.`);
+      }
+      refreshResourceViewsAfterImport(`Import successful. ${resourceItems.length} resource items are now loaded.`);
     } catch (err) {
       alert('Could not parse the file: ' + err.message);
     } finally {
-      // Clear the input so the same file can be re-imported
       event.target.value = '';
     }
   };
@@ -2130,11 +2221,13 @@ function handleResourceImport(event) {
 function resetResourceLibrary() {
   if (!confirm('Reset to sample resources? This will replace your current library with the default 10 sample items. Export your current library first if you want to keep it.')) return;
   resourceItems = DEFAULT_RESOURCES.map(r => normalizeResourceItem(r)).filter(Boolean);
-  saveResourceLibrary();
+  const saved = saveResourceLibrary();
+  resetResourceFilterState();
+  adminListFilter = '';
   adminEditingId = null;
   adminFormDraft = null;
   renderAdmin();
-  flashAdminMessage('Reset to sample data.');
+  flashAdminMessage(saved ? 'Reset to sample data.' : 'Reset loaded, but browser save failed.');
 }
 
 function flashAdminMessage(msg) {
@@ -2160,11 +2253,17 @@ function renderAdmin() {
 
       <div class="admin-toolbar">
         <button class="btn btn-primary" onclick="adminStartNew()">+ New item</button>
-        <button class="btn" onclick="exportResourceLibrary()">Export JSON</button>
-        <button class="btn" onclick="importResourceLibrary()">Import JSON</button>
+        <button class="btn" onclick="exportResourceLibrary()">Export Resource Library JSON</button>
+        <button class="btn" onclick="importResourceLibrary()">Import Resource Library JSON</button>
         <input type="file" id="admin-import-input" accept=".json,application/json" style="display:none" onchange="handleResourceImport(event)">
+        <button class="btn" onclick="reloadResourceLibraryFromStorage()">Reload Resource Library</button>
+        <button class="btn" onclick="viewDeepDiveFromAdmin()">View Deep Dive</button>
         <button class="btn btn-danger" onclick="resetResourceLibrary()">Reset to samples</button>
         <span class="admin-flash" id="admin-flash"></span>
+      </div>
+      <div class="callout success" style="margin-top:0;">
+        <span class="callout-title">Resource Library backups</span>
+        Resource Library JSON saves Deep Dive/Admin resources only: videos, links, images, hotels, food, activities, and notes. It does not save trip planner selections.
       </div>
 
       <div class="admin-layout">
@@ -3818,7 +3917,7 @@ function renderSummary() {
     <div class="summary-line-detail"><span class="label">Pet boarding</span><span class="value">$${state.misc.pets}</span></div>
     </div>`;
   html += `<div class="summary-actions" style="margin-top: 2rem;">
-    <button class="btn btn-primary" onclick="exportConfig()">Export JSON</button>
+    <button class="btn btn-primary" onclick="exportConfig()">Export Trip Plan JSON</button>
     <button class="btn" onclick="window.print()">Print this page</button>
     <button class="btn btn-danger" onclick="resetAll()">Reset all selections</button>
     </div></div>`;
