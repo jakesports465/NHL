@@ -436,6 +436,177 @@ body::after {
 .itinerary-empty { color: var(--ink-light); font-style: italic; padding: 0.4rem 0; font-size: 0.85rem; }
 .itinerary-controls { background: var(--paper); border-radius: var(--r-md); padding: 1.25rem 1.75rem; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm); display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 .itinerary-controls-label { font-family: 'Fraunces', serif; font-style: italic; color: var(--ink-soft); font-size: 0.9rem; }
+/* V6: Intelligence layer styles */
+.priorities-nav .nav-num { color: var(--coral); font-weight: 700; }
+.priorities-status { font-family: 'Fraunces', serif; font-style: italic; color: var(--ink-soft); font-size: 1rem; padding: 1rem 1.5rem; background: var(--coral-tint); border-radius: var(--r-md); margin-bottom: 2rem; text-align: center; }
+.priorities-status strong { color: var(--coral-dark); font-weight: 600; font-style: normal; }
+.priority-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.85rem; margin-bottom: 1.5rem; }
+.priority-card { background: var(--paper); border: 1.5px solid var(--sand); border-radius: var(--r-md); padding: 1.1rem 1.25rem; cursor: pointer; transition: all 0.2s; position: relative; }
+.priority-card:hover { border-color: var(--coral); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.priority-card.selected { background: linear-gradient(135deg, var(--coral-tint), var(--paper)); border-color: var(--coral); box-shadow: var(--shadow-md); }
+.priority-card.disabled { opacity: 0.4; cursor: not-allowed; }
+.priority-card.disabled:hover { transform: none; border-color: var(--sand); }
+.priority-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.priority-card-title { font-family: 'Fraunces', serif; font-size: 1.05rem; font-weight: 500; color: var(--ink); margin-bottom: 0.3rem; line-height: 1.3; }
+.priority-card-desc { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.45; }
+.priority-card-rank { font-family: 'Caveat', cursive; color: var(--coral); font-size: 1.1rem; margin-top: 0.5rem; font-weight: 600; }
+.value-badge { font-size: 0.68rem; padding: 0.22rem 0.55rem; border-radius: 30px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+.badge-must { background: #FEEAE0; color: #A9421B; }
+.badge-worth { background: var(--teal-tint); color: var(--teal-dark); }
+.badge-optional { background: var(--sand); color: var(--ink-soft); }
+.activity-tags-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.4rem; }
+.priority-marker { font-family: 'Caveat', cursive; color: var(--coral); font-size: 0.95rem; font-weight: 600; margin-left: 0.4rem; }
+.activity-card.is-priority { border-left: 4px solid var(--coral); }
+.validation-panel { background: var(--paper); border-radius: var(--r-md); padding: 1.25rem 1.5rem; margin: 1.5rem 0; box-shadow: var(--shadow-sm); border: 1px solid var(--sand); }
+.validation-item { padding: 0.5rem 0; font-size: 0.9rem; line-height: 1.5; border-bottom: 1px dotted var(--sand); }
+.validation-item:last-child { border-bottom: none; }
+.validation-good { color: var(--jade); font-weight: 500; }
+.validation-good::before { content: '✅ '; }
+.validation-warn { color: var(--ink-soft); }
+.trip-score-card { padding: 2rem 2rem 1.75rem; border-radius: var(--r-xl); margin-bottom: 1.5rem; text-align: center; box-shadow: var(--shadow-md); }
+.score-excellent { background: linear-gradient(135deg, #E5EFE7, var(--teal-tint)); border: 2px solid var(--jade); }
+.score-solid { background: linear-gradient(135deg, var(--paper), var(--gold-tint)); border: 2px solid var(--gold); }
+.score-needs { background: linear-gradient(135deg, var(--paper), var(--coral-tint)); border: 2px solid var(--coral); }
+.trip-score-label { font-family: 'Caveat', cursive; font-size: 1.2rem; color: var(--ink-soft); margin-bottom: 0.5rem; }
+.trip-score-value { font-family: 'Fraunces', serif; font-size: 4rem; font-weight: 500; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
+.trip-score-max { font-size: 1.5rem; color: var(--ink-light); font-weight: 400; }
+.trip-score-status { font-family: 'Fraunces', serif; font-style: italic; font-size: 1.1rem; color: var(--ink-soft); margin-top: 0.5rem; }
+.trip-score-issues { font-size: 0.82rem; color: var(--ink-light); margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px dotted var(--sand); }
+.summary-tradeoffs { margin-top: 1rem; padding-top: 0.85rem; border-top: 1px dotted var(--sand); }
+.summary-tradeoffs-title { font-family: 'Fraunces', serif; font-style: italic; font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 0.5rem; }
+.summary-tradeoff-item { font-size: 0.85rem; color: var(--ink-soft); padding: 0.3rem 0; line-height: 1.5; }
+.summary-regret-item { font-size: 0.88rem; color: var(--ink-soft); padding: 0.5rem 0; line-height: 1.55; border-bottom: 1px dotted var(--sand); }
+.summary-regret-item:last-child { border-bottom: none; }
+.regrets-card { background: linear-gradient(135deg, var(--paper), var(--coral-tint)); }
+.validation-summary-card { background: linear-gradient(135deg, var(--paper), var(--gold-tint)); }
+/* V7: Deep Dive (public read-only) */
+.admin-link { display: block; text-align: center; margin-top: 1rem; padding: 0.5rem 0.75rem; font-size: 0.7rem; color: var(--ink-light); text-decoration: none; border: 1px dashed var(--sand); border-radius: var(--r-sm); transition: all 0.15s; letter-spacing: 0.04em; }
+.admin-link:hover { color: var(--coral); border-color: var(--coral); }
+.dd-controls { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; padding: 1rem 1.25rem; background: var(--paper); border-radius: var(--r-md); border: 1px solid var(--sand); box-shadow: var(--shadow-sm); }
+.dd-search { flex: 2 1 240px; padding: 0.6rem 0.85rem; border: 1.5px solid var(--sand); background: var(--cream); border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--ink); }
+.dd-search:focus { outline: none; border-color: var(--teal); background: white; }
+.dd-filter { flex: 1 1 130px; padding: 0.55rem 0.7rem; border: 1.5px solid var(--sand); background: var(--cream); border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; color: var(--ink); cursor: pointer; }
+.dd-filter:focus { outline: none; border-color: var(--teal); }
+.dd-meta-row { font-family: 'Caveat', cursive; color: var(--ink-light); font-size: 1rem; margin-bottom: 1.5rem; padding-left: 0.5rem; }
+.dd-empty { text-align: center; padding: 4rem 2rem; background: var(--paper); border-radius: var(--r-md); border: 1px dashed var(--sand); }
+.dd-empty-icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.4; }
+.dd-empty-title { font-family: 'Fraunces', serif; font-size: 1.5rem; color: var(--ink); margin-bottom: 0.5rem; font-weight: 400; }
+.dd-empty-sub { color: var(--ink-soft); font-size: 0.95rem; }
+.dd-empty-sub a { color: var(--coral); text-decoration: underline; }
+.dd-category-block { margin-bottom: 2.5rem; }
+.dd-category-header { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--sand); }
+.dd-category-icon { font-size: 1.4rem; }
+.dd-category-title { font-family: 'Fraunces', serif; font-size: 1.5rem; font-weight: 400; color: var(--ink); flex: 1; }
+.dd-category-count { font-size: 0.75rem; color: var(--ink-light); background: var(--cream); padding: 0.2rem 0.6rem; border-radius: 30px; font-weight: 600; }
+.dd-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.dd-card { background: var(--paper); border: 1.5px solid var(--sand); border-radius: var(--r-md); cursor: pointer; transition: all 0.2s; overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.dd-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--teal-light); }
+.dd-card.dd-priority-mustdo { border-left: 4px solid var(--coral); }
+.dd-card.dd-priority-worthit { border-left: 4px solid var(--teal); }
+.dd-card.dd-priority-optional { border-left: 4px solid var(--ink-faded); }
+.dd-card.dd-priority-skipunlessnearby { border-left: 4px solid var(--sand-deep); }
+.dd-card-image { height: 140px; background-size: cover; background-position: center; background-color: var(--cream-warm); }
+.dd-card-body { padding: 1.1rem 1.25rem 1.25rem; flex: 1; display: flex; flex-direction: column; }
+.dd-card-meta-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; font-size: 0.7rem; }
+.dd-card-priority { color: var(--coral-dark); font-weight: 600; letter-spacing: 0.02em; }
+.dd-card-island { color: var(--teal); font-weight: 600; padding: 0.15rem 0.5rem; background: var(--teal-tint); border-radius: 30px; font-size: 0.65rem; }
+.dd-card-title { font-family: 'Fraunces', serif; font-size: 1.15rem; font-weight: 500; color: var(--ink); line-height: 1.25; margin-bottom: 0.3rem; }
+.dd-card-subtitle { font-family: 'Fraunces', serif; font-style: italic; font-size: 0.88rem; color: var(--teal); margin-bottom: 0.6rem; line-height: 1.35; }
+.dd-card-summary { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.55; margin-bottom: 0.85rem; flex: 1; }
+.dd-card-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.dd-tag { display: inline-block; padding: 0.22rem 0.6rem; background: var(--cream-warm); color: var(--ink-soft); border-radius: 30px; font-size: 0.7rem; font-weight: 500; }
+.dd-tag-priority { background: var(--coral-tint); color: var(--coral-dark); font-weight: 600; }
+.dd-tag-soft { background: var(--cream); color: var(--ink-light); font-style: italic; }
+/* V7: Deep Dive modal */
+.dd-modal-overlay { position: fixed; inset: 0; background: rgba(31, 42, 48, 0.55); backdrop-filter: blur(3px); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 3rem 1rem 2rem; overflow-y: auto; }
+.dd-modal-overlay.open { display: flex; }
+.dd-modal { background: var(--paper); border-radius: var(--r-lg); max-width: 760px; width: 100%; padding: 0; box-shadow: var(--shadow-xl); position: relative; max-height: calc(100vh - 5rem); overflow-y: auto; }
+.dd-modal-close { position: absolute; top: 0.75rem; right: 0.75rem; width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--cream); color: var(--ink-soft); font-size: 1.4rem; line-height: 1; cursor: pointer; transition: all 0.15s; z-index: 10; display: flex; align-items: center; justify-content: center; }
+.dd-modal-close:hover { background: var(--coral-tint); color: var(--coral-dark); transform: rotate(90deg); }
+.dd-modal-header { padding: 2rem 2.5rem 1.5rem; background: linear-gradient(135deg, var(--paper), var(--cream-warm)); border-bottom: 1px solid var(--sand); border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.dd-modal-meta { font-size: 0.78rem; color: var(--ink-light); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.75rem; }
+.dd-modal-title { font-family: 'Fraunces', serif; font-size: 2.1rem; font-weight: 400; color: var(--ink); line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
+.dd-modal-subtitle { font-family: 'Fraunces', serif; font-style: italic; font-size: 1.1rem; color: var(--teal); margin-bottom: 1rem; }
+.dd-modal-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.dd-modal-section { padding: 1.5rem 2.5rem; border-bottom: 1px solid var(--cream-warm); }
+.dd-modal-section:last-child { border-bottom: none; }
+.dd-modal-section-title { font-family: 'Fraunces', serif; font-style: italic; font-size: 0.95rem; color: var(--coral); margin-bottom: 0.6rem; letter-spacing: 0.02em; }
+.dd-modal-prose { font-size: 0.95rem; color: var(--ink-soft); line-height: 1.7; }
+.dd-modal-prose strong { color: var(--ink); font-weight: 600; }
+.dd-modal-recommendation { background: linear-gradient(135deg, var(--coral-tint), var(--paper)); }
+.dd-modal-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+.dd-modal-image { width: 100%; border-radius: var(--r-sm); aspect-ratio: 4/3; object-fit: cover; box-shadow: var(--shadow-sm); }
+.dd-modal-video { margin-bottom: 1.25rem; }
+.dd-modal-video:last-child { margin-bottom: 0; }
+.dd-modal-video-title { font-family: 'Fraunces', serif; font-weight: 500; color: var(--ink); font-size: 0.95rem; margin-bottom: 0.4rem; }
+.dd-modal-video-frame { position: relative; padding-bottom: 56.25%; height: 0; border-radius: var(--r-sm); overflow: hidden; box-shadow: var(--shadow-sm); }
+.dd-modal-video-frame iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+.dd-modal-video-note { font-size: 0.82rem; color: var(--ink-light); margin-top: 0.4rem; font-style: italic; }
+.dd-modal-links { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.dd-modal-link { display: inline-block; padding: 0.55rem 1rem; background: var(--cream); border: 1px solid var(--sand); border-radius: 30px; color: var(--teal); text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
+.dd-modal-link:hover { background: var(--teal); color: white; border-color: var(--teal); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+/* V7: Admin mode */
+.admin-section { max-width: none; }
+.admin-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.admin-toolbar { background: var(--paper); padding: 1rem 1.25rem; border-radius: var(--r-md); border: 1px solid var(--sand); box-shadow: var(--shadow-sm); display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.admin-toolbar .btn { font-size: 0.82rem; padding: 0.5rem 0.9rem; }
+.admin-flash { font-family: 'Caveat', cursive; color: var(--jade); font-size: 1.05rem; opacity: 0; transition: opacity 0.3s; margin-left: auto; }
+.admin-flash.visible { opacity: 1; }
+.admin-layout { display: grid; grid-template-columns: 320px 1fr; gap: 1.25rem; align-items: flex-start; }
+@media (max-width: 1000px) { .admin-layout { grid-template-columns: 1fr; } }
+.admin-list-panel { background: var(--paper); border-radius: var(--r-md); border: 1px solid var(--sand); box-shadow: var(--shadow-sm); position: sticky; top: 2rem; max-height: calc(100vh - 4rem); overflow-y: auto; }
+.admin-list-search { padding: 0.85rem 1rem; border-bottom: 1px solid var(--sand); }
+.admin-list-search input { width: 100%; padding: 0.5rem 0.75rem; border: 1.5px solid var(--sand); background: var(--cream); border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; }
+.admin-list-search input:focus { outline: none; border-color: var(--teal); background: white; }
+.admin-list-meta { padding: 0.5rem 1rem; font-size: 0.7rem; color: var(--ink-light); letter-spacing: 0.05em; text-transform: uppercase; border-bottom: 1px solid var(--cream-warm); }
+.admin-list { padding: 0.5rem; }
+.admin-list-empty { padding: 1.5rem 1rem; color: var(--ink-light); font-size: 0.85rem; text-align: center; line-height: 1.5; }
+.admin-list-item { display: flex; gap: 0.65rem; padding: 0.7rem 0.85rem; border-radius: var(--r-sm); cursor: pointer; transition: all 0.15s; align-items: center; margin-bottom: 0.2rem; }
+.admin-list-item:hover { background: var(--cream); }
+.admin-list-item.selected { background: var(--coral-tint); }
+.admin-list-item-icon { font-size: 1.1rem; flex-shrink: 0; }
+.admin-list-item-content { flex: 1; min-width: 0; }
+.admin-list-item-title { font-family: 'Fraunces', serif; font-size: 0.95rem; color: var(--ink); font-weight: 500; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-list-item-meta { font-size: 0.72rem; color: var(--ink-light); margin-top: 0.15rem; }
+.admin-form-panel { background: var(--paper); border-radius: var(--r-md); border: 1px solid var(--sand); box-shadow: var(--shadow-sm); }
+.admin-form-empty { padding: 4rem 2rem; text-align: center; color: var(--ink-light); }
+.admin-form-empty-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.4; }
+.admin-form-empty h3 { font-family: 'Fraunces', serif; font-weight: 400; color: var(--ink); font-size: 1.3rem; margin-bottom: 0.5rem; }
+.admin-form-empty p { font-size: 0.9rem; color: var(--ink-soft); }
+.admin-form { padding: 1.5rem 1.75rem; }
+.admin-form-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--sand); flex-wrap: wrap; gap: 0.5rem; }
+.admin-form-title { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 400; color: var(--ink); }
+.admin-form-id { font-size: 0.7rem; color: var(--ink-light); }
+.admin-form-id code { background: var(--cream); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.72rem; }
+.admin-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem 1rem; margin-bottom: 1.25rem; }
+@media (max-width: 700px) { .admin-form-grid { grid-template-columns: 1fr; } }
+.admin-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.admin-field-wide { grid-column: 1 / -1; }
+.admin-field-label { font-family: 'Fraunces', serif; font-style: italic; font-size: 0.85rem; color: var(--ink-soft); }
+.admin-field-req { color: var(--coral); font-weight: 700; font-style: normal; }
+.admin-field-hint { font-size: 0.72rem; color: var(--ink-light); font-style: italic; font-weight: 400; }
+.admin-field input, .admin-field select, .admin-field textarea { width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid var(--sand); background: var(--cream); border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 0.9rem; color: var(--ink); transition: border-color 0.15s; }
+.admin-field input:focus, .admin-field select:focus, .admin-field textarea:focus { outline: none; border-color: var(--teal); background: white; }
+.admin-field textarea { font-family: 'DM Sans', sans-serif; resize: vertical; line-height: 1.55; }
+.admin-form-section { padding-top: 1.25rem; margin-top: 1.25rem; border-top: 1px dotted var(--sand); display: flex; flex-direction: column; gap: 0.85rem; }
+.admin-subsection { gap: 0.6rem; }
+.admin-subsection-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+.admin-subsection-header h3 { font-family: 'Fraunces', serif; font-style: italic; font-size: 1.05rem; color: var(--coral); font-weight: 400; }
+.admin-hint { font-size: 0.78rem; color: var(--ink-light); font-style: italic; margin-bottom: 0.4rem; }
+.admin-empty-mini { font-size: 0.82rem; color: var(--ink-light); font-style: italic; padding: 0.6rem 0.85rem; background: var(--cream); border-radius: var(--r-sm); }
+.admin-multi-row { display: grid; grid-template-columns: 1fr 2fr 36px; gap: 0.5rem; align-items: center; margin-bottom: 0.4rem; }
+.admin-multi-row input { padding: 0.5rem 0.7rem; border: 1.5px solid var(--sand); background: var(--cream); border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; }
+.admin-multi-row input:focus { outline: none; border-color: var(--teal); background: white; }
+.admin-multi-block { padding: 0.7rem; background: var(--cream); border-radius: var(--r-sm); margin-bottom: 0.5rem; }
+.admin-multi-block .admin-multi-row { background: transparent; padding: 0; }
+.admin-multi-fullwidth { width: 100%; padding: 0.5rem 0.7rem; border: 1.5px solid var(--sand); background: white; border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 0.85rem; margin-top: 0.4rem; }
+.admin-multi-fullwidth:focus { outline: none; border-color: var(--teal); }
+.btn-mini { font-size: 0.75rem; padding: 0.35rem 0.7rem; border-radius: 30px; border: 1px solid var(--teal); background: white; color: var(--teal); font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; }
+.btn-mini:hover { background: var(--teal); color: white; }
+.btn-mini-remove { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--sand); background: var(--cream); color: var(--ink-light); font-size: 1.05rem; cursor: pointer; line-height: 1; transition: all 0.15s; padding: 0; }
+.btn-mini-remove:hover { background: var(--coral-tint); color: var(--coral-dark); border-color: var(--coral); }
+.admin-form-actions { padding-top: 1.25rem; margin-top: 1.25rem; border-top: 1px solid var(--sand); display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.admin-form-actions .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 </style>
 </head>
@@ -470,6 +641,9 @@ body::after {
       <div class="nav-item" data-section="food">
         <span class="nav-num">5</span><span class="nav-item-name">Food &amp; Drink</span><span class="nav-status empty" id="nav-food">—</span>
       </div>
+      <div class="nav-item priorities-nav" data-section="priorities">
+        <span class="nav-num">★</span><span class="nav-item-name">Top 5 Must-Do</span><span class="nav-status empty" id="nav-priorities">—</span>
+      </div>
       <div class="nav-item" data-section="activities">
         <span class="nav-num">6</span><span class="nav-item-name">Activities</span><span class="nav-status empty" id="nav-activities">—</span>
       </div>
@@ -500,9 +674,13 @@ body::after {
       <div class="nav-item" data-section="notes">
         <span class="nav-num">13</span><span class="nav-item-name">Full Guide</span>
       </div>
+      <div class="nav-item" data-section="deepdive">
+        <span class="nav-num">14</span><span class="nav-item-name">Deep Dive</span>
+      </div>
     </div>
     <div class="sidebar-footer">
       <div class="sidebar-tagline">click anything to begin —<br>build your dream trip</div>
+      <a href="#admin" class="admin-link" onclick="enterAdminMode(); return false;">Admin · edit research library</a>
     </div>
   </aside>
   <main class="main">
@@ -538,6 +716,10 @@ body::after {
       <button class="btn btn-danger" onclick="resetAll()">reset</button>
     </div>
   </div>
+</div>
+<!-- V7: Deep Dive detail modal (rendered once, persists across page changes) -->
+<div class="dd-modal-overlay" id="dd-modal-overlay" onclick="if(event.target===this) closeResourceDetail()">
+  <div class="dd-modal" id="dd-modal-body"></div>
 </div>
 <script id="app-script">
 // ============================================================
@@ -995,15 +1177,90 @@ const EXTRAS = [
 ];
 
 // ============================================================
+// V6: INTELLIGENCE LAYER — island profiles, activity metadata,
+// energy model, regret list, scoring
+// ============================================================
+
+const ISLAND_PROFILES = {
+  kauai: { pace: 'slow', maxActivitiesPerDay: 2, scenicImpact: 10, label: 'Slow-paced — fewer, deeper experiences' },
+  maui: { pace: 'moderate', maxActivitiesPerDay: 3, scenicImpact: 7, label: 'Moderate-paced — varied days' },
+  oahu: { pace: 'fast', maxActivitiesPerDay: 4, scenicImpact: 5, label: 'Fast-paced — high density of options' }
+};
+
+// Activity metadata: value tag + energy level. Maps activity.id → metadata.
+// value: 'must' | 'worth' | 'optional'
+// energy: 'high' | 'moderate' | 'relax' | 'travel'
+const ACTIVITY_META = {
+  heli: { value: 'must', energy: 'moderate' },
+  napali: { value: 'must', energy: 'high' },
+  kalalau: { value: 'worth', energy: 'high' },
+  limahuli: { value: 'optional', energy: 'relax' },
+  allerton: { value: 'worth', energy: 'relax' },
+  'kauai-snorkel': { value: 'worth', energy: 'moderate' },
+  'south-shore-kauai': { value: 'worth', energy: 'high' },
+  'wailua-kayak': { value: 'worth', energy: 'high' },
+  'hanalei-sunrise': { value: 'worth', energy: 'relax' },
+  hana: { value: 'must', energy: 'high' },
+  haleakala: { value: 'must', energy: 'moderate' },
+  scuba: { value: 'must', energy: 'high' },
+  mamas: { value: 'must', energy: 'relax' },
+  whales: { value: 'optional', energy: 'moderate' },
+  lanai: { value: 'worth', energy: 'high' },
+  'maui-brewing': { value: 'optional', energy: 'relax' },
+  iao: { value: 'worth', energy: 'relax' },
+  surf: { value: 'worth', energy: 'high' },
+  'ocean-center': { value: 'optional', energy: 'relax' },
+  zipline: { value: 'optional', energy: 'high' },
+  'maui-heli': { value: 'optional', energy: 'moderate' },
+  cooking: { value: 'optional', energy: 'relax' },
+  atlantis: { value: 'optional', energy: 'relax' },
+  'kapalua-sunset': { value: 'worth', energy: 'relax' },
+  pearl: { value: 'must', energy: 'moderate' },
+  kualoa: { value: 'worth', energy: 'high' },
+  diamond: { value: 'worth', energy: 'high' },
+  northshore: { value: 'worth', energy: 'moderate' },
+  iolani: { value: 'optional', energy: 'relax' },
+  hanauma: { value: 'worth', energy: 'moderate' },
+  'lanikai-sunrise': { value: 'worth', energy: 'moderate' }
+};
+
+// Regret list — common Hawaii planning mistakes
+const COMMON_REGRETS = [
+  { id: 'too-many-islands', condition: t => islandsInTrip(t).length >= 3 && t.length <= 12, msg: 'Too many islands for a short trip — consider dropping one to give each island room to breathe.' },
+  { id: 'short-kauai', condition: t => t.kauai > 0 && t.kauai < 4, msg: 'Kauaʻi is the slowest-paced and most scenic island. Less than 4 nights and you\'ll feel rushed and miss what makes it special.' },
+  { id: 'short-maui', condition: t => t.maui > 0 && t.maui < 4, msg: 'Maui has the most ground to cover (Hana, Haleakalā, Wailea, West Maui). Less than 4 nights leaves things on the table.' },
+  { id: 'long-oahu', condition: t => t.oahu > 4, msg: 'Most travelers feel 2-3 Oʻahu nights is enough. Beyond 4, you\'re trading away time on a more scenic island.' },
+  { id: 'skip-napali', condition: (t, acts) => t.kauai > 0 && (acts.napali || 0) === 0 && (acts.heli || 0) === 0, msg: 'Skipping both the Nā Pali boat AND helicopter on Kauaʻi — you\'ll never see the Nā Pali coast. This is the single most regretted skip.' },
+  { id: 'skip-hana', condition: (t, acts) => t.maui >= 5 && (acts.hana || 0) === 0, msg: 'Skipping Road to Hana on a 5+ night Maui stay — most travelers consider this the defining Maui experience.' },
+  { id: 'skip-mamas', condition: (t, acts) => t.maui > 0 && (acts.mamas || 0) === 0, msg: 'Skipping Mamaʻs Fish House — Hawaiiʻs most famous restaurant. Worth the planning effort for many travelers.' },
+  { id: 'overpacked', condition: (t, acts) => countSelectedActivities(acts) > t.length * 1.2, msg: 'You\'ve picked more activities than the trip length comfortably supports. Each day fills up fast in Hawaii.' },
+  { id: 'no-haleakala', condition: (t, acts) => t.maui >= 4 && (acts.haleakala || 0) === 0, msg: 'Skipping Haleakalā — the volcano summit experience is unmatched, and sunset doesn\'t require the brutal 3am wakeup.' },
+  { id: 'no-priorities', condition: () => state.priorityActivities && state.priorityActivities.length === 0, msg: 'You haven\'t set your top 5 must-do experiences yet. Doing this first helps the rest of the planning fall into place.' }
+];
+
+// Helpers used by regret list
+function islandsInTrip(t) {
+  const arr = [];
+  if (t.oahu > 0) arr.push('oahu');
+  if (t.kauai > 0) arr.push('kauai');
+  if (t.maui > 0) arr.push('maui');
+  return arr;
+}
+function countSelectedActivities(acts) {
+  return Object.values(acts).filter(t => t !== null && t > 0).length;
+}
+
+// ============================================================
 // STATE
 // ============================================================
 let state = {
-  trip: { length: null, oahu: 0, kauai: 0, maui: 0, includeOahu: false, departureDate: null, visitOrder: null },
-  lodging: { oahu: [], kauai: [], maui: [] },  // V5: array of {nights, region, tier}
+  trip: { length: null, oahu: 0, kauai: 0, maui: 0, includeOahu: false, departureDate: null, visitOrder: null, arrivalTime: 'mid', departureTime: 'morning' },
+  lodging: { oahu: [], kauai: [], maui: [] },
   food: null,
   activities: {},
-  activityParticipants: {},  // V5: optional participant override per activity
-  flights: { grr: null, inter: null, customGrrCost: null, customInterCost: null },  // V5: custom price overrides
+  activityParticipants: {},
+  priorityActivities: [],  // V6: top 5 must-do
+  flights: { grr: null, inter: null, customGrrCost: null, customInterCost: null },
   cars: { oahu: null, kauai: null, maui: null },
   extras: {},
   misc: { tips: 400, gear: 100, parking: 150, pets: 0 },
@@ -1011,6 +1268,1158 @@ let state = {
 };
 ACTIVITIES.forEach(a => state.activities[a.id] = null);
 EXTRAS.forEach(e => state.extras[e.id] = null);
+
+// ============================================================
+// V7: RESOURCE LAYER (Deep Dive + Admin) — completely isolated module
+// Storage key: localStorage["hawaiiResourceLibrary"]
+// Does not read from or write to trip state
+// ============================================================
+const RESOURCE_CATEGORIES = [
+  { id: 'locations', label: 'Locations', icon: '📍' },
+  { id: 'lodging', label: 'Lodging', icon: '🏨' },
+  { id: 'food', label: 'Food', icon: '🍽️' },
+  { id: 'activities', label: 'Activities', icon: '⛰️' },
+  { id: 'beaches', label: 'Beaches', icon: '🏖️' },
+  { id: 'tours', label: 'Tours / Excursions', icon: '🚢' },
+  { id: 'logistics', label: 'Travel Logistics', icon: '✈️' },
+  { id: 'videos', label: 'Videos / Inspiration', icon: '🎬' },
+  { id: 'why', label: 'Why This Plan Works', icon: '💡' }
+];
+
+const RESOURCE_PRIORITIES = ['must-do', 'worth-it', 'optional', 'skip-unless-nearby'];
+const RESOURCE_EFFORTS = ['relax', 'moderate', 'high'];
+const RESOURCE_COST_TIERS = ['$', '$$', '$$$', '$$$$'];
+const RESOURCE_ISLANDS = ['kauai', 'maui', 'oahu', 'all'];
+
+// Default sample resource library — used if localStorage is empty/corrupt
+const DEFAULT_RESOURCES = [
+  {
+    id: 'res-napali-boat',
+    category: 'tours',
+    island: 'kauai',
+    region: 'south-shore',
+    title: 'Nā Pali Coast Boat Tour',
+    subtitle: 'One of the most dramatic experiences in Hawaii',
+    priority: 'must-do',
+    effort: 'moderate',
+    costTier: '$$$',
+    timeNeeded: 'Half day (5-7 hours)',
+    bestFor: ['scenery', 'adventure', 'bucket list', 'photography'],
+    summary: 'Sail or speed-raft along 17 miles of vertical green cliffs that drop straight into the Pacific. Sea caves, dolphin pods, snorkel stop, lunch on board.',
+    whyItMatters: 'The Nā Pali coast is inaccessible by car. You can only see it by boat, helicopter, or the brutal 22-mile Kalalau Trail. This is the most accessible way to see what many call the most beautiful coastline on Earth.',
+    whyWePickedIt: 'Capt Andy\'s catamaran from Port Allen is the gold standard — calm boat, snorkel stop with reef sharks (white-tips, harmless), full lunch buffet, open bar after the snorkel. April departures usually catch the last whales heading north.',
+    tradeoffs: 'Half-day commitment. Open ocean — some seasickness risk on rougher days. Port Allen on south side is 90 min from north shore lodging. Cheaper zodiacs are wetter and don\'t include snorkel/lunch.',
+    recommendation: 'Must do',
+    links: [
+      { label: 'Capt Andy\'s Official', url: 'https://napali.com' },
+      { label: 'Google Maps — Port Allen', url: 'https://maps.google.com/?q=Port+Allen+Harbor+Kauai' }
+    ],
+    youtube: [
+      { title: 'Nā Pali Coast Aerial Beauty', youtubeId: 'fE6OnwpfSGA', note: 'Drone footage that shows what you can\'t see from a boat' }
+    ],
+    images: []
+  },
+  {
+    id: 'res-road-to-hana',
+    category: 'activities',
+    island: 'maui',
+    region: 'east',
+    title: 'Road to Hana',
+    subtitle: 'The most famous drive in Hawaii',
+    priority: 'must-do',
+    effort: 'high',
+    costTier: '$',
+    timeNeeded: 'Full day (12+ hours)',
+    bestFor: ['scenery', 'waterfalls', 'photography', 'self-driving'],
+    summary: '52 miles, 600 turns, 50+ one-lane bridges. Black sand beach, bamboo forest, Twin Falls, Three Bears Falls, Pīpīwai Trail.',
+    whyItMatters: 'Many travelers say Road to Hana is the defining Maui experience — more so than Haleakalā for some. The drive itself is the destination.',
+    whyWePickedIt: 'Self-drive with the GyPSy Guide app ($15) — narrates as you drive, you control the stops. Guided van tours strip the agency from the experience.',
+    tradeoffs: 'Long day, sometimes 12+ hours. Driving is genuinely tiring (narrow, winding, slow). Some find it overhyped if expectations are too high. Reserve Waiʻanapanapa State Park parking 30 days out.',
+    recommendation: 'Must do',
+    links: [
+      { label: 'GyPSy Guide App', url: 'https://gypsyguide.com' },
+      { label: 'Waiʻanapanapa Reservation', url: 'https://camping.ehawaii.gov/camping/welcome.html' }
+    ],
+    youtube: [
+      { title: 'Road to Hana — Top 10 Stops', youtubeId: 'iMeYdJ5cUqg', note: 'Useful for planning your stops in advance' }
+    ],
+    images: []
+  },
+  {
+    id: 'res-haleakala-sunrise',
+    category: 'activities',
+    island: 'maui',
+    region: 'upcountry',
+    title: 'Haleakalā Sunrise',
+    subtitle: 'Sunrise above the cloud line',
+    priority: 'worth-it',
+    effort: 'high',
+    costTier: '$',
+    timeNeeded: '6-8 hours including drive',
+    bestFor: ['scenery', 'photography', 'spiritual'],
+    summary: 'Drive to 10,023 ft for sunrise above the clouds. Mark Twain called Haleakalā "the sublimest spectacle I ever witnessed." Reservation required.',
+    whyItMatters: 'A genuinely spiritual experience for many visitors. The crater landscape looks like Mars. Big Island\'s volcanoes visible on clear days.',
+    whyWePickedIt: 'For our group, sunset is more sensible than sunrise — same view, no 3am wakeup, easier on the body. Reservation only required for sunrise.',
+    tradeoffs: 'Sunrise: 3am wake-up, reservation 60 days out, freezing temps (40°F), 2-hour drive each way. Sunset: less crowded, no reservation, reasonable.',
+    recommendation: 'Worth it (sunset version)',
+    links: [
+      { label: 'NPS Haleakalā', url: 'https://www.nps.gov/hale' },
+      { label: 'Sunrise Reservation', url: 'https://www.recreation.gov/ticket/253731' }
+    ],
+    youtube: [
+      { title: 'Haleakalā Sunrise Time-lapse', youtubeId: 'h4vuFKFZQGw', note: 'See what to expect at the summit' }
+    ],
+    images: []
+  },
+  {
+    id: 'res-pearl-harbor',
+    category: 'activities',
+    island: 'oahu',
+    region: 'honolulu',
+    title: 'Pearl Harbor — USS Arizona Memorial',
+    subtitle: 'A war grave and a place of national memory',
+    priority: 'must-do',
+    effort: 'moderate',
+    costTier: '$',
+    timeNeeded: '4-6 hours',
+    bestFor: ['history', 'culture', 'first-time visitors'],
+    summary: 'USS Arizona Memorial sits above the wreck of the battleship sunk on December 7, 1941. 1,177 of the crew remain entombed below.',
+    whyItMatters: 'Pearl Harbor is sacred ground. For many travelers it\'s the most emotionally resonant stop in Hawaii. The memorial is silent for a reason.',
+    whyWePickedIt: 'The combination ticket (Arizona + Missouri + Aviation Museum) gives you the full story of the war\'s start and end — both happened in this harbor. Book Arizona timed tickets 8 weeks out.',
+    tradeoffs: 'Sober mood — not a fun day. Long lines without reservations. Heavy security (no bags). Better as half-day, not full.',
+    recommendation: 'Must do (if visiting Oʻahu)',
+    links: [
+      { label: 'NPS Pearl Harbor', url: 'https://www.nps.gov/perl' },
+      { label: 'Reservation', url: 'https://www.recreation.gov/ticket/233338' }
+    ],
+    youtube: [],
+    images: []
+  },
+  {
+    id: 'res-wailea',
+    category: 'lodging',
+    island: 'maui',
+    region: 'south',
+    title: 'Wailea — South Maui resort area',
+    subtitle: 'The default Maui beach base — sunny, dry, family-friendly',
+    priority: 'worth-it',
+    effort: 'relax',
+    costTier: '$$$',
+    timeNeeded: 'Stay base',
+    bestFor: ['beach days', 'snorkel', 'dining', 'sunset'],
+    summary: 'Wailea is the dry, sunny south side of Maui. Five crescent beaches connected by a 1.5-mile boardwalk. Resort row but not over-developed.',
+    whyItMatters: 'Wailea has consistently the best weather on Maui (lowest rain in April), easy access to Molokini scuba boats, and walkable to multiple top restaurants.',
+    whyWePickedIt: 'Polo Beach Club specifically — only 71 units, every unit has ocean view, sea turtles in the cove daily. Cult favorite for repeat visitors.',
+    tradeoffs: 'Pricier than Kihei (just to the north). 30 minutes from Lahaina/Kāʻanapali. Resorts can feel manicured. Not where the locals stay.',
+    recommendation: 'Worth it for a longer Maui stay',
+    links: [
+      { label: 'Polo Beach Club', url: 'https://destinationresortshawaii.com/polo-beach-club' },
+      { label: 'Wailea Beach Path', url: 'https://maps.google.com/?q=Wailea+Beach+Path' }
+    ],
+    youtube: [],
+    images: []
+  },
+  {
+    id: 'res-princeville',
+    category: 'lodging',
+    island: 'kauai',
+    region: 'north-shore',
+    title: 'Princeville — North Shore Kauaʻi',
+    subtitle: 'Cliff-top neighborhood overlooking Hanalei Bay',
+    priority: 'worth-it',
+    effort: 'relax',
+    costTier: '$$$',
+    timeNeeded: 'Stay base',
+    bestFor: ['scenery', 'romance', 'photography', 'lanai-watching-cliffs'],
+    summary: 'Princeville sits 200 ft above Hanalei Bay on dramatic cliffs. Bali Hai mountain views from many condos. The "Hawaii dream" landscape.',
+    whyItMatters: 'No other Kauaʻi neighborhood has these views. The cliffs over Hanalei Bay are what shows up in every brochure. Sealodge, Pali Ke Kua, Cliffs at Princeville offer the views without resort prices.',
+    whyWePickedIt: 'Hanalei Colony Resort technically isn\'t Princeville (it\'s further north in Hāʻena), but the lanai-IS-the-beach experience is unbeatable. Otherwise mid-tier Princeville condos give the cliff views at half resort prices.',
+    tradeoffs: 'More rain than south shore (15-20 inches/year more). Drive to Hanalei town for restaurants. Hanalei Colony is no-TVs intentionally — a feature, not a bug.',
+    recommendation: 'Worth it for Kauaʻi north shore stays',
+    links: [
+      { label: 'Hanalei Colony Resort', url: 'https://hcr.com' },
+      { label: '1 Hotel Hanalei Bay', url: 'https://www.1hotels.com/hanalei-bay' }
+    ],
+    youtube: [],
+    images: []
+  },
+  {
+    id: 'res-hanalei-bay',
+    category: 'beaches',
+    island: 'kauai',
+    region: 'north-shore',
+    title: 'Hanalei Bay',
+    subtitle: 'Two-mile crescent beach with Bali Hai mountains behind',
+    priority: 'must-do',
+    effort: 'relax',
+    costTier: '$',
+    timeNeeded: 'Half-day to full-day',
+    bestFor: ['beach', 'photography', 'family', 'sunset'],
+    summary: 'Two-mile crescent of golden sand. Pier silhouette at sunrise. Mountain backdrop. Where most photos of Kauaʻi are taken.',
+    whyItMatters: 'Hanalei Bay is the most photogenic beach in Hawaii. Calmer in summer/spring, dangerous in winter. April is mid-season — usually calm.',
+    whyWePickedIt: 'Free, public access from multiple points, walkable from many lodgings. Hanalei Pier sunrise (~5:50am) is one of the most rewarding free activities in Hawaii.',
+    tradeoffs: 'Crowded around midday. Limited parking near the pier. Currents pick up after rain. Some access points are residential and locals can be touchy.',
+    recommendation: 'Must do',
+    links: [
+      { label: 'Hanalei Pier — Maps', url: 'https://maps.google.com/?q=Hanalei+Pier' }
+    ],
+    youtube: [],
+    images: []
+  },
+  {
+    id: 'res-old-lahaina-luau',
+    category: 'food',
+    island: 'maui',
+    region: 'west',
+    title: 'Old Lahaina Lūʻau',
+    subtitle: 'The most authentic lūʻau in Hawaii',
+    priority: 'worth-it',
+    effort: 'relax',
+    costTier: '$$$',
+    timeNeeded: '3-4 hours, evening',
+    bestFor: ['culture', 'food', 'group experience', 'sunset'],
+    summary: 'Beachfront lūʻau on the west side of Maui. Traditional imu (underground oven) cooking. Hula and chant performances rooted in Hawaiian history.',
+    whyItMatters: 'Most lūʻaus are watered-down tourist shows. Old Lahaina is the closest to authentic — the music, the imu ceremony, the hula are taken seriously.',
+    whyWePickedIt: 'For 4 people new to Hawaiian culture, this delivers the cultural context that makes the rest of the trip make sense. Worth the planning effort.',
+    tradeoffs: 'Expensive ($150+/person). Books out 60+ days in advance. The food is good but not destination-tier. Some find it cheesy regardless of authenticity.',
+    recommendation: 'Worth it once',
+    links: [
+      { label: 'Official Site', url: 'https://oldlahainaluau.com' },
+      { label: 'Maps', url: 'https://maps.google.com/?q=Old+Lahaina+Luau' }
+    ],
+    youtube: [],
+    images: []
+  },
+  {
+    id: 'res-mamas',
+    category: 'food',
+    island: 'maui',
+    region: 'east',
+    title: 'Mama\'s Fish House',
+    subtitle: 'Hawaii\'s most famous restaurant',
+    priority: 'must-do',
+    effort: 'relax',
+    costTier: '$$$$',
+    timeNeeded: '2-3 hours',
+    bestFor: ['anniversary', 'sunset', 'fish', 'special occasion'],
+    summary: 'Beachfront thatched-roof restaurant in Pāʻia. Fish caught that morning, named on the menu with the angler\'s boat. Reservation released exactly 90 days out at midnight Hawaii time.',
+    whyItMatters: 'Mama\'s is a destination. Many people plan their Maui trip around their reservation. The setting alone — palm grove, white sand cove — justifies the visit.',
+    whyWePickedIt: 'For 4 people on a 14-night Hawaii trip, one Mama\'s sunset dinner is the right amount. Lunch is a cheaper alternative with the same food.',
+    tradeoffs: 'Expensive ($260+/couple at dinner). Reservation system is brutal — set 3 alarms, have credit card ready, sunset slots gone in 5 minutes. Long drive from Wailea.',
+    recommendation: 'Must do',
+    links: [
+      { label: 'Mama\'s Reservations', url: 'https://www.mamasfishhouse.com' },
+      { label: 'Maps', url: 'https://maps.google.com/?q=Mamas+Fish+House' }
+    ],
+    youtube: [],
+    images: []
+  },
+  {
+    id: 'res-kualoa',
+    category: 'tours',
+    island: 'oahu',
+    region: 'windward',
+    title: 'Kualoa Ranch — Jurassic Park filming sites',
+    subtitle: 'Hidden Valley = the gallimimus stampede location',
+    priority: 'worth-it',
+    effort: 'moderate',
+    costTier: '$$$',
+    timeNeeded: '2-4 hours',
+    bestFor: ['movie fans', 'adventure', 'photography', 'family'],
+    summary: '4,000-acre working cattle ranch on Oʻahu\'s windward side. Used as the filming location for Jurassic Park, Lost, Pearl Harbor, Hawaii Five-O, and many more.',
+    whyItMatters: 'Hidden Valley is the gallimimus stampede location. Standing in it is genuinely surreal for fans of the film. Beyond the movies, the valley itself is one of the most beautiful interior landscapes on Oʻahu.',
+    whyWePickedIt: 'The UTV Raptor Tour (Polaris RZRs) lets you drive through Hidden Valley yourself — better than the bus tour. ATV combo tours include both Hidden Valley and the broader movie sites.',
+    tradeoffs: '60 minutes from Waikiki. Tours run on a tight schedule. Bus tour can feel touristy; UTV/horseback don\'t.',
+    recommendation: 'Worth it (UTV Raptor Tour specifically)',
+    links: [
+      { label: 'Kualoa Ranch', url: 'https://www.kualoa.com' },
+      { label: 'Maps', url: 'https://maps.google.com/?q=Kualoa+Ranch' }
+    ],
+    youtube: [],
+    images: []
+  }
+];
+
+// Defensive: extract YouTube ID from full URL or return as-is if already an ID
+function extractYouTubeId(input) {
+  if (!input || typeof input !== 'string') return '';
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+  // Already an ID (11 chars, alphanumeric + - and _)
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+  // Try various URL patterns
+  const patterns = [
+    /[?&]v=([a-zA-Z0-9_-]{11})/,           // youtube.com/watch?v=ID
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,      // youtu.be/ID
+    /\/embed\/([a-zA-Z0-9_-]{11})/,        // /embed/ID
+    /\/shorts\/([a-zA-Z0-9_-]{11})/,       // /shorts/ID
+    /\/v\/([a-zA-Z0-9_-]{11})/,            // /v/ID
+  ];
+  for (const p of patterns) {
+    const m = trimmed.match(p);
+    if (m) return m[1];
+  }
+  // Fallback: if it's an 11-char alphanumeric chunk anywhere, use it
+  const looseMatch = trimmed.match(/([a-zA-Z0-9_-]{11})/);
+  return looseMatch ? looseMatch[1] : '';
+}
+
+// Defensive: ensure resource item has all expected fields
+function normalizeResourceItem(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : 'res-' + Math.random().toString(36).slice(2, 11),
+    category: typeof raw.category === 'string' ? raw.category : 'activities',
+    island: typeof raw.island === 'string' ? raw.island : 'all',
+    region: typeof raw.region === 'string' ? raw.region : '',
+    title: typeof raw.title === 'string' ? raw.title : 'Untitled',
+    subtitle: typeof raw.subtitle === 'string' ? raw.subtitle : '',
+    priority: typeof raw.priority === 'string' ? raw.priority : 'optional',
+    effort: typeof raw.effort === 'string' ? raw.effort : 'moderate',
+    costTier: typeof raw.costTier === 'string' ? raw.costTier : '',
+    timeNeeded: typeof raw.timeNeeded === 'string' ? raw.timeNeeded : '',
+    bestFor: Array.isArray(raw.bestFor) ? raw.bestFor.filter(t => typeof t === 'string') : [],
+    summary: typeof raw.summary === 'string' ? raw.summary : '',
+    whyItMatters: typeof raw.whyItMatters === 'string' ? raw.whyItMatters : '',
+    whyWePickedIt: typeof raw.whyWePickedIt === 'string' ? raw.whyWePickedIt : '',
+    tradeoffs: typeof raw.tradeoffs === 'string' ? raw.tradeoffs : '',
+    recommendation: typeof raw.recommendation === 'string' ? raw.recommendation : '',
+    links: Array.isArray(raw.links) ? raw.links.filter(l => l && typeof l === 'object' && typeof l.url === 'string').map(l => ({
+      label: typeof l.label === 'string' ? l.label : 'Link',
+      url: l.url
+    })) : [],
+    youtube: Array.isArray(raw.youtube) ? raw.youtube.filter(v => v && typeof v === 'object').map(v => ({
+      title: typeof v.title === 'string' ? v.title : '',
+      youtubeId: typeof v.youtubeId === 'string' ? v.youtubeId : '',
+      note: typeof v.note === 'string' ? v.note : ''
+    })) : [],
+    images: Array.isArray(raw.images) ? raw.images.filter(i => i && typeof i === 'object' && typeof i.url === 'string').map(i => ({
+      url: i.url,
+      alt: typeof i.alt === 'string' ? i.alt : ''
+    })) : []
+  };
+}
+
+// Defensive: load with fallback chain (localStorage → defaults → empty)
+let resourceItems = [];
+function loadResourceLibrary() {
+  try {
+    const raw = localStorage.getItem('hawaiiResourceLibrary');
+    if (!raw) {
+      resourceItems = DEFAULT_RESOURCES.map(r => normalizeResourceItem(r)).filter(Boolean);
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      console.warn('Resource library not an array, falling back to defaults');
+      resourceItems = DEFAULT_RESOURCES.map(r => normalizeResourceItem(r)).filter(Boolean);
+      return;
+    }
+    resourceItems = parsed.map(r => normalizeResourceItem(r)).filter(Boolean);
+  } catch (e) {
+    console.warn('Resource library load error:', e.message);
+    resourceItems = DEFAULT_RESOURCES.map(r => normalizeResourceItem(r)).filter(Boolean);
+  }
+}
+
+function saveResourceLibrary() {
+  try {
+    localStorage.setItem('hawaiiResourceLibrary', JSON.stringify(resourceItems));
+    return true;
+  } catch (e) {
+    console.warn('Resource library save error:', e.message);
+    return false;
+  }
+}
+
+function resourceCategoryLabel(id) {
+  const c = RESOURCE_CATEGORIES.find(x => x.id === id);
+  return c ? c.label : id;
+}
+function resourceCategoryIcon(id) {
+  const c = RESOURCE_CATEGORIES.find(x => x.id === id);
+  return c ? c.icon : '•';
+}
+function resourceIslandLabel(id) {
+  if (id === 'kauai') return 'Kauaʻi';
+  if (id === 'maui') return 'Maui';
+  if (id === 'oahu') return 'Oʻahu';
+  return 'All islands';
+}
+function resourcePriorityLabel(id) {
+  const map = { 'must-do': '🔥 Must Do', 'worth-it': '👍 Worth It', 'optional': '⚠️ Optional', 'skip-unless-nearby': '⏭️ Skip unless nearby' };
+  return map[id] || id;
+}
+
+// Filter state for Deep Dive view
+let resourceFilters = { island: 'all', category: 'all', priority: 'all', effort: 'all', search: '' };
+
+function applyResourceFilters(items) {
+  return items.filter(r => {
+    if (resourceFilters.island !== 'all' && r.island !== resourceFilters.island && r.island !== 'all') return false;
+    if (resourceFilters.category !== 'all' && r.category !== resourceFilters.category) return false;
+    if (resourceFilters.priority !== 'all' && r.priority !== resourceFilters.priority) return false;
+    if (resourceFilters.effort !== 'all' && r.effort !== resourceFilters.effort) return false;
+    if (resourceFilters.search) {
+      const q = resourceFilters.search.toLowerCase();
+      const haystack = [r.title, r.subtitle, r.summary, r.whyItMatters, r.whyWePickedIt, r.island, r.region, r.recommendation, ...(r.bestFor || [])].join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+// ============================================================
+// V7: DEEP DIVE — public read-only render
+// ============================================================
+function renderDeepDive() {
+  const main = document.getElementById('main-inner');
+  const filtered = applyResourceFilters(resourceItems);
+
+  let html = `
+    <div class="section active">
+      <div class="hero">
+        <span class="hero-eyebrow">research library —</span>
+        <h1 class="hero-title">The <em>Deep Dive</em></h1>
+        <p class="hero-subtitle">Optional research notes for places, lodging, food, activities, and logistics. This section is here when we want more detail — not something we need to go through all at once.</p>
+      </div>
+
+      <div class="dd-controls">
+        <input type="search" class="dd-search" placeholder="Search title, summary, region, tags…" value="${escapeAttr(resourceFilters.search)}" oninput="setResourceFilter('search', this.value)">
+        <select class="dd-filter" onchange="setResourceFilter('island', this.value)">
+          <option value="all" ${resourceFilters.island === 'all' ? 'selected' : ''}>All islands</option>
+          <option value="kauai" ${resourceFilters.island === 'kauai' ? 'selected' : ''}>Kauaʻi</option>
+          <option value="maui" ${resourceFilters.island === 'maui' ? 'selected' : ''}>Maui</option>
+          <option value="oahu" ${resourceFilters.island === 'oahu' ? 'selected' : ''}>Oʻahu</option>
+        </select>
+        <select class="dd-filter" onchange="setResourceFilter('category', this.value)">
+          <option value="all" ${resourceFilters.category === 'all' ? 'selected' : ''}>All categories</option>
+          ${RESOURCE_CATEGORIES.map(c => `<option value="${c.id}" ${resourceFilters.category === c.id ? 'selected' : ''}>${c.icon} ${c.label}</option>`).join('')}
+        </select>
+        <select class="dd-filter" onchange="setResourceFilter('priority', this.value)">
+          <option value="all" ${resourceFilters.priority === 'all' ? 'selected' : ''}>All priorities</option>
+          <option value="must-do" ${resourceFilters.priority === 'must-do' ? 'selected' : ''}>Must do</option>
+          <option value="worth-it" ${resourceFilters.priority === 'worth-it' ? 'selected' : ''}>Worth it</option>
+          <option value="optional" ${resourceFilters.priority === 'optional' ? 'selected' : ''}>Optional</option>
+        </select>
+        <select class="dd-filter" onchange="setResourceFilter('effort', this.value)">
+          <option value="all" ${resourceFilters.effort === 'all' ? 'selected' : ''}>All effort levels</option>
+          <option value="relax" ${resourceFilters.effort === 'relax' ? 'selected' : ''}>Relax</option>
+          <option value="moderate" ${resourceFilters.effort === 'moderate' ? 'selected' : ''}>Moderate</option>
+          <option value="high" ${resourceFilters.effort === 'high' ? 'selected' : ''}>High</option>
+        </select>
+      </div>
+      <div class="dd-meta-row">${filtered.length} of ${resourceItems.length} resources shown</div>
+  `;
+
+  if (resourceItems.length === 0) {
+    html += `
+      <div class="dd-empty">
+        <div class="dd-empty-icon">📚</div>
+        <h3 class="dd-empty-title">Your research library is empty.</h3>
+        <p class="dd-empty-sub">Add resource items via Admin mode (visit <a href="#admin">#admin</a> in the URL bar) or import a backup JSON file.</p>
+      </div>
+    </div>`;
+    main.innerHTML = html;
+    return;
+  }
+
+  if (filtered.length === 0) {
+    html += `<div class="dd-empty"><div class="dd-empty-icon">🔍</div><h3 class="dd-empty-title">No matches.</h3><p class="dd-empty-sub">Try clearing the filters above.</p></div></div>`;
+    main.innerHTML = html;
+    return;
+  }
+
+  // Group by category for organized presentation
+  const byCategory = {};
+  RESOURCE_CATEGORIES.forEach(c => byCategory[c.id] = []);
+  filtered.forEach(r => {
+    const cat = byCategory[r.category] ? r.category : 'activities';
+    byCategory[cat] = byCategory[cat] || [];
+    byCategory[cat].push(r);
+  });
+
+  RESOURCE_CATEGORIES.forEach(cat => {
+    const items = byCategory[cat.id] || [];
+    if (items.length === 0) return;
+    html += `
+      <div class="dd-category-block">
+        <div class="dd-category-header">
+          <span class="dd-category-icon">${cat.icon}</span>
+          <h2 class="dd-category-title">${cat.label}</h2>
+          <span class="dd-category-count">${items.length}</span>
+        </div>
+        <div class="dd-card-grid">`;
+    items.forEach(r => {
+      const priorityClass = `dd-priority-${(r.priority || 'optional').replace(/[^a-z]/gi, '')}`;
+      const firstImg = (r.images && r.images[0]) || null;
+      html += `
+        <div class="dd-card ${priorityClass}" onclick="openResourceDetail('${escapeAttr(r.id)}')">
+          ${firstImg ? `<div class="dd-card-image" style="background-image: url('${escapeAttr(firstImg.url)}')"></div>` : ''}
+          <div class="dd-card-body">
+            <div class="dd-card-meta-row">
+              <span class="dd-card-priority">${resourcePriorityLabel(r.priority)}</span>
+              ${r.island && r.island !== 'all' ? `<span class="dd-card-island">${resourceIslandLabel(r.island)}</span>` : ''}
+            </div>
+            <div class="dd-card-title">${escapeText(r.title)}</div>
+            ${r.subtitle ? `<div class="dd-card-subtitle">${escapeText(r.subtitle)}</div>` : ''}
+            ${r.summary ? `<div class="dd-card-summary">${escapeText(r.summary)}</div>` : ''}
+            <div class="dd-card-tags">
+              ${r.costTier ? `<span class="dd-tag">${r.costTier}</span>` : ''}
+              ${r.timeNeeded ? `<span class="dd-tag">⏱ ${escapeText(r.timeNeeded)}</span>` : ''}
+              ${r.effort ? `<span class="dd-tag">${r.effort}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  main.innerHTML = html;
+}
+
+function setResourceFilter(field, value) {
+  resourceFilters[field] = value;
+  renderDeepDive();
+}
+
+function escapeText(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Detail modal — overlay, doesn't replace page
+function openResourceDetail(id) {
+  const item = resourceItems.find(r => r.id === id);
+  if (!item) return;
+  const overlay = document.getElementById('dd-modal-overlay');
+  const body = document.getElementById('dd-modal-body');
+  if (!overlay || !body) return;
+
+  let html = `
+    <button class="dd-modal-close" onclick="closeResourceDetail()" aria-label="Close">×</button>
+    <div class="dd-modal-header">
+      <div class="dd-modal-meta">
+        ${resourceCategoryIcon(item.category)} ${escapeText(resourceCategoryLabel(item.category))}
+        ${item.island && item.island !== 'all' ? ` · ${escapeText(resourceIslandLabel(item.island))}` : ''}
+        ${item.region ? ` · ${escapeText(item.region)}` : ''}
+      </div>
+      <h2 class="dd-modal-title">${escapeText(item.title)}</h2>
+      ${item.subtitle ? `<p class="dd-modal-subtitle">${escapeText(item.subtitle)}</p>` : ''}
+      <div class="dd-modal-tags">
+        <span class="dd-tag dd-tag-priority">${resourcePriorityLabel(item.priority)}</span>
+        ${item.costTier ? `<span class="dd-tag">${escapeText(item.costTier)}</span>` : ''}
+        ${item.effort ? `<span class="dd-tag">effort: ${escapeText(item.effort)}</span>` : ''}
+        ${item.timeNeeded ? `<span class="dd-tag">⏱ ${escapeText(item.timeNeeded)}</span>` : ''}
+        ${(item.bestFor || []).map(b => `<span class="dd-tag dd-tag-soft">${escapeText(b)}</span>`).join('')}
+      </div>
+    </div>
+  `;
+
+  // Images
+  if (item.images && item.images.length > 0) {
+    html += `<div class="dd-modal-section"><div class="dd-modal-images">`;
+    item.images.forEach(img => {
+      if (img.url) {
+        html += `<img src="${escapeAttr(img.url)}" alt="${escapeAttr(img.alt || '')}" class="dd-modal-image" onerror="this.style.display='none'">`;
+      }
+    });
+    html += `</div></div>`;
+  }
+
+  if (item.summary) {
+    html += `<div class="dd-modal-section"><h3 class="dd-modal-section-title">Summary</h3><p class="dd-modal-prose">${escapeText(item.summary)}</p></div>`;
+  }
+  if (item.whyItMatters) {
+    html += `<div class="dd-modal-section"><h3 class="dd-modal-section-title">Why it matters</h3><p class="dd-modal-prose">${escapeText(item.whyItMatters)}</p></div>`;
+  }
+  if (item.whyWePickedIt) {
+    html += `<div class="dd-modal-section"><h3 class="dd-modal-section-title">Why we picked it</h3><p class="dd-modal-prose">${escapeText(item.whyWePickedIt)}</p></div>`;
+  }
+  if (item.tradeoffs) {
+    html += `<div class="dd-modal-section"><h3 class="dd-modal-section-title">Tradeoffs</h3><p class="dd-modal-prose">${escapeText(item.tradeoffs)}</p></div>`;
+  }
+  if (item.recommendation) {
+    html += `<div class="dd-modal-section dd-modal-recommendation"><h3 class="dd-modal-section-title">Recommendation</h3><p class="dd-modal-prose"><strong>${escapeText(item.recommendation)}</strong></p></div>`;
+  }
+
+  // YouTube videos
+  const validVideos = (item.youtube || []).filter(v => v && v.youtubeId);
+  if (validVideos.length > 0) {
+    html += `<div class="dd-modal-section"><h3 class="dd-modal-section-title">Videos</h3>`;
+    validVideos.forEach(v => {
+      html += `
+        <div class="dd-modal-video">
+          ${v.title ? `<div class="dd-modal-video-title">${escapeText(v.title)}</div>` : ''}
+          <div class="dd-modal-video-frame">
+            <iframe src="https://www.youtube.com/embed/${escapeAttr(v.youtubeId)}" title="${escapeAttr(v.title || 'Video')}" frameborder="0" allowfullscreen></iframe>
+          </div>
+          ${v.note ? `<div class="dd-modal-video-note">${escapeText(v.note)}</div>` : ''}
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Links
+  const validLinks = (item.links || []).filter(l => l && l.url);
+  if (validLinks.length > 0) {
+    html += `<div class="dd-modal-section"><h3 class="dd-modal-section-title">Links</h3><div class="dd-modal-links">`;
+    validLinks.forEach(l => {
+      html += `<a href="${escapeAttr(l.url)}" target="_blank" rel="noopener noreferrer" class="dd-modal-link">${escapeText(l.label || 'Open')} ↗</a>`;
+    });
+    html += `</div></div>`;
+  }
+
+  body.innerHTML = html;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeResourceDetail() {
+  const overlay = document.getElementById('dd-modal-overlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ============================================================
+// V7: ADMIN MODE — full editor for resource library
+// ============================================================
+let adminEditingId = null;  // currently selected resource id, or null = new
+let adminFormDraft = null;  // unsaved changes
+let adminListFilter = '';
+
+function isAdminMode() {
+  return window.location.hash === '#admin';
+}
+
+function enterAdminMode() {
+  if (window.location.hash !== '#admin') window.location.hash = '#admin';
+  renderAdmin();
+}
+
+function exitAdminMode() {
+  if (window.location.hash === '#admin') {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
+  // Default back to structure view
+  renderStructure();
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  const first = document.querySelector('[data-section="structure"]');
+  if (first) first.classList.add('active');
+  updateAll();
+}
+
+function newAdminDraft() {
+  return {
+    id: 'res-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    category: 'activities',
+    island: 'all',
+    region: '',
+    title: '',
+    subtitle: '',
+    priority: 'optional',
+    effort: 'moderate',
+    costTier: '',
+    timeNeeded: '',
+    bestFor: [],
+    summary: '',
+    whyItMatters: '',
+    whyWePickedIt: '',
+    tradeoffs: '',
+    recommendation: '',
+    links: [],
+    youtube: [],
+    images: []
+  };
+}
+
+function adminStartNew() {
+  adminFormDraft = newAdminDraft();
+  adminEditingId = null;
+  renderAdmin();
+}
+
+function adminSelectItem(id) {
+  const item = resourceItems.find(r => r.id === id);
+  if (!item) return;
+  adminEditingId = id;
+  // Deep-clone to avoid mutating the live array until save
+  adminFormDraft = JSON.parse(JSON.stringify(item));
+  renderAdmin();
+}
+
+function adminSaveItem() {
+  if (!adminFormDraft) return;
+  const normalized = normalizeResourceItem(adminFormDraft);
+  if (!normalized) return;
+  if (!normalized.title || !normalized.title.trim()) {
+    alert('Please enter a title before saving.');
+    return;
+  }
+  const idx = resourceItems.findIndex(r => r.id === normalized.id);
+  if (idx >= 0) {
+    resourceItems[idx] = normalized;
+  } else {
+    resourceItems.push(normalized);
+  }
+  saveResourceLibrary();
+  adminEditingId = normalized.id;
+  adminFormDraft = JSON.parse(JSON.stringify(normalized));
+  renderAdmin();
+  // Brief save indicator
+  flashAdminMessage('Saved.');
+}
+
+function adminDuplicateItem() {
+  if (!adminFormDraft) return;
+  const copy = JSON.parse(JSON.stringify(adminFormDraft));
+  copy.id = 'res-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  copy.title = (copy.title || 'Untitled') + ' (copy)';
+  resourceItems.push(normalizeResourceItem(copy));
+  saveResourceLibrary();
+  adminSelectItem(copy.id);
+}
+
+function adminDeleteItem() {
+  if (!adminFormDraft) return;
+  if (!confirm('Delete "' + (adminFormDraft.title || 'this item') + '"? This cannot be undone (but you can re-import from a backup).')) return;
+  resourceItems = resourceItems.filter(r => r.id !== adminFormDraft.id);
+  saveResourceLibrary();
+  adminEditingId = null;
+  adminFormDraft = null;
+  renderAdmin();
+  flashAdminMessage('Deleted.');
+}
+
+function adminUpdateField(field, value) {
+  if (!adminFormDraft) return;
+  if (field === 'bestFor') {
+    adminFormDraft.bestFor = String(value).split(',').map(s => s.trim()).filter(Boolean);
+  } else {
+    adminFormDraft[field] = value;
+  }
+  // Don't full re-render on every keystroke for text fields
+}
+
+function adminUpdateLink(idx, field, value) {
+  if (!adminFormDraft || !adminFormDraft.links[idx]) return;
+  adminFormDraft.links[idx][field] = value;
+}
+function adminAddLink() {
+  if (!adminFormDraft) return;
+  if (!adminFormDraft.links) adminFormDraft.links = [];
+  adminFormDraft.links.push({ label: '', url: '' });
+  renderAdmin();
+}
+function adminRemoveLink(idx) {
+  if (!adminFormDraft || !adminFormDraft.links) return;
+  adminFormDraft.links.splice(idx, 1);
+  renderAdmin();
+}
+
+function adminUpdateVideo(idx, field, value) {
+  if (!adminFormDraft || !adminFormDraft.youtube[idx]) return;
+  if (field === 'youtubeId') {
+    // Auto-extract from URL if pasted
+    adminFormDraft.youtube[idx].youtubeId = extractYouTubeId(value) || value;
+    // If extraction worked and the input was a URL, force update visible value
+    if (extractYouTubeId(value) && extractYouTubeId(value) !== value) {
+      renderAdmin();
+    }
+  } else {
+    adminFormDraft.youtube[idx][field] = value;
+  }
+}
+function adminAddVideo() {
+  if (!adminFormDraft) return;
+  if (!adminFormDraft.youtube) adminFormDraft.youtube = [];
+  adminFormDraft.youtube.push({ title: '', youtubeId: '', note: '' });
+  renderAdmin();
+}
+function adminRemoveVideo(idx) {
+  if (!adminFormDraft || !adminFormDraft.youtube) return;
+  adminFormDraft.youtube.splice(idx, 1);
+  renderAdmin();
+}
+
+function adminUpdateImage(idx, field, value) {
+  if (!adminFormDraft || !adminFormDraft.images[idx]) return;
+  adminFormDraft.images[idx][field] = value;
+}
+function adminAddImage() {
+  if (!adminFormDraft) return;
+  if (!adminFormDraft.images) adminFormDraft.images = [];
+  adminFormDraft.images.push({ url: '', alt: '' });
+  renderAdmin();
+}
+function adminRemoveImage(idx) {
+  if (!adminFormDraft || !adminFormDraft.images) return;
+  adminFormDraft.images.splice(idx, 1);
+  renderAdmin();
+}
+
+function adminSetListFilter(value) {
+  adminListFilter = value;
+  renderAdminListPanel();
+}
+
+function exportResourceLibrary() {
+  try {
+    const blob = new Blob([JSON.stringify(resourceItems, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hawaii-resource-library.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Export failed: ' + e.message);
+  }
+}
+
+function importResourceLibrary() {
+  const input = document.getElementById('admin-import-input');
+  if (input) input.click();
+}
+
+function handleResourceImport(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed)) {
+        alert('Invalid JSON: expected an array of resource items.');
+        return;
+      }
+      const validated = parsed.map(r => normalizeResourceItem(r)).filter(Boolean);
+      if (validated.length === 0) {
+        alert('No valid resource items found in the file.');
+        return;
+      }
+      const choice = prompt(`Found ${validated.length} valid resources in the file.\n\nType:\n  REPLACE — overwrite current ${resourceItems.length} items\n  MERGE — combine, updating items with matching IDs\n  CANCEL — do nothing\n\n(REPLACE / MERGE / CANCEL)`);
+      if (!choice) return;
+      const action = choice.trim().toUpperCase();
+      if (action === 'REPLACE') {
+        resourceItems = validated;
+      } else if (action === 'MERGE') {
+        const byId = new Map(resourceItems.map(r => [r.id, r]));
+        validated.forEach(r => byId.set(r.id, r));
+        resourceItems = Array.from(byId.values());
+      } else {
+        return;  // cancelled
+      }
+      saveResourceLibrary();
+      adminEditingId = null;
+      adminFormDraft = null;
+      renderAdmin();
+      flashAdminMessage(`Imported. ${resourceItems.length} items now in library.`);
+    } catch (err) {
+      alert('Could not parse the file: ' + err.message);
+    } finally {
+      // Clear the input so the same file can be re-imported
+      event.target.value = '';
+    }
+  };
+  reader.onerror = () => alert('Could not read the file.');
+  reader.readAsText(file);
+}
+
+function resetResourceLibrary() {
+  if (!confirm('Reset to sample resources? This will replace your current library with the default 10 sample items. Export your current library first if you want to keep it.')) return;
+  resourceItems = DEFAULT_RESOURCES.map(r => normalizeResourceItem(r)).filter(Boolean);
+  saveResourceLibrary();
+  adminEditingId = null;
+  adminFormDraft = null;
+  renderAdmin();
+  flashAdminMessage('Reset to sample data.');
+}
+
+function flashAdminMessage(msg) {
+  const el = document.getElementById('admin-flash');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 2200);
+}
+
+function renderAdmin() {
+  const main = document.getElementById('main-inner');
+  let html = `
+    <div class="section active admin-section">
+      <div class="admin-header">
+        <div>
+          <span class="hero-eyebrow">resource library editor —</span>
+          <h1 class="hero-title">Admin <em>mode</em></h1>
+          <p class="hero-subtitle">Add, edit, and back up your Deep Dive research library. Changes save to your browser only — use Export to back up.</p>
+        </div>
+        <button class="btn btn-primary" onclick="exitAdminMode()">← Back to planner</button>
+      </div>
+
+      <div class="admin-toolbar">
+        <button class="btn btn-primary" onclick="adminStartNew()">+ New item</button>
+        <button class="btn" onclick="exportResourceLibrary()">Export JSON</button>
+        <button class="btn" onclick="importResourceLibrary()">Import JSON</button>
+        <input type="file" id="admin-import-input" accept=".json,application/json" style="display:none" onchange="handleResourceImport(event)">
+        <button class="btn btn-danger" onclick="resetResourceLibrary()">Reset to samples</button>
+        <span class="admin-flash" id="admin-flash"></span>
+      </div>
+
+      <div class="admin-layout">
+        <div class="admin-list-panel" id="admin-list-panel"></div>
+        <div class="admin-form-panel" id="admin-form-panel"></div>
+      </div>
+    </div>
+    <div class="dd-modal-overlay" id="dd-modal-overlay"><div class="dd-modal" id="dd-modal-body"></div></div>
+  `;
+  main.innerHTML = html;
+  renderAdminListPanel();
+  renderAdminForm();
+}
+
+function renderAdminListPanel() {
+  const panel = document.getElementById('admin-list-panel');
+  if (!panel) return;
+  const q = (adminListFilter || '').toLowerCase();
+  const filtered = q
+    ? resourceItems.filter(r => [r.title, r.subtitle, r.summary, r.category, r.island, r.region].join(' ').toLowerCase().includes(q))
+    : resourceItems;
+
+  let html = `
+    <div class="admin-list-search">
+      <input type="search" placeholder="Filter list…" value="${escapeAttr(adminListFilter)}" oninput="adminSetListFilter(this.value)">
+    </div>
+    <div class="admin-list-meta">${filtered.length} of ${resourceItems.length}</div>
+    <div class="admin-list">`;
+
+  if (filtered.length === 0 && resourceItems.length === 0) {
+    html += `<div class="admin-list-empty">No resources yet.<br>Click "+ New item" to create one.</div>`;
+  } else if (filtered.length === 0) {
+    html += `<div class="admin-list-empty">No matches for "${escapeText(adminListFilter)}".</div>`;
+  } else {
+    filtered.forEach(r => {
+      const isSelected = adminEditingId === r.id;
+      html += `
+        <div class="admin-list-item ${isSelected ? 'selected' : ''}" onclick="adminSelectItem('${escapeAttr(r.id)}')">
+          <div class="admin-list-item-icon">${resourceCategoryIcon(r.category)}</div>
+          <div class="admin-list-item-content">
+            <div class="admin-list-item-title">${escapeText(r.title || 'Untitled')}</div>
+            <div class="admin-list-item-meta">${escapeText(resourceCategoryLabel(r.category))}${r.island && r.island !== 'all' ? ' · ' + escapeText(resourceIslandLabel(r.island)) : ''}</div>
+          </div>
+        </div>`;
+    });
+  }
+  html += `</div>`;
+  panel.innerHTML = html;
+}
+
+function renderAdminForm() {
+  const panel = document.getElementById('admin-form-panel');
+  if (!panel) return;
+
+  if (!adminFormDraft) {
+    panel.innerHTML = `
+      <div class="admin-form-empty">
+        <div class="admin-form-empty-icon">←</div>
+        <h3>Select a resource to edit</h3>
+        <p>Or click <strong>+ New item</strong> to create a new one.</p>
+      </div>`;
+    return;
+  }
+
+  const d = adminFormDraft;
+  let html = `
+    <div class="admin-form">
+      <div class="admin-form-header">
+        <h2 class="admin-form-title">${adminEditingId ? 'Edit resource' : 'New resource'}</h2>
+        <div class="admin-form-id">id: <code>${escapeText(d.id)}</code></div>
+      </div>
+
+      <div class="admin-form-grid">
+        <label class="admin-field">
+          <span class="admin-field-label">Title <span class="admin-field-req">*</span></span>
+          <input type="text" value="${escapeAttr(d.title || '')}" oninput="adminUpdateField('title', this.value)" placeholder="e.g., Nā Pali Coast Boat Tour">
+        </label>
+        <label class="admin-field">
+          <span class="admin-field-label">Subtitle</span>
+          <input type="text" value="${escapeAttr(d.subtitle || '')}" oninput="adminUpdateField('subtitle', this.value)" placeholder="One-line tagline">
+        </label>
+
+        <label class="admin-field">
+          <span class="admin-field-label">Category</span>
+          <select onchange="adminUpdateField('category', this.value)">
+            ${RESOURCE_CATEGORIES.map(c => `<option value="${c.id}" ${d.category === c.id ? 'selected' : ''}>${c.icon} ${c.label}</option>`).join('')}
+          </select>
+        </label>
+        <label class="admin-field">
+          <span class="admin-field-label">Island</span>
+          <select onchange="adminUpdateField('island', this.value)">
+            <option value="all" ${d.island === 'all' ? 'selected' : ''}>All islands</option>
+            <option value="kauai" ${d.island === 'kauai' ? 'selected' : ''}>Kauaʻi</option>
+            <option value="maui" ${d.island === 'maui' ? 'selected' : ''}>Maui</option>
+            <option value="oahu" ${d.island === 'oahu' ? 'selected' : ''}>Oʻahu</option>
+          </select>
+        </label>
+
+        <label class="admin-field">
+          <span class="admin-field-label">Region</span>
+          <input type="text" value="${escapeAttr(d.region || '')}" oninput="adminUpdateField('region', this.value)" placeholder="e.g., north-shore, wailea, windward">
+        </label>
+        <label class="admin-field">
+          <span class="admin-field-label">Priority</span>
+          <select onchange="adminUpdateField('priority', this.value)">
+            <option value="must-do" ${d.priority === 'must-do' ? 'selected' : ''}>🔥 Must do</option>
+            <option value="worth-it" ${d.priority === 'worth-it' ? 'selected' : ''}>👍 Worth it</option>
+            <option value="optional" ${d.priority === 'optional' ? 'selected' : ''}>⚠️ Optional</option>
+            <option value="skip-unless-nearby" ${d.priority === 'skip-unless-nearby' ? 'selected' : ''}>⏭️ Skip unless nearby</option>
+          </select>
+        </label>
+
+        <label class="admin-field">
+          <span class="admin-field-label">Effort</span>
+          <select onchange="adminUpdateField('effort', this.value)">
+            <option value="relax" ${d.effort === 'relax' ? 'selected' : ''}>Relax</option>
+            <option value="moderate" ${d.effort === 'moderate' ? 'selected' : ''}>Moderate</option>
+            <option value="high" ${d.effort === 'high' ? 'selected' : ''}>High</option>
+          </select>
+        </label>
+        <label class="admin-field">
+          <span class="admin-field-label">Cost tier</span>
+          <select onchange="adminUpdateField('costTier', this.value)">
+            <option value="" ${!d.costTier ? 'selected' : ''}>—</option>
+            <option value="$" ${d.costTier === '$' ? 'selected' : ''}>$ — under $50/person</option>
+            <option value="$$" ${d.costTier === '$$' ? 'selected' : ''}>$$ — $50-150</option>
+            <option value="$$$" ${d.costTier === '$$$' ? 'selected' : ''}>$$$ — $150-300</option>
+            <option value="$$$$" ${d.costTier === '$$$$' ? 'selected' : ''}>$$$$ — $300+</option>
+          </select>
+        </label>
+
+        <label class="admin-field admin-field-wide">
+          <span class="admin-field-label">Time needed</span>
+          <input type="text" value="${escapeAttr(d.timeNeeded || '')}" oninput="adminUpdateField('timeNeeded', this.value)" placeholder="e.g., Half day (5-7 hours)">
+        </label>
+
+        <label class="admin-field admin-field-wide">
+          <span class="admin-field-label">Best for / tags <span class="admin-field-hint">(comma-separated)</span></span>
+          <input type="text" value="${escapeAttr((d.bestFor || []).join(', '))}" oninput="adminUpdateField('bestFor', this.value)" placeholder="e.g., scenery, adventure, bucket list">
+        </label>
+      </div>
+
+      <div class="admin-form-section">
+        <label class="admin-field">
+          <span class="admin-field-label">Summary <span class="admin-field-hint">(1-2 sentences)</span></span>
+          <textarea rows="2" oninput="adminUpdateField('summary', this.value)" placeholder="Short overview">${escapeText(d.summary || '')}</textarea>
+        </label>
+        <label class="admin-field">
+          <span class="admin-field-label">Why it matters</span>
+          <textarea rows="3" oninput="adminUpdateField('whyItMatters', this.value)" placeholder="Why is this worth considering?">${escapeText(d.whyItMatters || '')}</textarea>
+        </label>
+        <label class="admin-field">
+          <span class="admin-field-label">Why we picked it</span>
+          <textarea rows="3" oninput="adminUpdateField('whyWePickedIt', this.value)" placeholder="Why does this fit our specific trip?">${escapeText(d.whyWePickedIt || '')}</textarea>
+        </label>
+        <label class="admin-field">
+          <span class="admin-field-label">Tradeoffs</span>
+          <textarea rows="3" oninput="adminUpdateField('tradeoffs', this.value)" placeholder="Costs, downsides, weather risk, crowds, difficulty…">${escapeText(d.tradeoffs || '')}</textarea>
+        </label>
+        <label class="admin-field">
+          <span class="admin-field-label">Recommendation</span>
+          <input type="text" value="${escapeAttr(d.recommendation || '')}" oninput="adminUpdateField('recommendation', this.value)" placeholder="Must do / Worth it / Optional / Skip unless nearby">
+        </label>
+      </div>
+
+      <!-- Links -->
+      <div class="admin-form-section admin-subsection">
+        <div class="admin-subsection-header">
+          <h3>Links</h3>
+          <button class="btn btn-mini" onclick="adminAddLink()">+ Add link</button>
+        </div>`;
+  if ((d.links || []).length === 0) {
+    html += `<div class="admin-empty-mini">No links yet.</div>`;
+  } else {
+    d.links.forEach((l, i) => {
+      html += `
+        <div class="admin-multi-row">
+          <input type="text" value="${escapeAttr(l.label || '')}" oninput="adminUpdateLink(${i}, 'label', this.value)" placeholder="Label (e.g., Official Website)">
+          <input type="url" value="${escapeAttr(l.url || '')}" oninput="adminUpdateLink(${i}, 'url', this.value)" placeholder="https://…">
+          <button class="btn-mini-remove" onclick="adminRemoveLink(${i})" title="Remove">×</button>
+        </div>`;
+    });
+  }
+  html += `</div>`;
+
+  // YouTube
+  html += `
+      <div class="admin-form-section admin-subsection">
+        <div class="admin-subsection-header">
+          <h3>YouTube videos</h3>
+          <button class="btn btn-mini" onclick="adminAddVideo()">+ Add video</button>
+        </div>
+        <div class="admin-hint">Paste the video ID (the ABC123 part) or the full URL — both work.</div>`;
+  if ((d.youtube || []).length === 0) {
+    html += `<div class="admin-empty-mini">No videos yet.</div>`;
+  } else {
+    d.youtube.forEach((v, i) => {
+      html += `
+        <div class="admin-multi-block">
+          <div class="admin-multi-row">
+            <input type="text" value="${escapeAttr(v.title || '')}" oninput="adminUpdateVideo(${i}, 'title', this.value)" placeholder="Video title">
+            <input type="text" value="${escapeAttr(v.youtubeId || '')}" oninput="adminUpdateVideo(${i}, 'youtubeId', this.value)" onchange="adminUpdateVideo(${i}, 'youtubeId', this.value)" placeholder="YouTube ID or URL">
+            <button class="btn-mini-remove" onclick="adminRemoveVideo(${i})" title="Remove">×</button>
+          </div>
+          <input type="text" value="${escapeAttr(v.note || '')}" oninput="adminUpdateVideo(${i}, 'note', this.value)" placeholder="Note (why this video is useful)" class="admin-multi-fullwidth">
+        </div>`;
+    });
+  }
+  html += `</div>`;
+
+  // Images
+  html += `
+      <div class="admin-form-section admin-subsection">
+        <div class="admin-subsection-header">
+          <h3>Images</h3>
+          <button class="btn btn-mini" onclick="adminAddImage()">+ Add image</button>
+        </div>`;
+  if ((d.images || []).length === 0) {
+    html += `<div class="admin-empty-mini">No images yet.</div>`;
+  } else {
+    d.images.forEach((img, i) => {
+      html += `
+        <div class="admin-multi-row">
+          <input type="url" value="${escapeAttr(img.url || '')}" oninput="adminUpdateImage(${i}, 'url', this.value)" placeholder="Image URL (https://…)">
+          <input type="text" value="${escapeAttr(img.alt || '')}" oninput="adminUpdateImage(${i}, 'alt', this.value)" placeholder="Alt text">
+          <button class="btn-mini-remove" onclick="adminRemoveImage(${i})" title="Remove">×</button>
+        </div>`;
+    });
+  }
+  html += `</div>`;
+
+  // Save / Duplicate / Delete
+  html += `
+      <div class="admin-form-actions">
+        <button class="btn btn-primary" onclick="adminSaveItem()">Save</button>
+        <button class="btn" onclick="adminDuplicateItem()" ${adminEditingId ? '' : 'disabled'}>Duplicate</button>
+        <button class="btn btn-danger" onclick="adminDeleteItem()" ${adminEditingId ? '' : 'disabled'}>Delete</button>
+      </div>
+    </div>`;
+
+  panel.innerHTML = html;
+}
+
+// Listen for hash changes to enter/exit admin
+window.addEventListener('hashchange', () => {
+  if (isAdminMode()) {
+    renderAdmin();
+  }
+});
+
+// ============================================================
+// END V7: RESOURCE LAYER
+// ============================================================
+
+
 
 // ============================================================
 // HELPERS
@@ -1047,6 +2456,262 @@ function matchedPreset() {
 
 function escapeAttr(s) {
   return String(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ============================================================
+// V6: VALIDATION ENGINE — generates warnings/notes for current plan
+// ============================================================
+function getValidationWarnings() {
+  const trip = currentTrip();
+  if (!trip || !trip.valid) return [];
+
+  const warnings = [];
+  const islands = islandsInTrip(trip);
+  const islandCount = islands.length;
+
+  // Phase 2.1: Island count vs nights
+  if (trip.length <= 12 && islandCount > 2) {
+    warnings.push({ severity: 'warn', text: 'Three islands in 12 or fewer nights tends to feel rushed. Consider dropping one.' });
+  }
+  if (trip.length >= 13 && islandCount > 3) {
+    warnings.push({ severity: 'warn', text: 'Four or more islands in any timeframe is too many for one trip.' });
+  }
+
+  // Phase 2.2: Minimum nights per island
+  if (trip.oahu > 0 && trip.oahu < 2) warnings.push({ severity: 'warn', text: 'Less than 2 nights on Oʻahu means you barely arrive before leaving. Consider 2 minimum.' });
+  if (trip.kauai > 0 && trip.kauai < 3) warnings.push({ severity: 'warn', text: 'Less than 3 nights on Kauaʻi misses the whole point — Kauaʻi rewards a slow stay.' });
+  if (trip.maui > 0 && trip.maui < 3) warnings.push({ severity: 'warn', text: 'Less than 3 nights on Maui doesn\'t leave room for both Hana and Haleakalā.' });
+
+  // Phase 2.3: Travel overhead
+  const transferDays = Math.max(0, islandCount - 1) * 0.5;
+  const travelOverhead = (1 + 1 + transferDays) / trip.length;  // arrival + departure + transfers
+  if (travelOverhead > 0.20) {
+    warnings.push({ severity: 'warn', text: `Too much of your trip is travel days (${Math.round(travelOverhead * 100)}%). Consider a longer trip or fewer islands.` });
+  }
+
+  // Phase 3: Island activity density
+  if (state.priorityActivities && state.activities) {
+    ['kauai', 'maui', 'oahu'].forEach(island => {
+      if (trip[island] === 0) return;
+      const islandActs = ACTIVITIES.filter(a => a.island === island && state.activities[a.id] && state.activities[a.id] > 0);
+      const profile = ISLAND_PROFILES[island];
+      const avgPerDay = islandActs.length / Math.max(1, trip[island]);
+      if (avgPerDay > profile.maxActivitiesPerDay) {
+        warnings.push({ severity: 'warn', text: `${ISLAND_LABELS[island]} days are typically ${profile.pace}-paced (max ~${profile.maxActivitiesPerDay} activities/day). You have ${islandActs.length} activities across ${trip[island]} nights — consider reducing.` });
+      }
+    });
+  }
+
+  // Phase 7: Energy stacking — flag trips with high concentration of high-energy activities
+  const highEnergyCount = ACTIVITIES.filter(a => {
+    const tier = state.activities[a.id];
+    const meta = ACTIVITY_META[a.id];
+    return tier && tier > 0 && meta && meta.energy === 'high';
+  }).length;
+  const highEnergyDensity = highEnergyCount / Math.max(1, trip.length);
+  if (highEnergyDensity > 0.45) {
+    warnings.push({ severity: 'warn', text: `${highEnergyCount} high-effort activities across ${trip.length} nights — risk of stacking 2+ high-energy days back-to-back. Build in some relax days.` });
+  }
+
+  // Phase 1: Priorities mismatch with current plan
+  if (state.priorityActivities && state.priorityActivities.length > 0) {
+    state.priorityActivities.forEach(pid => {
+      const activity = ACTIVITIES.find(a => a.id === pid);
+      if (!activity) return;
+      if (trip[activity.island] === 0) {
+        warnings.push({ severity: 'warn', text: `Your top priority "${activity.name}" requires ${ISLAND_LABELS[activity.island]} — but your current trip has 0 ${ISLAND_LABELS[activity.island]} nights.` });
+      } else {
+        const tier = state.activities[pid];
+        if (tier === 0) {
+          warnings.push({ severity: 'warn', text: `You marked "${activity.name}" as a top priority but selected "skip" for it.` });
+        }
+      }
+    });
+  }
+
+  return warnings;
+}
+
+function getValidationStatus() {
+  const warnings = getValidationWarnings();
+  if (warnings.length === 0) {
+    const trip = currentTrip();
+    if (trip && trip.valid) return { severity: 'good', text: 'Well-paced itinerary — no issues detected.' };
+  }
+  return null;
+}
+
+// Phase 4: Travel flow intelligence
+function getTravelFlowInsight() {
+  if (!state.trip.visitOrder || state.trip.visitOrder.length < 2) return null;
+  const order = state.trip.visitOrder;
+  const impacts = order.map(i => ISLAND_PROFILES[i].scenicImpact);
+  const peak = Math.max(...impacts);
+  const peakIdx = impacts.indexOf(peak);
+  const lastIdx = impacts.length - 1;
+  const peakIsland = ISLAND_LABELS[order[peakIdx]];
+
+  if (peakIdx === lastIdx) {
+    return { type: 'builds', text: `This itinerary builds toward your most dramatic scenery (${peakIsland} at the end).` };
+  } else if (peakIdx === 0) {
+    return { type: 'frontload', text: `This itinerary starts with your most intense destination (${peakIsland} first). Many travelers prefer building toward Kauaʻi instead.` };
+  } else {
+    return { type: 'middle', text: `Your most dramatic island (${peakIsland}) is in the middle. Consider reordering to climax with it.` };
+  }
+}
+
+// Phase 11: Trip style + tradeoffs
+function getTripStyle() {
+  const counts = { high: 0, moderate: 0, relax: 0 };
+  ACTIVITIES.forEach(a => {
+    const tier = state.activities[a.id];
+    const meta = ACTIVITY_META[a.id];
+    if (tier && tier > 0 && meta) {
+      counts[meta.energy === 'travel' ? 'moderate' : meta.energy] = (counts[meta.energy === 'travel' ? 'moderate' : meta.energy] || 0) + 1;
+    }
+  });
+  const total = counts.high + counts.moderate + counts.relax;
+  if (total === 0) return 'No activities selected yet';
+  const highPct = counts.high / total;
+  const relaxPct = counts.relax / total;
+  if (highPct > 0.5) return 'Adventure-focused';
+  if (relaxPct > 0.5) return 'Relaxed pace';
+  if (highPct > 0.3 && relaxPct > 0.3) return 'Balanced exploration';
+  if (highPct > 0.3) return 'Active with downtime';
+  return 'Easygoing exploration';
+}
+
+function getTradeoffs() {
+  const trip = currentTrip();
+  if (!trip || !trip.valid) return [];
+  const tradeoffs = [];
+  if (trip.oahu === 0) tradeoffs.push('Skipping Oʻahu removes Pearl Harbor, Kualoa Ranch (JP filming sites), and the Honolulu food scene.');
+  if (trip.kauai === 0) tradeoffs.push('Skipping Kauaʻi removes the Nā Pali Coast — many consider it the most beautiful place in Hawaii.');
+  if (trip.maui === 0) tradeoffs.push('Skipping Maui removes Road to Hana, Haleakalā summit, and Mamaʻs Fish House.');
+  if (trip.kauai > 0 && trip.kauai < 5) tradeoffs.push('Short Kauaʻi stay limits time for both north and south shore exploration.');
+  if (trip.maui > 0 && trip.maui < 5) tradeoffs.push('Short Maui stay forces choosing between Hana day and Haleakalā day.');
+  if (trip.oahu >= 4) tradeoffs.push('Long Oʻahu stay reduces time on more scenic islands.');
+  return tradeoffs;
+}
+
+// Phase 10: Trip Quality Score
+function calculateTripScore() {
+  const trip = currentTrip();
+  if (!trip || !trip.valid) return null;
+  let score = 100;
+  const islands = islandsInTrip(trip);
+  const issues = [];
+
+  // Penalty for short island stays
+  if (trip.kauai > 0 && trip.kauai < 3) { score -= 12; issues.push('short Kauaʻi stay'); }
+  if (trip.kauai > 0 && trip.kauai < 5) { score -= 5; }
+  if (trip.maui > 0 && trip.maui < 3) { score -= 10; issues.push('short Maui stay'); }
+  if (trip.oahu > 0 && trip.oahu < 2) { score -= 8; issues.push('barely-there Oʻahu stay'); }
+
+  // Penalty for too many islands in too short a trip
+  if (trip.length <= 12 && islands.length > 2) { score -= 12; issues.push('too many islands for length'); }
+
+  // Penalty for travel overhead
+  const transferDays = Math.max(0, islands.length - 1) * 0.5;
+  const overhead = (2 + transferDays) / trip.length;
+  if (overhead > 0.20) { score -= 8; issues.push('high travel overhead'); }
+
+  // Bonus for visiting all 3 islands when there's time
+  if (islands.length === 3 && trip.length >= 14) { score += 3; }
+
+  // Bonus for building toward Kauaʻi
+  const flow = getTravelFlowInsight();
+  if (flow && flow.type === 'builds') { score += 4; }
+  if (flow && flow.type === 'frontload') { score -= 3; issues.push('intense island first'); }
+
+  // Priority alignment
+  if (state.priorityActivities && state.priorityActivities.length > 0) {
+    const aligned = state.priorityActivities.filter(pid => {
+      const activity = ACTIVITIES.find(a => a.id === pid);
+      if (!activity) return false;
+      if (trip[activity.island] === 0) return false;
+      const tier = state.activities[pid];
+      return tier !== null && tier > 0;
+    }).length;
+    const alignRatio = aligned / state.priorityActivities.length;
+    if (alignRatio < 0.5) { score -= 10; issues.push('priorities not addressed'); }
+    else if (alignRatio < 0.8) { score -= 4; }
+    else { score += 5; }
+  } else {
+    score -= 4;
+    issues.push('no priorities set');
+  }
+
+  // Penalty for skipping must-do activities on visited islands
+  ACTIVITIES.forEach(a => {
+    const meta = ACTIVITY_META[a.id];
+    if (!meta || meta.value !== 'must') return;
+    if (trip[a.island] === 0) return;
+    const tier = state.activities[a.id];
+    if (tier === 0) { score -= 3; }
+  });
+
+  // Energy density penalty
+  const highCount = ACTIVITIES.filter(a => {
+    const tier = state.activities[a.id];
+    const meta = ACTIVITY_META[a.id];
+    return tier && tier > 0 && meta && meta.energy === 'high';
+  }).length;
+  if (highCount / trip.length > 0.45) { score -= 6; issues.push('high-energy days back-to-back'); }
+
+  score = Math.max(0, Math.min(100, score));
+
+  let label = '';
+  if (score >= 90) label = 'Excellent plan';
+  else if (score >= 80) label = 'Solid trip';
+  else if (score >= 70) label = 'Needs improvement';
+  else label = 'Significant issues';
+
+  return { score, label, issues };
+}
+
+// Phase 9: Active regrets for current plan
+function getActiveRegrets() {
+  const trip = currentTrip();
+  if (!trip || !trip.valid) return [];
+  const acts = state.activities;
+  return COMMON_REGRETS.filter(r => {
+    try { return r.condition(trip, acts); } catch (e) { return false; }
+  });
+}
+
+// ============================================================
+// V6: PRIORITY MANAGEMENT
+// ============================================================
+function togglePriority(activityId) {
+  if (!state.priorityActivities) state.priorityActivities = [];
+  const idx = state.priorityActivities.indexOf(activityId);
+  if (idx >= 0) {
+    state.priorityActivities.splice(idx, 1);
+  } else {
+    if (state.priorityActivities.length >= 5) {
+      // Block silently — UI shows the limit
+      return;
+    }
+    state.priorityActivities.push(activityId);
+  }
+  saveState();
+  renderPriorities();
+  updateAll();
+}
+
+// V6: Phase 5 — Arrival/Departure time setters
+function setArrivalTime(time) {
+  state.trip.arrivalTime = time;
+  saveState();
+  renderStructure();
+  updateAll();
+}
+function setDepartureTime(time) {
+  state.trip.departureTime = time;
+  saveState();
+  renderStructure();
+  updateAll();
 }
 
 // ============================================================
@@ -1251,6 +2916,54 @@ function renderStructure() {
           </div>`;
       });
       html += `</div></div>`;
+    }
+  }
+
+  // === STEP 6: Arrival / Departure Times (V6) ===
+  if (state.trip.length && state.trip.departureDate) {
+    const arrTime = state.trip.arrivalTime || 'mid';
+    const depTime = state.trip.departureTime || 'morning';
+    html += `
+      <div class="step-block">
+        <div class="step-header">
+          <span class="step-number">6</span>
+          <div>
+            <h2 class="step-title">When do you <em>land &amp; leave</em>?</h2>
+            <p class="step-sub">Affects whether Day 1 and the last day can fit activities. From GRR you'll likely arrive late afternoon (West Coast layover), depart morning back home.</p>
+          </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <div style="font-family: 'Fraunces', serif; font-style: italic; font-size: 0.95rem; color: var(--ink-soft); margin-bottom: 0.5rem;">Arrival time on Day 1</div>
+          <div class="oahu-toggle">
+            <button class="${arrTime === 'early' ? 'active' : ''}" onclick="setArrivalTime('early')">Early (before 12pm)</button>
+            <button class="${arrTime === 'mid' ? 'active' : ''}" onclick="setArrivalTime('mid')">Midday (12-4pm)</button>
+            <button class="${arrTime === 'late' ? 'active' : ''}" onclick="setArrivalTime('late')">Late (after 4pm)</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-family: 'Fraunces', serif; font-style: italic; font-size: 0.95rem; color: var(--ink-soft); margin-bottom: 0.5rem;">Departure time on last day</div>
+          <div class="oahu-toggle">
+            <button class="${depTime === 'morning' ? 'active' : ''}" onclick="setDepartureTime('morning')">Morning</button>
+            <button class="${depTime === 'afternoon' ? 'active' : ''}" onclick="setDepartureTime('afternoon')">Afternoon</button>
+            <button class="${depTime === 'evening' ? 'active' : ''}" onclick="setDepartureTime('evening')">Evening</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // === V6: Validation panel — show warnings about current trip shape ===
+  if (state.trip.length) {
+    const warnings = getValidationWarnings();
+    const status = getValidationStatus();
+    if (warnings.length > 0 || status) {
+      html += `<div class="validation-panel">`;
+      if (status) {
+        html += `<div class="validation-item validation-good">${status.text}</div>`;
+      }
+      warnings.forEach(w => {
+        html += `<div class="validation-item validation-warn">⚠️ ${w.text}</div>`;
+      });
+      html += `</div>`;
     }
   }
 
@@ -1530,6 +3243,84 @@ function renderFood() {
 // ============================================================
 // RENDER: ACTIVITIES
 // ============================================================
+// V6: Phase 1 — Priorities picker
+function renderPriorities() {
+  const main = document.getElementById('main-inner');
+  const trip = currentTrip();
+  const priorities = state.priorityActivities || [];
+
+  let html = `
+    <div class="section active">
+      <div class="hero">
+        <span class="hero-eyebrow">the heart of your trip —</span>
+        <h1 class="hero-title">Your <em>top 5</em> must-do experiences</h1>
+        <p class="hero-subtitle">Before picking activities, name the 5 things that <strong>have to happen</strong> for this trip to feel like the trip you wanted. Everything else flexes around these.</p>
+      </div>
+
+      <div class="callout">
+        <span class="callout-title">Why this matters:</span>
+        Hawaii overflows with activity options. Without priorities, you'll over-select and feel rushed. With priorities, the rest of the trip arranges itself around them. The configurator will warn you if your trip shape can't support your priorities.
+      </div>
+
+      <div class="priorities-status">
+        <strong>${priorities.length} of 5 selected</strong>
+        ${priorities.length === 5 ? ' — at the limit. Deselect to swap.' : priorities.length > 0 ? ` — pick ${5 - priorities.length} more` : ''}
+      </div>`;
+
+  // Group activities by island like the activities page
+  const groups = [
+    { island: 'kauai', label: 'on Kauaʻi', show: !trip || trip.kauai > 0 || priorities.some(p => ACTIVITIES.find(a => a.id === p)?.island === 'kauai') },
+    { island: 'maui', label: 'on Maui', show: !trip || trip.maui > 0 || priorities.some(p => ACTIVITIES.find(a => a.id === p)?.island === 'maui') },
+    { island: 'oahu', label: 'on Oʻahu', show: !trip || trip.oahu > 0 || priorities.some(p => ACTIVITIES.find(a => a.id === p)?.island === 'oahu') }
+  ];
+
+  groups.forEach(g => {
+    if (!g.show) return;
+    const tagClass = g.island === 'kauai' ? 'tag-kauai' : g.island === 'maui' ? 'tag-maui' : 'tag-oahu';
+    const tagLabel = ISLAND_LABELS[g.island];
+    html += `
+      <div class="island-section-header">
+        <span class="island-section-eyebrow">choose carefully</span>
+        <h2 class="island-section-title">${g.label}</h2>
+      </div>
+      <div class="priority-grid">`;
+    ACTIVITIES.filter(a => a.island === g.island).forEach(a => {
+      const isSelected = priorities.includes(a.id);
+      const sel = isSelected ? 'selected' : '';
+      const meta = ACTIVITY_META[a.id] || {};
+      const valueBadge = meta.value === 'must' ? '🔥 must' : meta.value === 'worth' ? '👍 worth it' : '⚠️ optional';
+      const valueClass = meta.value === 'must' ? 'badge-must' : meta.value === 'worth' ? 'badge-worth' : 'badge-optional';
+      const disabled = !isSelected && priorities.length >= 5 ? 'disabled' : '';
+      html += `
+        <div class="priority-card ${sel} ${disabled}" onclick="togglePriority('${a.id}')">
+          <div class="priority-card-header">
+            <span class="value-badge ${valueClass}">${valueBadge}</span>
+            <span class="activity-island-tag ${tagClass}">${tagLabel}</span>
+          </div>
+          <div class="priority-card-title">${a.name}</div>
+          <div class="priority-card-desc">${a.desc}</div>
+          ${isSelected ? `<div class="priority-card-rank">★ Priority ${priorities.indexOf(a.id) + 1}</div>` : ''}
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  // Show priorities-vs-trip warning if applicable
+  if (trip && trip.valid && priorities.length > 0) {
+    const mismatched = priorities.filter(pid => {
+      const a = ACTIVITIES.find(x => x.id === pid);
+      return a && trip[a.island] === 0;
+    });
+    if (mismatched.length > 0) {
+      const names = mismatched.map(pid => ACTIVITIES.find(a => a.id === pid)?.name).join(', ');
+      html += `<div class="callout warning" style="margin-top: 2rem;">⚠️ <strong>Your current plan may not support your top priorities.</strong> These priorities require islands you haven't included: ${names}</div>`;
+    }
+  }
+
+  html += `</div>`;
+  main.innerHTML = html;
+}
+
 function renderActivities() {
   const main = document.getElementById('main-inner');
   const trip = currentTrip();
@@ -1569,13 +3360,20 @@ function renderActivities() {
       if (a.id === 'scuba') defaultGroup = '3 divers + 1 snorkel passenger';
       const currentParticipants = state.activityParticipants[a.id] || 'default';
       const isPicked = state.activities[a.id] !== null && state.activities[a.id] > 0;
+      const meta = ACTIVITY_META[a.id] || {};
+      const valueBadge = meta.value === 'must' ? '🔥 Must' : meta.value === 'worth' ? '👍 Worth it' : '⚠️ Optional';
+      const valueClass = meta.value === 'must' ? 'badge-must' : meta.value === 'worth' ? 'badge-worth' : 'badge-optional';
+      const isPriority = (state.priorityActivities || []).includes(a.id);
       html += `
-        <div class="activity-card">
+        <div class="activity-card ${isPriority ? 'is-priority' : ''}">
           <div class="activity-header">
             <div class="activity-title-block">
-              <div class="activity-title">${a.name}</div>
+              <div class="activity-title">${a.name} ${isPriority ? '<span class="priority-marker">★ priority</span>' : ''}</div>
               <div class="activity-desc">${a.desc}</div>
-              <div class="participant-default">default: ${defaultGroup}</div>
+              <div class="activity-tags-row">
+                <span class="value-badge ${valueClass}">${valueBadge}</span>
+                <span class="participant-default">default: ${defaultGroup}</span>
+              </div>
             </div>
             <span class="activity-island-tag ${tagClass}">${tagLabel}</span>
           </div>
@@ -1852,6 +3650,60 @@ function renderSummary() {
         ? `<div class="callout success"><span class="callout-title">Within budget!</span> You\'re $${(budget-total).toLocaleString()} under your $${budget.toLocaleString()} cap.</div>`
         : `<div class="callout warning"><span class="callout-title">Over budget by $${(total-budget).toLocaleString()}</span> Try VRBO instead of premium resort, drop spa/golf, or downgrade Mama\'s dinner to lunch.</div>`}
     `;
+
+  // V6: Trip Quality Score panel
+  const scoreData = calculateTripScore();
+  if (scoreData) {
+    let scoreClass = 'score-needs';
+    if (scoreData.score >= 90) scoreClass = 'score-excellent';
+    else if (scoreData.score >= 80) scoreClass = 'score-solid';
+    html += `
+      <div class="trip-score-card ${scoreClass}">
+        <div class="trip-score-label">Trip Quality Score</div>
+        <div class="trip-score-value">${scoreData.score}<span class="trip-score-max">/100</span></div>
+        <div class="trip-score-status">${scoreData.label}</div>
+        ${scoreData.issues.length > 0 ? `<div class="trip-score-issues">Areas to consider: ${scoreData.issues.join(', ')}</div>` : ''}
+      </div>`;
+  }
+
+  // V6: Trip style + tradeoffs + travel flow
+  const tripStyle = getTripStyle();
+  const tradeoffs = getTradeoffs();
+  const flow = getTravelFlowInsight();
+  html += `<div class="summary-section-card"><div class="summary-section-title">Trip insights</div>`;
+  html += `<div class="summary-line-detail"><span class="label">Trip style</span><span class="value">${tripStyle}</span></div>`;
+  if (flow) {
+    html += `<div class="summary-line-detail"><span class="label">Travel flow</span><span class="value" style="font-style:italic;">${flow.text}</span></div>`;
+  }
+  if (tradeoffs.length > 0) {
+    html += `<div class="summary-tradeoffs"><div class="summary-tradeoffs-title">Tradeoffs in this plan</div>`;
+    tradeoffs.forEach(t => { html += `<div class="summary-tradeoff-item">· ${t}</div>`; });
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  // V6: Active regrets warning
+  const regrets = getActiveRegrets();
+  if (regrets.length > 0) {
+    html += `<div class="summary-section-card regrets-card">
+      <div class="summary-section-title" style="color: var(--coral-dark);">⚠️ Common regrets to address</div>`;
+    regrets.forEach(r => {
+      html += `<div class="summary-regret-item">· ${r.msg}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // V6: Validation warnings (mirror what's on the trip shape page)
+  const warnings = getValidationWarnings();
+  if (warnings.length > 0) {
+    html += `<div class="summary-section-card validation-summary-card">
+      <div class="summary-section-title">Validation</div>`;
+    warnings.forEach(w => {
+      html += `<div class="summary-regret-item">⚠️ ${w.text}</div>`;
+    });
+    html += `</div>`;
+  }
+
   html += `<div class="summary-section-card"><div class="summary-section-title">Trip shape</div>
     <div class="summary-line-detail"><span class="label">Length</span><span class="value">${trip.length} nights</span></div>
     <div class="summary-line-detail"><span class="label">Split</span><span class="value">${splitDisplay}</span></div>
@@ -2108,14 +3960,39 @@ function renderItinerary() {
         <div class="itinerary-events">`;
 
     if (d.type === 'arrival') {
-      html += `
-        <div class="itinerary-event"><div class="itinerary-event-time">morning</div><div class="itinerary-event-text">Depart <strong>Grand Rapids (GRR)</strong> — 4-leg journey via Detroit/Chicago/LAX</div></div>
-        <div class="itinerary-event"><div class="itinerary-event-time">afternoon</div><div class="itinerary-event-text">Arrive <strong>${islandName}</strong>, pick up rental car</div></div>
-        <div class="itinerary-event"><div class="itinerary-event-time">evening</div><div class="itinerary-event-text">Costco run, settle into lodging, sunset on the lanai, early bed</div></div>`;
+      const arr = state.trip.arrivalTime || 'mid';
+      if (arr === 'early') {
+        html += `
+          <div class="itinerary-event"><div class="itinerary-event-time">overnight</div><div class="itinerary-event-text">Red-eye depart <strong>GRR</strong></div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">morning</div><div class="itinerary-event-text">Arrive <strong>${islandName}</strong>, pick up rental car, Costco run</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">afternoon</div><div class="itinerary-event-text">Light activity OK — easy beach, settle in</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">evening</div><div class="itinerary-event-text">Sunset on the lanai, dinner nearby</div></div>`;
+      } else if (arr === 'late') {
+        html += `
+          <div class="itinerary-event"><div class="itinerary-event-time">all day</div><div class="itinerary-event-text">Travel from <strong>GRR</strong> — 4-leg journey via Detroit/Chicago/LAX</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">evening</div><div class="itinerary-event-text">Arrive <strong>${islandName}</strong> after dark, pick up rental, head straight to lodging — no activities tonight</div></div>`;
+      } else {
+        html += `
+          <div class="itinerary-event"><div class="itinerary-event-time">morning</div><div class="itinerary-event-text">Depart <strong>Grand Rapids (GRR)</strong> — 4-leg journey via Detroit/Chicago/LAX</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">afternoon</div><div class="itinerary-event-text">Arrive <strong>${islandName}</strong>, pick up rental car</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">evening</div><div class="itinerary-event-text">Costco run, settle into lodging, sunset on the lanai, early bed</div></div>`;
+      }
     } else if (d.type === 'departure') {
-      html += `
-        <div class="itinerary-event"><div class="itinerary-event-time">morning</div><div class="itinerary-event-text">Pack, breakfast on the lanai one last time</div></div>
-        <div class="itinerary-event"><div class="itinerary-event-time">midday</div><div class="itinerary-event-text">Return rental car, depart for <strong>GRR</strong></div></div>`;
+      const dep = state.trip.departureTime || 'morning';
+      if (dep === 'morning') {
+        html += `
+          <div class="itinerary-event"><div class="itinerary-event-time">early</div><div class="itinerary-event-text">Pack, last breakfast on the lanai</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">morning</div><div class="itinerary-event-text">Return rental car, depart for <strong>GRR</strong></div></div>`;
+      } else if (dep === 'afternoon') {
+        html += `
+          <div class="itinerary-event"><div class="itinerary-event-time">morning</div><div class="itinerary-event-text">One last beach morning, leisurely breakfast, pack</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">midday</div><div class="itinerary-event-text">Return rental car, depart for <strong>GRR</strong></div></div>`;
+      } else {
+        html += `
+          <div class="itinerary-event"><div class="itinerary-event-time">morning</div><div class="itinerary-event-text">Final beach day, light activity, lunch out</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">afternoon</div><div class="itinerary-event-text">Pack, sunset cocktails, dinner</div></div>
+          <div class="itinerary-event"><div class="itinerary-event-time">evening</div><div class="itinerary-event-text">Return rental, depart for <strong>GRR</strong></div></div>`;
+      }
     } else if (d.type === 'transfer') {
       const fromIsland = days[d.dayNum - 2]?.island;
       html += `
@@ -2410,6 +4287,8 @@ function updateAll() {
   updateNavStatus('lodging-kauai', lodgingStatus('kauai'));
   updateNavStatus('lodging-maui', lodgingStatus('maui'));
   updateNavStatus('food', state.food !== null ? `T${state.food}` : null);
+  const priorityCount = (state.priorityActivities || []).length;
+  updateNavStatus('priorities', priorityCount > 0 ? `${priorityCount}/5` : null);
   const activeActs = Object.values(state.activities).filter(t => t !== null && t > 0).length;
   const totalSet = Object.values(state.activities).filter(t => t !== null).length;
   updateNavStatus('activities', totalSet > 0 ? `${activeActs} picked` : null);
@@ -2464,9 +4343,11 @@ function routeToSection(section) {
   else if (section === 'flights') renderFlights();
   else if (section === 'cars') renderCars();
   else if (section === 'misc') renderMisc();
+  else if (section === 'priorities') renderPriorities();
   else if (section === 'itinerary') renderItinerary();
   else if (section === 'summary') renderSummary();
   else if (section === 'notes') renderNotes();
+  else if (section === 'deepdive') renderDeepDive();
 }
 
 function toggleSummaryPanel() {
@@ -2477,11 +4358,12 @@ function toggleSummaryPanel() {
 }
 
 async function saveState() {
-  try { await window.storage.set('hawaii-config-v5', JSON.stringify(state), false); } catch (e) {}
+  try { await window.storage.set('hawaii-config-v6', JSON.stringify(state), false); } catch (e) {}
 }
 async function loadState() {
   try {
-    let result = await window.storage.get('hawaii-config-v5', false);
+    let result = await window.storage.get('hawaii-config-v6', false);
+    if (!result || !result.value) result = await window.storage.get('hawaii-config-v5', false);
     if (!result || !result.value) result = await window.storage.get('hawaii-config-v4', false);
     if (!result || !result.value) result = await window.storage.get('hawaii-config-v3', false);
     if (!result || !result.value) result = await window.storage.get('hawaii-config-v2', false);
@@ -2491,10 +4373,13 @@ async function loadState() {
       ACTIVITIES.forEach(a => { if (!(a.id in state.activities)) state.activities[a.id] = null; });
       EXTRAS.forEach(e => { if (!(e.id in state.extras)) state.extras[e.id] = null; });
       if (!state.activityParticipants) state.activityParticipants = {};
+      if (!state.priorityActivities) state.priorityActivities = [];
       if (state.trip) {
         if (state.trip.departureDate === undefined) state.trip.departureDate = null;
         if (state.trip.visitOrder === undefined) state.trip.visitOrder = null;
         if (state.trip.includeOahu === undefined) state.trip.includeOahu = (state.trip.oahu || 0) > 0;
+        if (state.trip.arrivalTime === undefined) state.trip.arrivalTime = 'mid';
+        if (state.trip.departureTime === undefined) state.trip.departureTime = 'morning';
       }
       // V5 migration: single-tier lodging → multi-stay array
       ['oahu','kauai','maui'].forEach(island => {
@@ -2533,9 +4418,10 @@ async function loadState() {
 function resetAll() {
   if (!confirm('Reset all selections? This cannot be undone.')) return;
   state = {
-    trip: { length: null, oahu: 0, kauai: 0, maui: 0, includeOahu: false, departureDate: null, visitOrder: null },
+    trip: { length: null, oahu: 0, kauai: 0, maui: 0, includeOahu: false, departureDate: null, visitOrder: null, arrivalTime: 'mid', departureTime: 'morning' },
     lodging: { oahu: [], kauai: [], maui: [] },
     food: null, activities: {}, activityParticipants: {},
+    priorityActivities: [],
     flights: { grr: null, inter: null, customGrrCost: null, customInterCost: null },
     cars: { oahu: null, kauai: null, maui: null },
     extras: {},
@@ -3020,8 +4906,16 @@ const NOTES_HTML = `
 
 (async () => {
   await loadState();
-  renderStructure();
-  updateAll();
+  // Load resource library (separate, defensive)
+  loadResourceLibrary();
+  // Check for admin mode via URL hash
+  if (isAdminMode()) {
+    renderAdmin();
+    updateAll();
+  } else {
+    renderStructure();
+    updateAll();
+  }
 })();
 
 </script>
